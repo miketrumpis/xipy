@@ -1,0 +1,240 @@
+import numpy as np
+from nipy.core import api as ni_api
+from nipy.algorithms.resample import resample
+from nipy.core.reference.coordinate_map import reorder_output, reorder_input, \
+     compose #, drop_io_dim
+from scipy import ndimage
+from nutmeg.vis import SAG, COR, AXI
+
+def fix_analyze_image(img, fliplr=False):
+    cmap = img.coordmap
+    if fliplr:
+        x_idx = cmap.output_coords.index('x')
+        cmap.affine[x_idx] *= -1
+    if (len(img.shape) < 4) or img.shape[3] != 1:
+        return img
+    try:
+        from nipy.core.reference.coordinate_map import drop_io_dim
+    except:
+        print 'not fixing this image... NIPY API changed'
+        return img
+    # affine is a 5x5: need to get rid of row 3 and col 3
+    arr = np.asarray(img).reshape(img.shape[:3])
+    cmap = drop_io_dim(cmap, 't')
+    return ni_api.Image(arr, cmap)
+
+def voxel_size(T):
+    T = T[:3,:3]
+    return (T**2).sum(axis=0)**.5
+
+def is_diagonal(T):
+    T = T[:3,:3]
+    vsize = voxel_size(T)
+    return vsize.sum() == np.abs(T.diagonal()).sum()
+
+def limits_to_extents(ax_limits):
+    """Utility to convert a list of [(xmin, xmax), ... ] pairs to rectangular
+    extents (in the Matplotlib AxesImage sense) in SAG, COR, AXI order
+
+    Parameters
+    ----------
+    ax_limits : iterable of pairs
+        3 pairs of (min, max) limits for the SAG, COR, AXI axes
+
+    Returns
+    -------
+    fig_extents : iterable of box extents
+        [ [ umin, umax, vmin, vmax], ... ] for figure coordinates
+    """
+    sag_extents = ax_limits[COR] + ax_limits[AXI]
+    cor_extents = ax_limits[SAG] + ax_limits[AXI]
+    axi_extents = ax_limits[SAG] + ax_limits[COR]
+    return [sag_extents, cor_extents, axi_extents]
+
+def world_limits(img):
+    """Find the limits of an image volume's box in world space, given the voxel
+    to world mapping of the CoordinateMap. The shape of the array is assumed to
+    be given in the same order as the input coordinates of the CoordinateMap,
+    but the returned limits are in xyz order.
+
+    Parameters
+    ----------
+    img : a NIPY Image
+
+    Returns
+    -------
+    a list of 3 2-tuples of the minima/maxima on the x, y, and z axes
+    """
+    T = reorder_output(img.coordmap, 'xyz').affine
+    box = np.zeros((8,3), 'd')
+    adim, bdim, cdim = img.shape
+    # form a collection of vectors for each 8 corners of the box
+    box = np.array([ [0, 0, 0, 1],
+                     [adim, 0, 0, 1],
+                     [0, bdim, 0, 1],
+                     [0, 0, cdim, 1],
+                     [adim, bdim, 0, 1],
+                     [0, 0, cdim, 1],
+                     [adim, 0, cdim, 1],
+                     [0, bdim, cdim, 1],
+                     [adim, bdim, cdim, 1] ]).transpose()
+    box = np.dot(T, box)[:3]
+    box_limits = zip(box.min(axis=-1), box.max(axis=-1))
+    return box_limits
+
+def vox_limits(img):
+    """Find the limits of an image volume's box in its own voxel space--likely
+    defined by the axes of the original scan.
+
+    BUT RETURN IN IJK ORDER OR INPUT COORDINATES ORDER???
+    """
+    T = img.affine
+    Ts = T[:3,:3]
+    # I think this should preserve directionality ultimately.. worry later
+    dv = (Ts**2).sum(axis=0)**.5
+    r0 = T[:3,3]
+    # since 0 = r0 + Ts*v0, find v0 = solve(Ts, -r0)
+    v0 = np.round(np.linalg.solve(Ts, -r0))
+    return [(-v0[i]*dv[i], (img.shape[i]-v0[i])*dv[i]) for i in [0,1,2]]
+
+def maximum_world_distance(limits):
+    """Find the largest distance between corners in the world volume box.
+
+    Paramters
+    ---------
+    limits : the {x,y,z} limits of the world volume box
+
+    Returns
+    -------
+    the distance in mm
+    """
+    coords = []
+    y_limits = limits[1]
+    z_limits = limits[2]
+    for x in limits[0]:
+        for i in [0,1]:
+            for j in [0,1]:
+                coords.append( [x, y_limits[i], z_limits[j]] )
+    coords = np.array(coords)
+    diffs = coords[np.newaxis,:,:] - coords[:,np.newaxis,:]
+    dist = ( (diffs)**2 ).sum(axis=-1)**.5
+    return dist.max()
+    
+def resample_to_world_grid(img, bbox=None, grid_spacing=None):
+    cmap_xyz = reorder_output(img.coordmap, 'xyz')
+    T = cmap_xyz.affine
+    if grid_spacing is None:
+        # find the (i,j,k) voxel sizes, which should be the norm of the columns
+        grid_spacing = list((T[:3,:3]**2).sum(axis=0)**0.5)
+    if bbox is None:
+        # the extent of the rotated image may cover a larger box
+        bbox = world_limits(img)
+
+    box_limits = np.diff(bbox).reshape(3)
+    new_dims = np.ceil(box_limits/grid_spacing).astype('i')
+
+    diag_affine = np.diag(list(grid_spacing) + [1])
+    diag_affine[:3,3] = np.asarray(bbox)[:,0]
+    
+    resamp_affine = ni_api.Affine.from_params('ijk', 'xyz', diag_affine)
+
+    # Doing the mapping this way, we don't have to assume what
+    # the input space of the Image is like (although we still label it "ijk"
+    # in the final resamp_affine)
+    mapping = compose(cmap_xyz, img.coordmap.inverse)
+    #mapping = compose(resamp_affine, mapping1.inverse)
+
+    new_img = resample(img, resamp_affine, mapping.affine, tuple(new_dims))
+##     if hasattr(img._data, 'mask'):
+##         # try to relocate the unmasked points as well???
+##         # maybe it would be best to grow the !mask first
+## ##         vox2vox = compose(resamp_affine.inverse, mapping, img.coordmap)
+## ##         masked_pts = np.logical_not(img._data.mask).nonzero()
+## ##         old_vox = np.array(masked_pts).transpose()
+## ##         unmask_vox = np.round(vox2vox(old_vox)).astype('i')
+## ##         mask = np.ones(new_img.shape, 'B')
+## ##         for (i,j,k) in unmask_vox:
+## ##             mask[i,j,k] = 0
+## ##         new_img._data = np.ma.masked_array(new_img._data, mask=mask)
+##         mimg = ni_api.Image(np.logical_not(img._data.mask).astype('f'),
+##                             img.coordmap)
+##         diag_mask = np.asarray(resample(mimg, resamp_affine,
+##                                          mapping.affine, tuple(new_dims)))
+##         mask = diag_mask < 0.5
+##         fmask = np.logical_not(np.array( [ndimage.binary_fill_holes(1-m) for m in mask] ))
+## ##         new_img._data = np.ma.masked_where(diag_mask < 0.5,
+## ##                                              new_img._data)
+##         o_img_data = np.asarray(new_img)
+##         o_img_cmap = new_img.coordmap
+##         new_img = ni_api.Image(np.ma.masked_array(o_img_data, mask=fmask),
+##                                  o_img_cmap)
+## ##         new_img._data = diag_mask
+
+    return new_img
+
+
+def find_image_threshold(arr, percentile=90., debug=False):
+    bsizes, bpts = np.histogram(arr.flatten(), bins=100)
+    # heuristically, this should show up near the middle of the
+    # second peak of the intensity histogram
+    start_pt = np.abs(bpts - arr.max()/2.).argmin()
+    db = np.diff(bsizes[:start_pt])
+##     zcross = np.argwhere((db[:-1] < 0) & (db[1:] >= 0)).flatten()[0]
+    bval = bsizes[1:start_pt-1][ (db[:-1] < 0) & (db[1:] >= 0) ].min()
+    zcross = np.argwhere(bval==bsizes).flatten()[0]
+    thresh = (bpts[zcross] + bpts[zcross+1])/2.
+    # interpolate the percentile value from the bin edges
+    bin_lo = int(percentile)
+    bin_hi = int(round(percentile + 0.5))
+    p_hi = percentile - bin_lo # proportion of hi bin
+    p_lo = bin_hi - percentile # proportion of lo bin
+##     print bin_hi, bin_lo, p_hi, p_lo
+    pval = bpts[bin_lo] * p_lo + bpts[bin_hi] * p_hi
+    if debug:
+        import matplotlib as mpl
+        import matplotlib.pyplot as pp
+        f = pp.figure()
+        ax = f.add_subplot(111)
+        ax.hist(arr.flatten(), bins=100)
+        l = mpl.lines.Line2D([thresh, thresh], [0, .25*bsizes.max()],
+                             linewidth=2, color='r')
+        ax.add_line(l)
+        ax.xaxis.get_major_formatter().set_scientific(True)
+        f = pp.figure()
+        norm = pp.normalize(0, pval)
+        ax = f.add_subplot(211)
+        plot_arr = arr
+        while len(plot_arr.shape) > 2:
+            plot_arr = plot_arr[plot_arr.shape[0]/2]
+        ax.imshow(plot_arr, norm=norm)
+        ax = f.add_subplot(212)
+        simple_mask = (plot_arr < thresh)
+        ax.imshow(np.ma.masked_array(plot_arr, mask=simple_mask), norm=norm)
+        pp.show()
+    
+    return thresh, pval
+
+def auto_brain_mask(image_arr, negative=False):
+    """ Build a mask function that attempts to segment the brain image
+    from the background image.
+
+    Paramters
+    ---------
+    image_arr : ndarray
+        the array of the volume or plane image
+    negative : bool, optional
+        if negative==True, then return a MaskedArray compatible mask that
+        unmasked the brain
+    Returns
+    -------
+    cc_mask : a binary masking function
+    """
+    thresh, _ = find_image_threshold(image_arr)
+    # define a function where the map f(x,y) = True describes the
+    # largest connected area where the mean image exceeds the threshold
+    fmask = ndimage.binary_fill_holes( image_arr >= thresh )
+    labels, n = ndimage.label(fmask)
+    lsizes = [ (labels==i).sum() for i in xrange(1, n+1) ]
+    max_label = np.argmax(lsizes)+1
+    cc_mask = (labels==max_label)
+    return np.logical_not(cc_mask) if negative else cc_mask

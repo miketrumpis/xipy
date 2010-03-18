@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+import os
+os.environ['ETS_TOOLKIT'] = 'qt4'
+from PyQt4 import QtGui
+import sys
+import optparse
+
+def main():
+
+    usage = 'usage: %prog [options]'
+    
+    op = optparse.OptionParser(usage=usage)
+    op.add_option('-m', '--main-file', dest='image',
+                  help='To be plotted as a base image', type='string')
+    op.add_option('-b', '--beam-file', dest='beam',
+                  help='Nutmeg beam file to use for overlays', type='string')
+    op.add_option('-o', '--overlay-file', dest='overlay',
+                  help='Nifti file to use for overlays', type='string')
+    op.add_option('-f', '--fliplr', dest='fliplr',
+                  help='If MR files are known to be described by an flipped affine transformation',
+                  action='store_true', default=False)
+
+    
+    (opts, args) = op.parse_args()
+
+    # THIS MUST HAPPEN FIRST BEFORE IMPORTING ENTHOUGHT STUFF!!!
+    app = QtGui.QApplication(sys.argv)
+    
+    from nutmeg.vis.ortho_plot_window_qt4 import ortho_viewer
+    win = ortho_viewer(image=opts.image, beam=opts.beam, fliplr=opts.fliplr,
+                       overlay=opts.overlay)
+
+    win.show()
+    sys.exit(app.exec_())
+
+if __name__=='__main__':
+    main()

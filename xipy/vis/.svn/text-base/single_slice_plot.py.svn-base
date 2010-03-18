@@ -1,0 +1,443 @@
+import matplotlib as mpl
+import matplotlib.cm
+from matplotlib.lines import Line2D
+from matplotlib.image import AxesImage
+import numpy as np
+
+now = True
+
+def try_or_pass(default=None):
+    def dec(func):
+        def to_run(*args, **kwargs):
+            try:
+                a = func(*args, **kwargs)
+                if a is not None:
+                    return a
+            except:
+                return default
+        return to_run
+    return dec
+
+class TimeFreqPlaneFigure(object):
+
+    def __init__(self, fig, t_ax, f_ax, blit=False):
+        self.fig = fig
+        self.canvas = fig.canvas
+        self._dummy_array = np.ma.masked_all((len(f_ax)-1, len(t_ax)-1))
+        if not fig.axes:
+            ax = self.fig.add_subplot(111)
+            ax.set_aspect('auto', adjustable='box')
+            ax.set_position([.1, .1, .85, .85])
+        self._cx_id = self.canvas.mpl_connect('button_press_event',
+                                              self.tf_selection_callback)
+        self.set_plane_axes(t_ax, f_ax)
+
+    def set_plane_axes(self, t_ax, f_ax):
+        self.t_ax = t_ax
+        self.f_ax = f_ax
+        self.selected_tf_index = (0,0)
+        self._dummy_array = np.ma.masked_all((len(f_ax)-1, len(t_ax)-1))
+        self.xlim = (t_ax[0], t_ax[-1])
+        self.ylim = (f_ax[0], f_ax[-1])
+    
+    @try_or_pass()
+    def _get_xlim(self):
+        return self.get_axesobj().get_xlim()
+    @try_or_pass()
+    def _set_xlim(self, xlim):
+        self.get_axesobj().set_xlim(xlim)
+        self.draw(save=True)
+    @try_or_pass()
+    def _get_ylim(self):
+        return self.get_axesobj().get_ylim()
+    @try_or_pass()
+    def _set_ylim(self, ylim):
+        self.get_axesobj().set_ylim(ylim)
+        self.draw(save=True)
+    @try_or_pass()
+    def _set_cmap(self, cmap):
+        self.get_tfplane().set_cmap(cmap)
+        self.draw(save=True)
+    @try_or_pass()
+    def _get_cmap(self):
+        return self.get_tfplane().get_cmap()        
+    @try_or_pass()
+    def _set_norm(self, norm):
+        self.get_tfplane().set_norm(norm)
+        self.draw(save=True)
+    @try_or_pass()
+    def _get_norm(self):
+        return self.get_tfplane().norm
+    @try_or_pass()
+    def _set_alpha(self, alpha):
+        self.get_tfplane().set_alpha(alpha)
+        self.draw(save=True)
+    @try_or_pass(default=1)
+    def _get_alpha(self):
+        return self.get_tfplane().get_alpha()
+    xlim = property(_get_xlim, _set_xlim)
+    ylim = property(_get_ylim, _set_ylim)
+    cmap = property(_get_cmap, _set_cmap)
+    norm = property(_get_norm, _set_norm)
+    alpha = property(_get_alpha, _set_alpha)
+
+    def _t_index(self, t):
+        less_than = self.t_ax[self.t_ax <= t]
+        return np.argmax(less_than)
+
+    def _f_index(self, f):
+        less_than = self.f_ax[self.f_ax <= f]
+        return np.argmax(less_than)
+    
+    def get_axesobj(self, num=0):
+        return self.fig.axes[num]
+
+    def get_tfplane(self):
+        ax = self.get_axesobj()
+        return ax.collections[0] if ax.collections else None
+    
+    def get_plane_index(self, t, f):
+        return (self._t_index(t), self._f_index(f))
+
+    def update_tf_plane(self, plane, **kwargs):
+        """Update the entire pcolor plot with the new tf plane "plane". Also
+        potentially updates the tf plane properties.
+        """
+        if plane is None:
+            plane = self._dummy_array
+            plane.mask[self.selected_tf_index] = True
+        # get the tf_plane properties first before clearing collections
+        cmap = kwargs.pop('cmap', self.cmap)
+        alpha = kwargs.pop('alpha', self.alpha)
+        norm = kwargs.pop('norm', self.norm)
+        ax = self.get_axesobj()
+        ax.collections = []
+        pc = ax.pcolor(self.t_ax, self.f_ax, plane,
+                       cmap=cmap, norm=norm, alpha=alpha,
+                       edgecolors='k')
+        try:
+            cax = self.get_axesobj(num=1)
+            self.fig.colorbar(pc, cax=cax, orientation='vertical')
+        except:
+            self.fig.colorbar(pc, ax=ax, orientation='vertical')            
+        self.update_selected_tf(self.selected_tf_index)
+
+    def update_selected_tf(self, index):
+        """Highlight the rectangle at the tf point "index", and update state
+        """
+        ax = self.get_axesobj()
+        p_obj = self.get_tfplane()
+        if p_obj is None:
+            return
+        a = p_obj.get_array().reshape(self._dummy_array.shape)
+        value = a[index]
+        # if another point is plotted, kill it here
+        if len(ax.collections) > 1:
+            ax.collections.pop(1)
+        # restore masking on prev point
+        self._dummy_array.mask[self.selected_tf_index] = True
+        # unmask and set new point
+        self.selected_tf_index = index
+        self._dummy_array.mask[index] = False
+        self._dummy_array[index] = value
+        ax.pcolor(self.t_ax, self.f_ax, self._dummy_array,
+                  edgecolors='r', linewidth=2, cmap=self.cmap,
+                  alpha=1, norm=mpl.colors.normalize(*p_obj.get_clim()))
+        
+        self.xlim = (self.t_ax[0], self.t_ax[-1])
+        self.ylim = (self.f_ax[0], self.f_ax[-1])
+        self.draw(when=now)
+
+    def tf_selection_callback(self, event):
+        if not event.inaxes:
+            return
+        t_index, f_index = self.get_plane_index(event.xdata, event.ydata)
+        self.update_selected_tf((f_index, t_index))
+
+    def clear_plane(self):
+        # clearing the tf_plane in collections will keep the
+        # update_selected_tf() method from going anywhere
+        ax = self.get_axesobj()
+        ax.collections = []
+        self.draw()
+##         state = [c.get_visible() for c in ax.collections]
+##         if any(state):
+##             # just set all to false, but otherwise leave it alone
+##             for c in ax.collections:
+##                 c.set_visible(False)
+##             self.draw()
+
+    def resize(self, x, y):
+        """ x,y are pixel quantities
+        """
+        dpi = self.fig.get_dpi()
+        xi, yi = float(x)/dpi, float(y)/dpi
+        self.fig.set_figsize_inches(xi, yi)
+        self.draw()
+    
+    def draw(self, when=not now, save=False):
+        if when==now:
+            self.canvas.draw()
+        else:
+            self.canvas.draw_idle()
+
+class SliceFigure(object):
+    """ This is a "has-a" class that holds and manages a
+    matplotlib.figure.Figure object with one Axes. The figure will be drawn
+    in some graphical backend that is determined a priori (such that
+    fig.canvas is already a set attribute).
+    """
+    img_num = 0
+    def __init__(self, fig, limits, blit=True, px=0, py=0):
+        self._blit = blit
+        self.fig = fig
+        self.canvas = fig.canvas
+        self.bkgrnd = None
+        self._noblit_list = []
+        self._slice_images = []
+        self.px, self.py = px, py
+        if not fig.axes:
+            ax = self.fig.add_subplot(111, aspect='equal', adjustable='box')
+        else:
+            ax = self.get_axesobj()
+        self.set_limits(limits)
+        self._init_crosshairs(px,py)
+                
+    # not to be confused with Figure.get_axes() which returns a list
+    def get_axesobj(self):
+        # let's say there's only 1 axes in the figure
+        return self.fig.axes[0]
+
+    # axes properties:
+    # xlim, ylim
+    @try_or_pass()
+    def _get_xlim(self):
+        return self.get_axesobj().get_xlim()
+    @try_or_pass()
+    def _set_xlim(self, xlim):
+        ax = self.get_axesobj()
+        ax.set_xlim(xlim)
+        if ax.artists:
+            row_line = ax.artists[0]
+            row_line.set_data(self._crosshairs_data(self.px, self.py)[0])
+        self.draw(save=True)
+    @try_or_pass()
+    def _get_ylim(self):
+        return self.get_axesobj().get_ylim()
+    @try_or_pass()
+    def _set_ylim(self, ylim):
+        ax = self.get_axesobj()
+        ax.set_ylim(ylim)
+        if ax.artists:
+            col_line = ax.artists[1]
+            col_line.set_data(self._crosshairs_data(self.px, self.py)[1])
+        self.draw(save=True)
+
+    xlim = property(_get_xlim, _set_xlim)
+    ylim = property(_get_ylim, _set_ylim)
+
+    def _init_crosshairs(self, px, py):
+        self.px, self.py = px,py
+        row_data, col_data = self._crosshairs_data(px, py)
+        row_line = Line2D(row_data[0], row_data[1],
+                          color="r", linewidth=2.0, alpha=.5)
+        col_line = Line2D(col_data[0], col_data[1],
+                          linewidth=2.0, color="r", alpha=.5)
+        self.crosshairs = (row_line, col_line)
+        ax = self.get_axesobj()
+        ax.add_artist(row_line)
+        ax.add_artist(col_line)
+        self._noblit_list.append(row_line)
+        self._noblit_list.append(col_line)
+
+    def _crosshairs_data(self, px, py):
+        ylim = self.ylim
+        xlim = self.xlim
+        data_wd, data_ht = (xlim[1]-xlim[0], ylim[1]-ylim[0])
+##         row_data = ((px+.5-data_wd/4., px+.5+data_wd/4.), (py-.5, py+.5))
+##         col_data = ((px-.5, px+.5), (py+.5-data_ht/4., py+.5+data_ht/4.))
+        row_data = ((px+.5-data_wd/4., px+.5+data_wd/4.), (py, py))
+        col_data = ((px, px), (py+.5-data_ht/4., py+.5+data_ht/4.))
+        return row_data, col_data
+
+    def _draw_crosshairs(self):
+        if hasattr(self, 'crosshairs') and self._blit:
+            if self.bkgrnd is not None:
+                self.canvas.restore_region(self.bkgrnd)
+            self.get_axesobj().draw_artist(self.crosshairs[0])
+            self.get_axesobj().draw_artist(self.crosshairs[1])
+            self.canvas.blit(self.get_axesobj().bbox)
+        self.draw(when=now)
+            
+    def set_limits(self, lims):
+        self.xlim = lims[:2]
+        self.ylim = lims[2:]
+
+##     def set_image_extent(self, extent):
+##         for im in self._slice_images:
+##             im._extent = extent
+##         self.set_limits(extent[:2], extent[2:])
+    
+    def move_crosshairs(self, px, py):
+        # if event happens outside of axes, px and/or py may be None
+        if px is not None: self.px = px
+        if py is not None: self.py = py
+        row_data, col_data = self._crosshairs_data(self.px, self.py)
+        row_line, col_line = self.crosshairs
+        row_line.set_data(*row_data)
+        col_line.set_data(*col_data)
+        self._draw_crosshairs()
+
+    def toggle_crosshairs_visible(self, mode=True):
+        for line in self.crosshairs:
+            line.set_visible(mode)
+        self.draw(when=now)
+    
+    def spawn_image(self, sl_data, loc=None, **img_kws):
+        ax = self.get_axesobj()
+        ax.hold(True)
+        if 'origin' not in img_kws:
+            img_kws['origin'] = 'lower'
+        if 'extent' not in img_kws:
+            img_kws['extent'] = self.xlim + self.ylim
+        img = AxesImage(ax, **img_kws)
+        ax.images.append(img)
+        s_img = SliceImage(self, img, sl_data)
+        self._slice_images.append(s_img)
+        if loc:
+            self.move_crosshairs(*loc)
+        return s_img
+
+    def pop_image(self, s_img):
+        try:
+            idx = self._slice_images.index(s_img)
+            self._slice_images.pop(idx)
+            self.get_axesobj().images.pop(idx)
+        except:
+            pass
+
+    def set_data(self, slice_list):
+        # be lax if slice_list comes in as a non-nested list of arrays
+        if len(self._slice_images)==1 and type(slice_list) not in (list,tuple):
+            slice_list = [slice_list]
+        for img, data in zip(self._slice_images, slice_list):
+            img.set_data(data)
+
+    def get_imageobj(self, num=-1):
+        if num < 0:
+            num = self._img_num
+        images = self.get_axesobj().images
+        return images[num] if len(images) > num else None
+
+    def _savebbox(self):
+        if not self._blit:
+            return
+        state = [artist.get_visible() for artist in self._noblit_list]
+        if any(state):
+            # should act NOW, but skip this section of the callback
+            for s, artist in zip(state, self._noblit_list):
+                if s:
+                    artist.set_visible(False)
+         
+        self.bkgrnd = self.canvas.copy_from_bbox(self.get_axesobj().bbox)
+        if any(state):
+            for s, artist in zip(state, self._noblit_list):
+                if s:
+                    artist.set_visible(True)
+
+    def draw(self, when=not now, save=False):
+        if save:
+            self._savebbox()
+        if when:
+            # do blocking draw
+            self.canvas.draw()
+        else:
+            self.canvas.draw_idle()
+
+class SliceImage(object):
+    """ This is a fancy container for a MPL AxesImage object, which can
+    change up colormaps, interpolation modes, extents, and color scaling.
+    """
+
+    def __init__(self, fig, img, data):
+        self.fig = fig # parent SliceFigure
+        self.img = img # AxesImage
+        self.data = data # ndarray
+        if len(data.shape) != 2:
+            raise ValueError("data needs to have exactly two dimensions")
+        self._init_plot(data)
+
+    ############### GETTERS AND SETTERS FOR PROPERTIES #########################
+    @try_or_pass()
+    def _set_extent(self, extent):
+        self.img.set_extent(extent)
+##         self.fig.draw(save=True)
+    @try_or_pass()
+    def _get_extent(self):
+        return self.img.get_extent()
+    extent = property(_get_extent, _set_extent)    
+
+    # image properties (can be set by user):
+    # cmap, norm, interpolation, alpha
+    @try_or_pass()
+    def _set_cmap(self, cmap):
+        self.img.set_cmap(cmap)
+        self.fig.draw(save=True)
+    @try_or_pass()
+    def _get_cmap(self):
+        return self.img.get_cmap()        
+    @try_or_pass()
+    def _set_interp(self, interp):
+        self.img.set_interpolation(interp)
+        self.fig.draw(save=True)
+    @try_or_pass()
+    def _get_interp(self):
+        return self.img._interpolation
+    @try_or_pass()
+    def _set_norm(self, norm):
+        self.img.set_norm(norm)
+        self.fig.draw(save=True)
+    @try_or_pass()
+    def _get_norm(self):
+        return self.img.norm
+    @try_or_pass()
+    def _set_alpha(self, alpha):
+        self.img.set_data(self.data)
+        self.img.set_alpha(alpha)
+        self.fig.draw(save=True)
+    @try_or_pass(default=1)
+    def _get_alpha(self):
+        return self.img.get_alpha()
+    cmap = property(_get_cmap, _set_cmap)
+    interp = property(_get_interp, _set_interp)
+    norm = property(_get_norm, _set_norm)
+    alpha = property(_get_alpha, _set_alpha)
+    
+    def _init_plot(self, data):
+        # set all at once, and don't redraw after every change
+        im = self.img
+        im.set_data(data)
+        self.fig.draw(save=True, when=now)
+        self.data = data
+    
+    def set_data(self, data):
+        self.data = data
+        self.img.set_data(data)
+        self.fig.draw(save=True)
+        #self.fig.draw(save=True, when=now)
+
+
+    
+if __name__=='__main__':
+    import sys
+    import matplotlib as mpl
+    try:
+        mpl.use(sys.argv[1])
+    except:
+        mpl.use('Qt4Agg')
+    import matplotlib.figure
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
+    fig = mpl.figure.Figure()
+    fig.canvas = Canvas(fig)
+    sfig = SliceFigure(fig, [-50,50,-50,50])
+    img = sfig.spawn_image(np.random.randn(100,100))

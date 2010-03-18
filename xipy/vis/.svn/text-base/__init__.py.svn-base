@@ -1,0 +1,119 @@
+__docformat__ = 'restructuredtext'
+
+import os
+import numpy as np
+SAG, COR, AXI = 0, 1, 2
+from nipy.core import api as ni_api
+from nipy.neurospin.utils.mask import compute_mask
+
+def transverse_plane_lookup(fig_idx):
+    if fig_idx==SAG:
+        return 1, 2
+    elif fig_idx==COR:
+        return 0, 2
+    elif fig_idx==AXI:
+        return 0, 1
+    raise ValueError('invalid plane index: %d'%fig_idx)
+
+def with_attribute(a):
+    def dec(f):
+        def runner(obj, *args, **kwargs):
+            if not getattr(obj, a, False):
+##                 print 'function %s not available until %s is true'%(f.func_name,
+##                                                                     a)
+                return
+            return f(obj, *args, **kwargs)
+        # copy f's info to runner
+        for attr in ['func_doc', 'func_name']:
+            setattr(runner, attr, getattr(f, attr))
+        return runner
+    return dec
+
+def browse_files(parent, dialog='Select File', wildcard=''):
+    from PyQt4 import QtGui, QtCore
+    fname = QtGui.QFileDialog.getOpenFileName(parent,
+                                              dialog,
+                                              QtCore.QDir.currentPath(),
+                                              wildcard
+                                              )
+    return str(fname)
+
+def browse_multiple_files(parent, dialog='Select File(s)', wildcard=''):
+    from PyQt4 import QtGui, QtCore
+    fnames = QtGui.QFileDialog.getOpenFileNames(parent,
+                                                dialog,
+                                                QtCore.QDir.currentPath(),
+                                                wildcard
+                                                )
+    return [str(fn) for fn in fnames]
+
+def to_masked_array_image(image):
+    if hasattr(image._data, 'mask'):
+        return image
+    img_d = np.asarray(image)
+    m = compute_mask(img_d)
+    return ni_api.Image(np.ma.masked_array(img_d, m), image.coordmap)
+
+def load_image(image, mask=False):
+    from nipy.io.api import load_image as ni_load
+    img = ni_load(image)
+    if mask:
+        img = to_masked_array_image(img)
+    return img
+
+def load_resampled_slicer(image, bbox=None, fliplr=False, mask=False):
+    from nutmeg.vis.image_slicers import ResampledVolumeSlicer
+    if type(image) in (str, unicode):
+        return ResampledVolumeSlicer(load_image(image),
+                                     bbox=bbox,
+                                     mask=mask,
+                                     fliplr=fliplr)
+    elif type(image) is ni_api.Image:
+        return ResampledVolumeSlicer(image,
+                                     bbox=bbox,
+                                     mask=mask,
+                                     fliplr=fliplr)
+    elif type(image) is ResampledVolumeSlicer:
+        return image
+    else:
+        raise ValueError('unknown type for image argument '+str(type(image)))
+
+def load_sampled_slicer(overlay, bbox=None, grid_spacing=None,
+                        mask=False, fliplr=False):
+    from nutmeg.vis.image_slicers import SampledVolumeSlicer
+    if type(overlay) in (str, unicode):
+        return SampledVolumeSlicer(load_image(overlay), bbox=bbox,
+                                   mask=mask,
+                                   grid_spacing=grid_spacing,
+                                   fliplr=fliplr)
+    elif type(overlay) is ni_api.Image:
+        return SampledVolumeSlicer(overlay, bbox=bbox,
+                                   mask=mask,
+                                   grid_spacing=grid_spacing,
+                                   fliplr=fliplr)
+    elif type(overlay) is SampledVolumeSlicer:
+        return overlay
+    else:
+        raise ValueError('unknown type for image argument '+str(type(overlay)))
+
+def load_beam(beam):
+    #from nutmeg.stats import beam_stats as bs
+    from nutmeg.core import tfbeam
+    if type(beam) in (str, unicode):
+        if os.path.splitext(beam)[-1] == '.mat':
+            beam = tfbeam.TFBeam.from_mat_file(beam)
+        elif os.path.splitext(beam)[-1] in ('.npz', '.npy'):
+            beam = tfbeam.TFBeam.from_npy_file(beam)
+        return beam
+    elif type(beam) is tfbeam.TFBeam:
+        return beam
+    else:
+        raise ValueError('beam type not understood: %s'%repr(type(beam)))
+    
+
+class FakeMPLEvent(object):
+    def __init__(self, c, a, x, y):
+        self.canvas = c
+        self.inaxes = a
+        self.xdata = x
+        self.ydata = y

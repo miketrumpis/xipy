@@ -1,0 +1,271 @@
+loading preferences from </Users/mike/.enthought/enthought.mayavi_e3/preferences.ini>
+loading preferences from <<open file '/Users/mike/usr/lib/python2.5/site-packages/enthought/mayavi/preferences/preferences.ini', mode 'rb' at 0x21b39c38>>
+loading preferences from <<open file '/Users/mike/usr/lib/python2.5/site-packages/enthought/tvtk/plugins/scene/preferences.ini', mode 'rb' at 0x21b39c80>>
+UI version is 4.0
+uiname is MainWindow
+toplevel widget is QMainWindow
+setting property geometry
+setting property sizePolicy
+setting property windowTitle
+push QMainWindow MainWindow
+push QWidget centralwidget
+setting property geometry
+setting property autoFillBackground
+setting property tabShape
+Rounded
+setting property currentIndex
+setting property tabsClosable
+push QTabWidget tabWidget
+push QWidget img_tab
+setting property enabled
+setting property geometry
+setting property toolTip
+setting property whatsThis
+setting property title
+setting property flat
+setting property checkable
+push QGroupBox groupBox
+setting property geometry
+push QWidget layoutWidget
+push QVBoxLayout verticalLayout_6
+setting property text
+setting property checked
+push QRadioButton MNIspace_button
+pop widget QRadioButton MNIspace_button
+new topwidget self.layoutWidget
+setting property text
+setting property checked
+push QRadioButton voxspace_button
+pop widget QRadioButton voxspace_button
+new topwidget self.layoutWidget
+pop layout QVBoxLayout verticalLayout_6
+pop widget QWidget layoutWidget
+new topwidget self.groupBox
+pop widget QGroupBox groupBox
+new topwidget self.img_tab
+setting property geometry
+push QWidget layoutWidget1
+push QVBoxLayout verticalLayout_4
+setting property toolTip
+setting property whatsThis
+push QComboBox cmap_box
+pop widget QComboBox cmap_box
+new topwidget self.layoutWidget1
+setting property toolTip
+setting property whatsThis
+push QComboBox interp_box
+pop widget QComboBox interp_box
+new topwidget self.layoutWidget1
+pop layout QVBoxLayout verticalLayout_4
+pop widget QWidget layoutWidget1
+new topwidget self.img_tab
+pop widget QWidget img_tab
+new topwidget self.tabWidget
+push QWidget over_tab
+setting property geometry
+setting property text
+push QLabel label
+pop widget QLabel label
+new topwidget self.over_tab
+setting property geometry
+setting property toolTip
+setting property whatsThis
+setting property maximum
+setting property singleStep
+setting property value
+setting property orientation
+Horizontal
+push QSlider o_alpha_slider
+pop widget QSlider o_alpha_slider
+new topwidget self.over_tab
+setting property geometry
+push QWidget layoutWidget2
+push QVBoxLayout verticalLayout_2
+setting property toolTip
+setting property whatsThis
+push QComboBox o_cmap_box
+pop widget QComboBox o_cmap_box
+new topwidget self.layoutWidget2
+setting property toolTip
+setting property whatsThis
+push QComboBox o_interp_box
+pop widget QComboBox o_interp_box
+new topwidget self.layoutWidget2
+pop layout QVBoxLayout verticalLayout_2
+pop widget QWidget layoutWidget2
+new topwidget self.over_tab
+pop widget QWidget over_tab
+new topwidget self.tabWidget
+pop widget QTabWidget tabWidget
+new topwidget self.centralwidget
+setting property geometry
+push QWidget layoutWidget3
+push QVBoxLayout verticalLayout_7
+push QHBoxLayout horizontalLayout_5
+push QVBoxLayout verticalLayout_3
+setting property text
+push QLabel label_3
+pop widget QLabel label_3
+new topwidget self.layoutWidget3
+setting property text
+push QLabel label_4
+pop widget QLabel label_4
+new topwidget self.layoutWidget3
+setting property text
+push QLabel label_5
+pop widget QLabel label_5
+new topwidget self.layoutWidget3
+pop layout QVBoxLayout verticalLayout_3
+push QHBoxLayout horizontalLayout_2
+push QVBoxLayout verticalLayout
+setting property minimumSize
+setting property orientation
+Horizontal
+setting property tickPosition
+TicksBelow
+push QSlider sag_slider
+pop widget QSlider sag_slider
+new topwidget self.layoutWidget3
+setting property orientation
+Horizontal
+setting property tickPosition
+TicksBelow
+push QSlider cor_slider
+pop widget QSlider cor_slider
+new topwidget self.layoutWidget3
+setting property minimumSize
+setting property orientation
+Horizontal
+setting property tickPosition
+TicksBelow
+push QSlider axi_slider
+pop widget QSlider axi_slider
+new topwidget self.layoutWidget3
+pop layout QVBoxLayout verticalLayout
+pop layout QHBoxLayout horizontalLayout_2
+pop layout QHBoxLayout horizontalLayout_5
+push QGridLayout gridLayout
+push QHBoxLayout horizontalLayout_6
+setting property alignment
+AlignCenter
+setting property buttonSymbols
+UpDownArrows
+push QDoubleSpinBox sag_spinner
+pop widget QDoubleSpinBox sag_spinner
+new topwidget self.layoutWidget3
+setting property alignment
+AlignCenter
+push QDoubleSpinBox cor_spinner
+pop widget QDoubleSpinBox cor_spinner
+new topwidget self.layoutWidget3
+setting property alignment
+AlignCenter
+push QDoubleSpinBox axi_spinner
+pop widget QDoubleSpinBox axi_spinner
+new topwidget self.layoutWidget3
+pop layout QHBoxLayout horizontalLayout_6
+setting property text
+setting property alignment
+AlignCenter
+push QLabel label_6
+pop widget QLabel label_6
+new topwidget self.layoutWidget3
+setting property text
+setting property alignment
+AlignCenter
+push QLabel label_7
+pop widget QLabel label_7
+new topwidget self.layoutWidget3
+setting property autoFillBackground
+setting property text
+setting property alignment
+AlignCenter
+push QLabel label_8
+pop widget QLabel label_8
+new topwidget self.layoutWidget3
+pop layout QGridLayout gridLayout
+pop layout QVBoxLayout verticalLayout_7
+pop widget QWidget layoutWidget3
+new topwidget self.centralwidget
+setting property geometry
+setting property title
+push QGroupBox groupBox_2
+setting property geometry
+setting property text
+push QLabel xyz_label
+pop widget QLabel xyz_label
+new topwidget self.groupBox_2
+setting property geometry
+setting property text
+push QLabel vox_label
+pop widget QLabel vox_label
+new topwidget self.groupBox_2
+setting property geometry
+setting property text
+push QLabel over_vox_label
+pop widget QLabel over_vox_label
+new topwidget self.groupBox_2
+pop widget QGroupBox groupBox_2
+new topwidget self.centralwidget
+resolved baseclass of MplQT4OrthoSlicesWidget: QtGui.QWidget
+setting property geometry
+setting property sizePolicy
+push MplQT4OrthoSlicesWidget ortho_figs_widget
+pop widget MplQT4OrthoSlicesWidget ortho_figs_widget
+new topwidget self.centralwidget
+setting property geometry
+push QWidget layoutWidget4
+push QVBoxLayout verticalLayout_5
+setting property text
+push QLabel label_2
+pop widget QLabel label_2
+new topwidget self.layoutWidget4
+setting property sizePolicy
+setting property iconSize
+push QComboBox zoom_box
+pop widget QComboBox zoom_box
+new topwidget self.layoutWidget4
+pop layout QVBoxLayout verticalLayout_5
+pop widget QWidget layoutWidget4
+new topwidget self.centralwidget
+pop widget QWidget centralwidget
+new topwidget MainWindow
+setting property geometry
+push QMenuBar menubar
+setting property title
+push QMenu menuLoad_Image
+pop widget QMenu menuLoad_Image
+new topwidget self.menubar
+setting property title
+push QMenu menuView
+pop widget QMenu menuView
+new topwidget self.menubar
+setting property title
+push QMenu menuTools
+pop widget QMenu menuTools
+new topwidget self.menubar
+pop widget QMenuBar menubar
+new topwidget MainWindow
+push QStatusBar statusbar
+pop widget QStatusBar statusbar
+new topwidget MainWindow
+setting property text
+setting property text
+setting property text
+setting property text
+setting property checkable
+setting property checked
+setting property text
+setting property checkable
+setting property checked
+setting property text
+setting property text
+pop widget QMainWindow MainWindow
+new topwidget None
+add action actionLoad_MR_File to menuLoad_Image
+add action actionLoad_Beam_File to menuLoad_Image
+add action actionLoad_Overlay_Image to menuLoad_Image
+add action actionUnload_Overlay to menuLoad_Image
+add action menuLoad_Image to menubar
+add action menuView to menubar
+add action menuTools to menubar

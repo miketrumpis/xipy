@@ -1,0 +1,265 @@
+import os
+os.environ['ETS_TOOLKIT'] = 'qt4'
+
+import numpy as np
+from numpy.lib.index_tricks import unravel_index
+
+import matplotlib as mpl
+
+from enthought.traits.api \
+    import HasTraits, HasPrivateTraits, Instance, Enum, Dict, Constant, Str, \
+    List, on_trait_change, Float, File, Array, Button, Range, Property, \
+    cached_property, Event, Bool, Tuple, Int
+    
+from enthought.traits.ui.api \
+    import Item, Group, View, VGroup, HGroup, HSplit, \
+    EnumEditor, CheckListEditor, ListEditor, message, ButtonEditor, \
+    RangeEditor, Include
+
+from enthought.traits.ui.file_dialog import open_file
+
+from nutmeg.vis import browse_files, load_beam
+from nutmeg.vis.image_slicers import SampledVolumeSlicer, ResampledVolumeSlicer
+from nutmeg.vis.volume_utils import maximum_world_distance
+from nutmeg.core.beam import signal_array_to_masked_vol
+from nutmeg.core import tfbeam
+from nutmeg.stats import stats_utils
+from nipy.core import api as ni_api
+from nipy.core.reference.coordinate_map import compose
+
+
+fill_values = {
+    'F dB': 0,
+    'F raw': 1,
+    'T test': 0,
+    'p val pos (corr)': 1,
+    'p val pos (uncorr)' : 1,
+    'p val neg (corr)' : 1,
+    'p val neg (uncorr)' : 1,
+    }
+
+class StatsBeamList( HasTraits ):
+##     all_thresh_types = List([
+##         'None',
+##         'Power',
+##         'T test',
+##         'p val pos (corr)',
+##         'p val pos (uncorr)',
+##         'p val neg (corr)',
+##         'p val neg (uncorr)',
+##         ])
+    all_thresh_types = List( ['None', 'Overlay', 'Combo'] + \
+                             stats_utils.all_tfstats_maps )
+    
+    thresholds = List
+    arrays = {}
+    _simple_threshold_arr = Array
+    #_simple_threshold_arr = Property
+    available_arrays = List
+    array_types = Enum(values='all_thresh_types')
+
+    tbutton = Button('Make New Threshold')
+    btext = Property(depends_on='array_types')
+    _btext = Str('Load')
+    lbutton = Event
+    stats_mask = Array(dtype='B')
+    _mask_type = Str
+
+    clear_button = Button('Clear Treshold Mask')
+
+##     from nutmeg.vis.tfbeam_manager import SignalBeamManager
+    bman = Instance('nutmeg.vis.tfbeam_manager.SignalBeamManager', adapt='yes')
+    
+    def __init__(self, **traits):
+        #self.bman = signal_beam_manager
+##         traits['bman'] = signal_beam_manager
+        HasTraits.__init__(self, **traits)
+##         self.sync_trait('_simple_threshold_arr', self.bman,
+##                         alias='beam_sig', mutual=False)
+##         self.arrays['Overlay'] = self._simple_threshold_arr
+##         self.available_arrays.append('Overlay')
+        
+##         self.arrays = {}
+##         self.arrays = dict(((ttype, np.random.randn(5))
+##                             for ttype in all_thresh_types))
+
+    @on_trait_change('bman')
+    def _sync_bman_traits(self):
+        self.sync_trait('available_arrays', self.bman,
+                        alias='_stats_maps')
+        self._update_simple_arr()
+    
+    @on_trait_change('bman.transforms') #, bman.beam_sig')
+    def _update_simple_arr(self):
+        self.arrays['Overlay'] = self.bman.beam_sig
+        if 'Overlay' not in self.available_arrays:
+            self.available_arrays.append('Overlay')
+        # this is just to prevent a KeyError.. 
+        self.bman.stats_map_arrays['Overlay'] = self.bman.beam_sig
+
+    def _stats_mask_default(self):
+        return np.array([1], dtype='B')
+
+    def _get_btext(self):
+##         print self.array_types.strip('*'), self.array_types.strip('*') in self.available_arrays
+        if self.array_types.strip('*') in self.available_arrays:
+            self._btext = 'Reload'
+        else:
+            self._btext = 'Load'
+        return self._btext
+    
+    def _lbutton_fired(self):
+        if self.array_types in ('None', 'Overlay'):
+            return
+##         print self.array_types.strip('*'), self.arrays.has_key(self.array_types.strip('*'))
+##         try:
+        f = browse_files(None, dialog='Select File',
+                         wildcard='*.mat *.npy *.npz')
+        if not f:
+            return
+        atype = self.array_types.strip('*')
+        if atype == 'Combo':
+            sdict = stats_utils.split_combo_tfstats_file(f)
+            for name, beam in sdict.iteritems():
+                self.insert_threshold_array(name, beam)
+            return
+        beam = load_beam(f)
+        self.insert_threshold_array(atype, beam)
+
+
+    def _tbutton_fired(self):
+        atype = self.array_types.strip('*')
+        if not self.arrays.has_key(atype):
+            message('Beam not yet loaded for %s'%atype)
+            return
+        self.thresholds.append( ThresholdMask(ttype=atype) )
+
+    def _clear_button_fired(self):
+        self.stats_mask = self._stats_mask_default()
+        self.bman.threshold = (0.0, 'inactive')
+
+    @on_trait_change('thresholds[]')
+    def _handle_threshold_list(self, name, added):
+        for t in added:
+            t.blist = self
+        tnames = [t.ttype for t in self.thresholds]
+        if self._mask_type and self._mask_type not in tnames:
+            print 'clearing', self._mask_type, 'mask', tnames
+            self._clear_button_fired()
+
+    @on_trait_change('stats_mask')
+    def _new_mask(self):
+        print 'setting beam manager mask from stats list'
+        self.bman.beam_mask = self.stats_mask
+
+    def set_mask(self, label, mask):
+        self._mask_type = label
+        self.stats_mask = mask
+
+    def insert_threshold_array(self, atype, beam):
+        self.arrays[atype] = beam.s
+        self.bman.stats_map_arrays[atype] = beam.s
+        if atype not in self.available_arrays:
+            self.available_arrays.append(atype)
+            i = self.all_thresh_types.index(atype)
+            self.all_thresh_types[i] = atype + '*'
+            self.array_types = self.all_thresh_types[i]
+            
+    view_group = VGroup(
+        HGroup(Item('array_types', label='Beams'),
+               Item('lbutton', show_label=False,
+                    editor=ButtonEditor(label_value='btext')),
+               Item('tbutton', show_label=False),
+               Item('clear_button', show_label=False)),
+        HGroup(Item('thresholds', style='custom',
+                    editor=ListEditor(use_notebook=True,
+                                      deletable=True,
+                                      page_name = '.ttype'))),
+        )
+
+    view = View(
+        view_group,
+        resizable=True,
+        title='Stats List'
+        )
+
+class ThresholdMask ( HasTraits ):
+    """ A ThresholdMask creates an array mask based on a particular kind
+    of threshold criterion
+    """
+
+    blist = Instance(StatsBeamList)
+    #ttype = Enum(*all_thresh_types)
+    ttype = Str
+##     ttype = Instance(Enum)
+    tval = Range(low='min_t', high='max_t',
+                 editor=RangeEditor(low_name='min_t', high_name='max_t',
+                                    low_label='min_t_label',
+                                    high_label='max_t_label',
+                                    format='%1.2f'))
+    #tval = Range(0.0, 150.0)
+    comp = Enum('greater than', 'less than')
+    available_beams = Property(depends_on='blist.available_arrays')
+    max_t = Property(depends_on='ttype')
+    max_t_label = Property(depends_on='ttype')
+    min_t = Property(depends_on='ttype')
+    min_t_label = Property(depends_on='ttype')
+    mask = Property(depends_on='ttype, tval, comp')
+    mask_button = Button('Apply Mask')
+
+    def __init__(self, **traits):
+        HasTraits.__init__(self, **traits)
+    
+    view = View(
+        VGroup(
+            HGroup(
+                Item('ttype',
+                     #editor=EnumEditor(name='object.blist.available_arrays'),
+                     editor=EnumEditor(name='available_beams'),
+                     label='Threshold Type' ),
+                Item('comp', label='Comparison'),
+                Item('mask_button', show_label=False)
+            ),
+                Item('tval', style='custom', label='Threshold Value'),
+            )
+        )
+    @cached_property
+    def _get_max_t(self):
+        mx = self.blist.arrays[self.ttype].max()
+##         print 'truncating from',mx,'to', int(1000*mx)/1000.0
+        return int(1000*mx)/1000.0
+    @cached_property
+    def _get_max_t_label(self):
+        return '%1.2f'%self.max_t
+    @cached_property
+    def _get_min_t(self):
+        mn = self.blist.arrays[self.ttype].min()
+##         print 'truncating from',mn,'to', int(1000*mn)/1000.0
+        return int(1000*mn)/1000.0
+    @cached_property
+    def _get_min_t_label(self):
+        return '%1.2f'%self.min_t
+    @cached_property
+    def _get_mask(self):
+        """ Create a negative mask of the beam signal--unmasked values
+        are marked False (same as MaskedArray convention)
+        """
+        if self.comp=='greater than':
+            # mask==True for all vals less than or equal to threshold
+            return (self.blist.arrays[self.ttype] <= self.tval)
+        else:
+            # mask==True for all vals greater than or equal to threshold
+            return (self.blist.arrays[self.ttype] >= self.tval)
+    def _get_available_beams(self):
+        return self.blist.available_arrays
+
+    def _mask_button_fired(self):
+        print 'calling set_mask to stats beam list'
+        print 'in',self.ttype,'array:',self.comp,self.tval,':',np.logical_not(self.mask).sum()
+        self.blist.set_mask(self.ttype, self.mask)
+        # additionally, if this is a simple mask, then set the threshold prop
+        # of self.blist.bman
+        if self.ttype == 'Overlay':
+            self.blist.bman.threshold = (self.tval, self.comp)
+##         self.blist.stats_mask = self.mask
+##         return self.mask
