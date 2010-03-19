@@ -451,8 +451,10 @@ class OrthoView3D(HasTraits):
         # plot anatomical with functional blended
         # plot functional only (needs to blend into a zero-alpha anatomical)
         
-        main_dr = self.anat_image.grid_spacing
-        main_r0 = np.array(self.anat_image.bbox)[:,0]
+        # the bytes arrays have been transposed, so reflect this
+        # in the grid orientation specs
+        main_dr = self.anat_image.grid_spacing[::-1]
+        main_r0 = np.array(self.anat_image.bbox)[::-1,0]
         t0 = time.time()
         print 'setting scalar data to anat bytes ',
         self._blended_src_scalars[:] = self._anat_rgba_bytes
@@ -463,8 +465,8 @@ class OrthoView3D(HasTraits):
             print 'blending in functional bytes ',
             if not self.show_anat:
                 self._blended_src_scalars[...,3] = 0
-            over_dr = self.func_man.overlay.grid_spacing
-            over_r0 = np.array(self.func_man.overlay.bbox)[:,0]
+            over_dr = self.func_man.overlay.grid_spacing[::-1]
+            over_r0 = np.array(self.func_man.overlay.bbox)[::-1,0]
             over_bytes = self._over_rgba_bytes
             blended = rgba_blending.resample_and_blend(
                 self._blended_src_scalars, main_dr, main_r0,

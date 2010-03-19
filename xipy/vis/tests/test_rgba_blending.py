@@ -57,21 +57,63 @@ def simple_resample_test():
     yield assert_true, len(filter(lambda x: (x[0]==x[1]).all(),
                                   zip(nz_g,nz_b)))==3
 
-    main_nz_vox = np.array( nz_r ).T
-    over_vox_from_main_vox = ni_api.compose(
-        ni_api.Affine.from_start_step('ijk', 'xyz', over_r0, over_dr).inverse,
-        ni_api.Affine.from_start_step('ijk', 'xyz', main_r0, main_dr)
-        )
-    over_nz_vox = over_vox_from_main_vox(main_nz_vox).astype('i')
+    yield assert_true, are_blended_voxels_aligned(blended_block, main_dr,
+                                                  main_r0, over_block,
+                                                  over_dr, over_r0)
+
+def are_blended_voxels_aligned(blended, main_dr, main_r0,
+                               over_arr, over_dr, over_r0):
+    """Tests that the over_arr was mixed into blended in the correct
+    voxels, given the spacing and offset parameters.
+    
+    NOTE: It is assumed that the blended array was zero everywhere before
+    blending, making any nonzero elements the contribution of over_arr
+    """
+    main_map = ni_api.Affine.from_start_step('ijk', 'xyz', main_r0, main_dr)
+    over_map = ni_api.Affine.from_start_step('ijk', 'xyz', over_r0, over_dr)
+    over_vox_from_main_vox = ni_api.compose(over_map.inverse, main_map)
+    #checking the red component
+    main_nz_vox = np.array( blended[...,0].nonzero() ).T
+    over_nz_vox = over_vox_from_main_vox(main_nz_vox)
+    over_nz_vox = over_nz_vox[(over_nz_vox >= 0).all(axis=-1)]
+    max_idx = np.array(over_arr.shape[:3])
+    over_nz_vox = over_nz_vox[(over_nz_vox < max_idx).all(axis=-1)].astype('i')
     # check that in fact the nonzero components from the main blended
     # image are the nonzero components from the overlay image..
     # this mask is False at all over_nz_vox
     mask = np.ma.getmask(vu.signal_array_to_masked_vol(
         np.empty(len(over_nz_vox)), over_nz_vox
         ))
-    # where the mask is True should be 0
-    yield assert_false, over_block[...,0][mask].any()
+    # where the mask is True should be 0 -- well, not so if part of the
+    # over array lies outside of the under array. Then there are regions
+    # where the over array does not blend!
+##     none_outside = not over_arr[...,0][mask].any()
+
     # where the mask is False should be != 0
-    yield assert_true, over_block[...,0][np.logical_not(mask)].all()
+    all_inside = over_arr[...,0][np.logical_not(mask)].all()
+    return all_inside
+    
+def test_corner_cases():
+    blended_block = np.zeros((10,10,10,4), 'B')
+    over_block = np.ones((4,4,4,4), 'B')*255
+    # the main bbox is [ (-5,5) x 3 ]
+    main_dr = np.ones(3); main_r0 = np.array( [-5.]*3 )
+    # the over bbox is [ (2,6) x 3], so only the (2,5) will blend
+    over_dr = np.ones(3); over_r0 = np.array( [2.]*3 )
 
+    blending.resample_and_blend(blended_block, main_dr, main_r0,
+                                over_block, over_dr, over_r0)
+    
+    yield assert_true, are_blended_voxels_aligned(blended_block, main_dr,
+                                                  main_r0, over_block,
+                                                  over_dr, over_r0)
 
+    over_block[:] = 0
+    blended_block[:] = 255
+    blending.resample_and_blend(over_block, over_dr, over_r0,
+                                blended_block, main_dr, main_r0)
+    
+    yield assert_true, are_blended_voxels_aligned(over_block, over_dr,
+                                                  over_r0, blended_block,
+                                                  main_dr, main_r0)
+    
