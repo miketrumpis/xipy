@@ -32,11 +32,11 @@ def blend_two_images(base_img, base_cmap, base_alpha,
     base_bytes = normalize_and_map(base_img.image_arr, base_cmap,
                                    alpha=base_alpha)
     base_spacing = base_img.grid_spacing
-    base_origin = base_img.coordmap.affine[:3,-1]
+    base_origin = np.array(base_img.bbox)[:,0]
     over_bytes = normalize_and_map(over_img.image_arr, over_cmap,
                                    alpha=over_alpha)
     over_spacing = over_img.grid_spacing
-    over_origin = over_img.coordmap.affine[:3,-1]
+    over_origin = np.array(over_img.bbox)[:,0]
     resample_and_blend(base_bytes, base_spacing, base_origin,
                        over_bytes, over_spacing, over_origin)
     return base_bytes
@@ -147,8 +147,11 @@ opb = (unsigned) over_arr(ii,jj,kk,2); opa = (unsigned) over_arr(ii,jj,kk,3);
 base_arr(i,j,k,0) = (((opr-bpr)*opa + (bpr<<8))>>8);
 base_arr(i,j,k,1) = (((opg-bpg)*opa + (bpg<<8))>>8);
 base_arr(i,j,k,2) = (((opb-bpb)*opa + (bpb<<8))>>8);
-base_arr(i,j,k,3) = ((opa+bpa) - ((opa*bpa + 255) >> 8));
-} 
+//base_arr(i,j,k,3) = ((opa+bpa) - ((opa*bpa + 255) >> 8));
+}
+//else {
+//std::cout<<"skipping voxel "<<i<<","<<j<<","<<k<<std::endl;
+//}
 }
 }
 }

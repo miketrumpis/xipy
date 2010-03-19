@@ -31,6 +31,5 @@ def all_registered_plugins():
     return _registry.items()
 
 # register XIPY plugin(s)
-print 'creating registry and populating with XIPY plugins'
 from xipy.overlay.image_overlay import ImageOverlayWindow
 register_overlay_plugin('Image Overlay', ImageOverlayWindow)
