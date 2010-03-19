@@ -557,7 +557,7 @@ class OrthoView3D(HasTraits):
             HGroup(
                 Item('scene',
                      editor=SceneEditor(scene_class=MayaviScene),
-                     height=250, width=300),
+                     height=450, width=300),
                 show_labels=False,
                 dock='vertical'
                 ),
