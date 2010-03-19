@@ -19,7 +19,6 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import cm
 
-from nutmeg.vis import *
 from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
      VolumeSlicerInterface
 from xipy.overlay import OverlayInterface
