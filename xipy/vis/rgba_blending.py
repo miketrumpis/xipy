@@ -147,8 +147,11 @@ opb = (unsigned) over_arr(ii,jj,kk,2); opa = (unsigned) over_arr(ii,jj,kk,3);
 base_arr(i,j,k,0) = (((opr-bpr)*opa + (bpr<<8))>>8);
 base_arr(i,j,k,1) = (((opg-bpg)*opa + (bpg<<8))>>8);
 base_arr(i,j,k,2) = (((opb-bpb)*opa + (bpb<<8))>>8);
-base_arr(i,j,k,3) = ((opa+bpa) - ((opa*bpa + 255) >> 8));
-} 
+//base_arr(i,j,k,3) = ((opa+bpa) - ((opa*bpa + 255) >> 8));
+}
+//else {
+//std::cout<<"skipping voxel "<<i<<","<<j<<","<<k<<std::endl;
+//}
 }
 }
 }
