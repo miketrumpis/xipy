@@ -9,20 +9,28 @@ import sys
 if QtGui.QApplication.startingUp():
     app = QtGui.QApplication(sys.argv)
 else:
-    app = QtGui.QApplication.instance() 
+    app = QtGui.QApplication.instance()
+
+mainwin = QtGui.QMainWindow()
 
 anat = load_resampled_slicer(TEMPLATE_MRI_PATH)
 func = load_resampled_slicer('map_img.nii')
 
 func_man = ImageOverlayManager(anat.bbox, overlay=func)
 
-win = mayavi_widgets.MayaviWidget(functional_manager=func_man)
+win = mayavi_widgets.MayaviWidget(parent=mainwin, functional_manager=func_man)
 win.mr_vis.anat_image = anat
 
 my_track_file = '/Users/mike/workywork/dipy-vis/brain1/brain1_scan1_fiber_track_mni.trk'
 from mini_track_control import mini_track_feature
 mf = mini_track_feature(my_track_file, win.mr_vis)
 
-win.show()
+
+## SOME QT4 SETUP
+mainwin.setCentralWidget(win)
+dock = QtGui.QDockWidget("Track Tool", mainwin)
+dock.setWidget(mf.edit_traits(kind='subpanel', parent=dock).control)
+mainwin.addDockWidget(QtCore.Qt.BottomDockWidgetArea, dock)
+mainwin.show()
 app.exec_()
-mf.edit_traits()
+## mf.edit_traits()
