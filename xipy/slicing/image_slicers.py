@@ -47,7 +47,7 @@ class VolumeSlicerInterface(object):
         Parameters
         ----------
         ax : int
-            axis label in {SAG, COR, AXI} (defined in nutmeg.vis)
+            axis label in {SAG, COR, AXI} (defined in xipy.slicing)
         coord : float
             coordinate value along this axis
             
@@ -248,7 +248,7 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         Parameters
         ----------
         ax : int
-            axis label in {SAG, COR, AXI} (defined in nutmeg.vis)
+            axis label in {SAG, COR, AXI} (defined in xipy.slicing)
         coord : float
             coordinate value along this axis
         interp_kw : dict

@@ -1,11 +1,8 @@
-
-# DIPY stuff
 import get_tracks
 import plane_intersection
 import xipy_fos
 import enthought.traits.api as t_api
 import enthought.traits.ui.api as tui_api
-my_track_file = '/Users/mike/workywork/dipy-vis/brain1/brain1_scan1_fiber_track_mni.trk'
 
 class mini_track_feature(t_api.HasTraits):
 
@@ -17,18 +14,14 @@ class mini_track_feature(t_api.HasTraits):
     def __init__(self, tracks, mwin, **traits):
         t_api.HasTraits.__init__(self, **traits)
         if type(tracks) is str:
-            print 'getting tracks from file'
             self.tracks = get_tracks.load_reduce_translate(
-                my_track_file, reduction=10
+                tracks, reduction=10
                 )
         elif type(tracks) is list:
-            print 'getting tracks from list'
             self.tracks = tracks
         else:
             raise ValueError("don't know what to do with tracks!")
-        print 'getting colors'
         self.colors = get_tracks.simple_directional_colors(self.tracks)
-        print 'done'
         self.track_lines = None
         self.mayavi_win = mwin
         self.add_trait('plane', t_api.Enum(*mwin._axis_index.keys()))

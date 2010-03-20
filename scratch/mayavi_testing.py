@@ -19,9 +19,10 @@ func_man = ImageOverlayManager(anat.bbox, overlay=func)
 win = mayavi_widgets.MayaviWidget(functional_manager=func_man)
 win.mr_vis.anat_image = anat
 
+my_track_file = '/Users/mike/workywork/dipy-vis/brain1/brain1_scan1_fiber_track_mni.trk'
 from mini_track_control import mini_track_feature
-mf = mini_track_feature(my_track_file, mayavi_win=win.mr_vis)
-mf.edit_traits()
+mf = mini_track_feature(my_track_file, win.mr_vis)
 
 win.show()
 app.exec_()
+mf.edit_traits()

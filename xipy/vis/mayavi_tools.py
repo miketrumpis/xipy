@@ -145,7 +145,7 @@ image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
 
 if __name__ == '__main__':
-    from nutmeg.vis import rgba_blending
+    from xipy.vis import rgba_blending
     from matplotlib import cm
     from enthought.mayavi import mlab
 

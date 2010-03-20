@@ -2,6 +2,14 @@
 import sys
 from glob import glob
 from distutils.cmd import Command
+import numpy as np
+# we use cython to compile the module if we have it
+try:
+    import Cython
+except ImportError:
+    has_cython = False
+else:
+    has_cython = True
 
 def configuration(parent_package='', top_path=None):
     from numpy.distutils.misc_util import Configuration
@@ -34,6 +42,14 @@ from numpy.distutils.command.build_ext import build_ext
 
 cmdclass = dict(build_ext=build_ext)
 
+# Construct the Cython extension
+from build_helpers import make_cython_ext
+pix_ext, cmdclass = make_cython_ext(
+    'xipy.vis._blend_pix',
+    has_cython,
+    include_dirs = [np.get_include()])
+
+
 def main(**extra_args):
     from numpy.distutils.core import setup
     setup(name = 'xipy',
@@ -44,6 +60,7 @@ def main(**extra_args):
           long_description = '',
           configuration=configuration,
           cmdclass=cmdclass,
+          ext_modules=[pix_ext],
           scripts=glob('scripts/*.py'),
           **extra_args)
 
