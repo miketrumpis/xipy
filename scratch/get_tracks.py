@@ -29,7 +29,8 @@ def load_reduce_translate(fname, reduction=1):
     print 'loaded,',
     sys.stdout.flush()
 
-    ras = tv.get_affine(hdr)
+    #ras = tv.get_affine(hdr)
+    ras = tv.aff_from_hdr(hdr)
     if not ras[:3,-1].any():
         # dot(ras[:3,:3],md_vox) + t = (0,0,0) --> t = -dot(ras[:3,:3],md_vox)
         md_vox = hdr['dim']/2
@@ -80,7 +81,7 @@ def simple_directional_colors(tracks):
     the absolute value of all coordinates, and normalizing relative to the
     maximal coordinates among all track orientations.
 
-    Paramters
+    Parameters
     ---------
     tracks : a list of track lines
 

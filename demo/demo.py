@@ -12,7 +12,7 @@ else:
     app = QtGui.QApplication.instance() 
 
 anat = load_resampled_slicer(TEMPLATE_MRI_PATH)
-func = load_resampled_slicer('/home/eg309/Data/Eleftherios/Series_003_CBU_DTI_64D_iso_1000/dtk_dti_out/dti_fa.nii')
+func = load_resampled_slicer('/home/eg01/Data/Eleftherios/Series_003_CBU_DTI_64D_iso_1000/dtk_dti_out/dti_fa.nii')
 
 func_man = ImageOverlayManager(anat.bbox, overlay=func)
 
