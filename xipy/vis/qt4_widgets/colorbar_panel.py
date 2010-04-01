@@ -4,7 +4,8 @@ from PyQt4 import QtGui, QtCore
 import matplotlib as mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
 from matplotlib.figure import Figure
-import matplotlib.cm as cm
+## import matplotlib.cm as cm
+import xipy.vis.color_mapping as cm
 
 # XYZ: SUCKY CLASS NEEDS SERIOUS WORK
 
@@ -27,7 +28,7 @@ class ColorbarPanel(QtGui.QWidget):
         self.fig.canvas.draw_idle()
 
     def _create_colorbar(self, cmap, norm):
-        cmap = cmap or mpl.cm.gray
+        cmap = cmap or cm.gray
         norm = norm or mpl.colors.normalize(0,0)
         ticks = np.linspace(norm.vmin, norm.vmax, 7)
         self.ax.clear()
@@ -69,8 +70,8 @@ class ColorbarPanel(QtGui.QWidget):
             self.fig.canvas.draw_idle()
 
     def change_cmap(self, cmap):
-        if str(cmap) in mpl.cm.cmap_d:
-            cmap = mpl.cm.cmap_d[str(cmap)]
+        if str(cmap) in cm.cmap_d:
+            cmap = cm.cmap_d[str(cmap)]
         norm = mpl.colors.normalize(*self.cb.get_clim())
         self.add_cbar(cmap, norm, t_pos=self.t_pos)
 
@@ -100,7 +101,7 @@ if __name__ == '__main__':
             w = QtGui.QWidget(parent=self)
             self.setCentralWidget(w)
             self.cmap = ColorbarPanel(parent=w)
-            self.cmap.add_cbar(mpl.cm.hot, mpl.colors.Normalize(mn,mx))
+            self.cmap.add_cbar(cm.hot, mpl.colors.Normalize(mn,mx))
             
             self.slider = QtGui.QSlider(parent=w)
             self.slider.setRange(mn, mx)

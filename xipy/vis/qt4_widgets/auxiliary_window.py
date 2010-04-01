@@ -14,7 +14,7 @@ class TopLevelAuxiliaryWindow(QtGui.QWidget):
     notify_visible = QtCore.pyqtSignal(bool)
     notify_closed = QtCore.pyqtSignal()
     _activated = False
-    def __init__(self, parent=None, main_ref=None):
+    def __init__(self, window_name='', parent=None, main_ref=None):
         if parent is not None or (main_ref is None and parent is None):
             QtGui.QWidget.__init__(self, parent)
             self.setParent(parent)
@@ -32,6 +32,7 @@ class TopLevelAuxiliaryWindow(QtGui.QWidget):
                                     QtGui.QSizePolicy.Expanding,
                                     QtGui.QSizePolicy.Expanding)
         self.updateGeometry()
+        self.setObjectName(window_name)
 
     def toggle_view_action(self, visible=True):
         act = QtGui.QAction(self)

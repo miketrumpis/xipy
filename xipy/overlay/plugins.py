@@ -13,17 +13,19 @@ class _OverlayRegistry(object):
 
 _registry = _OverlayRegistry()
 
-def register_overlay_plugin(overlay_name, window_class):
+def register_overlay_plugin(window_class, plugin_name=None):
     """Add an overlay class to the overlay plugin registry
 
     Parameters
     ----------
-    overlay_name : str
-        a name to identify the overlay class
     overlay_class : OverlayWindowInterface
         the window interface class
+    overlay_name : str, optional
+        a name to identify the overlay class (by default, the tool_name
+        from the window class is used)
     """
-    _registry.add_overlay_plugin(overlay_name, window_class)
+    used_name = plugin_name if plugin_name else window_class.tool_name
+    _registry.add_overlay_plugin(used_name, window_class)
 
 def all_registered_plugins():
     """Returns all (name, class) pairs in the overlay plugin registry
@@ -32,4 +34,4 @@ def all_registered_plugins():
 
 # register XIPY plugin(s)
 from xipy.overlay.image_overlay import ImageOverlayWindow
-register_overlay_plugin('Image Overlay', ImageOverlayWindow)
+register_overlay_plugin(ImageOverlayWindow)

@@ -10,7 +10,7 @@ def configuration(parent_package='', top_path=None):
     qt4_files = [path.join(qt4_dir, 'pyqt4_viewer.ui')]
     plugin_files = glob(path.join(qt4_dir, 'plugin/python/*.py'))
     print qt4_files+plugin_files
-    config.add_data_files('designer_layouts/pyqt4_viewer.ui')
+    config.add_data_files('designer_layouts/*.ui')
     
     return config
 

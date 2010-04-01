@@ -117,3 +117,19 @@ def test_corner_cases():
                                                   over_r0, blended_block,
                                                   main_dr, main_r0)
     
+
+def test_2d_blending():
+    base = np.zeros((10,10,4), 'B');
+    # base_ij=(5,5) --> xy=(0,0)
+    base_dr = np.ones(2); base_r0 = np.array([-5.]*2)
+    over = np.ones((2,10,4), 'B')*255
+    # over_ij=(0,5) --> xy=(0,0)
+    over_dr = np.ones(2); over_r0 = np.array([0, -5])
+    # blended image should be zero everywhere except base[5:7]
+    blending.resample_and_blend(base, base_dr, base_r0,
+                                over, over_dr, over_r0)
+    yield assert_false, base[:5].any()
+    yield assert_false, base[7:].any()
+    yield assert_true, base[5:7,:,:3].all()
+    yield assert_true, len(base.shape)==3
+    yield assert_true, len(over.shape)==3

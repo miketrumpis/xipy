@@ -3,6 +3,7 @@ from xipy.volume_utils import limits_to_extents
 from xipy.utils import with_attribute
 from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup
 from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
+from xipy.vis import BLITTING
 import xipy.vis.single_slice_plot as ssp
 
 import numpy as np
@@ -10,7 +11,8 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
 from matplotlib.figure import Figure
-import matplotlib.cm as cm
+## import matplotlib.cm as cm
+import xipy.vis.color_mapping as cm
 
 class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
     """This class is a Qt4 panel displaying three SliceFigures which cut
@@ -48,6 +50,8 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
     active_voxel = property(lambda x: x._xyz_position, None)
     # this is to keep track of zooming to the full FOV
     _full_fov_lims = [(-1,1), (-1,1), (-1,1)]
+    # keep track of when to re-save the background plots after a resize
+    _was_resized = False
     
     def __init__(self, parent=None, **kwargs):
         figsize = kwargs.pop('figsize', (3,3))
@@ -68,9 +72,9 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
                              QtGui.QSizePolicy.Expanding)
         Canvas.updateGeometry(fig.canvas)
         fig.canvas.setParent(self)
-        self.axi_fig = ssp.SliceFigure(fig, extents[AXI], blit=ssp.BLITTING)
-        self.axi_fig.get_axesobj().set_xlabel('left to right')
-        self.axi_fig.get_axesobj().set_ylabel('posterior to anterior')
+        self.axi_fig = ssp.SliceFigure(fig, extents[AXI], blit=BLITTING)
+        self.axi_fig.ax.set_xlabel('left to right', fontsize=8)
+        self.axi_fig.ax.set_ylabel('posterior to anterior', fontsize=8)
         self.horizontalLayout.addWidget(fig.canvas)
         # set coronal figure
         fig = Figure(figsize=figsize, dpi=dpi)
@@ -79,9 +83,9 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
                              QtGui.QSizePolicy.Expanding)
         Canvas.updateGeometry(fig.canvas)
         fig.canvas.setParent(self)
-        self.cor_fig = ssp.SliceFigure(fig, extents[COR], blit=ssp.BLITTING)
-        self.cor_fig.get_axesobj().set_xlabel('left to right')
-        self.cor_fig.get_axesobj().set_ylabel('inferior to superior')        
+        self.cor_fig = ssp.SliceFigure(fig, extents[COR], blit=BLITTING)
+        self.cor_fig.ax.set_xlabel('left to right', fontsize=8)
+        self.cor_fig.ax.set_ylabel('inferior to superior', fontsize=8)
         self.horizontalLayout.addWidget(fig.canvas)        
         # set sagittal figure
         fig = Figure(figsize=figsize, dpi=dpi)
@@ -90,9 +94,9 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
                              QtGui.QSizePolicy.Expanding)
         Canvas.updateGeometry(fig.canvas)
         fig.canvas.setParent(self)
-        self.sag_fig = ssp.SliceFigure(fig, extents[SAG], blit=ssp.BLITTING)
-        self.sag_fig.get_axesobj().set_xlabel('posterior to anterior')
-        self.sag_fig.get_axesobj().set_ylabel('inferior to superior')        
+        self.sag_fig = ssp.SliceFigure(fig, extents[SAG], blit=BLITTING)
+        self.sag_fig.ax.set_xlabel('posterior to anterior', fontsize=8)
+        self.sag_fig.ax.set_ylabel('inferior to superior', fontsize=8)        
         self.horizontalLayout.addWidget(fig.canvas)
         
         # put down figures in x, y, z order
@@ -120,19 +124,6 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
                                  self.xhair_mouseup)
             f.canvas.mpl_connect('motion_notify_event',
                                  self.xhair_motion)
-
-    def xhair_mousedn(self, event):
-        self._mouse_dragging = event.inaxes is not None
-        #self.coord_event_handling(event)
-    def xhair_motion(self, event):
-        if not self._mouse_dragging:
-            return
-        self.coord_event_handling(event)
-    def xhair_mouseup(self, event):
-        if not self._mouse_dragging:
-            return
-        self.coord_event_handling(event)
-        self._mouse_dragging = False
 
     def update_plot_data(self, data_list, fig_labels=[]):
         """Update the data in each plot in each figure.
@@ -246,6 +237,19 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
         if draw:
             self.draw()
 
+    def xhair_mousedn(self, event):
+        self._mouse_dragging = event.inaxes is not None
+        #self.coord_event_handling(event)
+    def xhair_motion(self, event):
+        if not self._mouse_dragging:
+            return
+        self.coord_event_handling(event)
+    def xhair_mouseup(self, event):
+        if not self._mouse_dragging:
+            return
+        self.coord_event_handling(event)
+        self._mouse_dragging = False
+
     @with_attribute('main_plots')
     def coord_event_handling(self, event, emitting=True):
         # 1) get two coords from the event canvas, and 3rd from the fixed axis
@@ -253,6 +257,11 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
         if event.xdata == None or event.ydata == None:
             # must have been a stray hit
             return
+        if self._was_resized:
+            for fig in self.figs:
+                fig.draw(save=True)
+            print 'saved plots'
+            self._was_resized = False
         fig = self.canvas_lookup[event.canvas]
         fig_limits = fig.xlim + fig.ylim
         # be safe with the coordinates
@@ -334,7 +343,7 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
         fig = self.figs[AXI]
         # this method should trigger an xyz state change
         self.coord_event_handling(FakeMPLEvent(fig.canvas,
-                                               fig.get_axesobj(),
+                                               fig.ax,
                                                x, y), emitting=False)
         self.emit_states(SAG)
 
@@ -346,7 +355,7 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
         fig = self.figs[SAG]
         # this method should trigger an xyz state change
         self.coord_event_handling(FakeMPLEvent(fig.canvas,
-                                               fig.get_axesobj(),
+                                               fig.ax,
                                                y, z), emitting=False)
         self.emit_states(COR)
     
@@ -358,7 +367,7 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
         fig = self.figs[COR]
         # this method should trigger an xyz state change
         self.coord_event_handling(FakeMPLEvent(fig.canvas,
-                                               fig.get_axesobj(),
+                                               fig.ax,
                                                x, z), emitting=False)
         self.emit_states(AXI)
 
@@ -470,6 +479,10 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
     def minimumSizeHint(self):
         return QtCore.QSize(3*(100+10), 1.1*100)
 
+    def resizeEvent(self, event):
+        self._was_resized = True
+        QtGui.QWidget.resizeEvent(self, event)
+
 
 #===============================================================================
 #   Example
@@ -480,19 +493,49 @@ if __name__ == '__main__':
     import numpy as np
     
     class ApplicationWindow(QtGui.QMainWindow):
+        n_updates = 0
+
+##         data = np.random.randint(low=0, high=255,
+##                                  size=(20,160,160,4)).astype(np.uint8)
+        data = np.random.randn(20,160,160)
         def __init__(self):
             QtGui.QMainWindow.__init__(self)
-            self.mplwidget = MplQT4OrthoSlicesWidget(parent=self)
-            self.setCentralWidget(self.mplwidget)
+            self.ortho_widget = MplQT4OrthoSlicesWidget(parent=self)
+            self.setCentralWidget(self.ortho_widget)
             self.plot()
-            
-        def plot(self):
-            data = [np.random.randn(10,10) for x in [0,1,2]]
-            self.mplwidget.initialize_plots(data,
-                                            (0,0,0),
-                                            [(-50,50)]*3,
-                                            interpolation='nearest')
-            self.mplwidget.draw()
+            # connect variants of position states
+            QtCore.QObject.connect(self.ortho_widget,
+                                   QtCore.SIGNAL("xyz_state(int,int,int)"),
+                                   self.xyz_position_watcher)
+            QtCore.QObject.connect(self.ortho_widget,
+                                   QtCore.SIGNAL("xyz_state(int,int)"),
+                                   self.xyz_position_watcher)
+            QtCore.QObject.connect(self.ortho_widget,
+                                   QtCore.SIGNAL("xyz_state(int)"),
+                                   self.xyz_position_watcher)
+
+
+        def xyz_position_watcher(self, *args):
+            axes = args
+            xyz_loc = self.ortho_widget.active_voxel
+            # just simply replot for now
+            self.plot(axes=axes)
+        
+        def plot(self, axes=[]):
+            if not axes:
+                axes = [0,1,2]
+            rand_indices = np.random.randint(low=0, high=19, size=len(axes))
+            data = [ self.data[ri] for ri in rand_indices ]
+            if not self.ortho_widget.main_plots:
+                self.ortho_widget.initialize_plots(data,
+                                                   (0,0,0),
+                                                   [(-50,50)]*3,
+                                                   interpolation='nearest')
+                                                   
+            else:
+                self.ortho_widget.update_plot_data(data, fig_labels=axes)
+                self.n_updates += 1
+
 
     if QtGui.QApplication.startingUp():
         app = QtGui.QApplication(sys.argv)
@@ -501,4 +544,10 @@ if __name__ == '__main__':
     win = ApplicationWindow()
     win.show()
     sys.exit(app.exec_())
+##     import cProfile, pstats
+##     cProfile.runctx('app.exec_()', globals(), locals(), 'orthoslices.prof')
+##     s = pstats.Stats('orthoslices.prof')
+##     print "NUMBER OF UPDATES:", win.n_updates
+##     s.strip_dirs().sort_stats('cumulative').print_stats()
+    
         

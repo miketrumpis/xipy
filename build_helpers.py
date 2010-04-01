@@ -8,8 +8,9 @@ from distutils.extension import Extension
 
 def make_cython_ext(modulename,
                     has_cython,
-                    include_dirs=None,
-                    extra_c_sources=None):
+                    include_dirs=[],
+                    extra_c_sources=[],
+                    extra_compile_args=[]):
     ''' Create Cython extension builder from module names
 
     Returns extension for building and command class depending on
@@ -27,10 +28,12 @@ def make_cython_ext(modulename,
        separators, e.g mypkg.mysubpkg.mymodule
     has_cython : bool
        True if we have cython, False otherwise
-    include_dirs : None or sequence
+    include_dirs : (empty) sequence
        include directories
-    extra_c_sources : None or sequence
+    extra_c_sources : (empty) sequence
        sequence of strings giving extra C source files
+    extra_compile_args : (empty) sequence
+       sequence of strings for compiler options (eg, optimization flags)
 
     Returns
     -------
@@ -61,17 +64,15 @@ def make_cython_ext(modulename,
     >>> cmdclass
     {}
     '''
-    if include_dirs is None:
-        include_dirs = []
-    if extra_c_sources is None:
-        extra_c_sources = []
     if has_cython:
         src_ext = '.pyx'
     else:
         src_ext = '.c'
     pyx_src = pjoin(*modulename.split('.')) + src_ext
     sources = [pyx_src] + extra_c_sources
-    ext = Extension(modulename, sources, include_dirs = include_dirs)
+    ext = Extension(modulename, sources,
+                    include_dirs = include_dirs,
+                    extra_compile_args=extra_compile_args)
     if has_cython:
         from Cython.Distutils import build_ext
         cmdclass = {'build_ext': build_ext}

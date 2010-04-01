@@ -34,13 +34,19 @@ class ImageOverlayWindow( OverlayWindowInterface ):
     overlay manager's UI control panel. It also creates some PyQt4
     signals which can be monitored by other UI elements.
     """
-    
-    def __init__(self, loc_connections, image_connections, bbox,
-                 overlay=None, parent=None, main_ref=None):
+
+    tool_name = 'Image Overlay Controls'
+
+    def __init__(self, loc_connections, image_connections,
+                 image_props_connections, bbox,
+                 overlay=None, external_loc=None,
+                 parent=None, main_ref=None):
         OverlayWindowInterface.__init__(self,
                                         loc_connections,
                                         image_connections,
+                                        image_props_connections,
                                         bbox, # <-- TRY TO DECOUPLE THIS
+                                        external_loc=external_loc,
                                         parent=parent,
                                         main_ref=main_ref)
         vbox = QtGui.QVBoxLayout(self)
@@ -48,13 +54,15 @@ class ImageOverlayWindow( OverlayWindowInterface ):
 
         vbox.addWidget(self.cbar)
         
-        self.overlay_manager = ImageOverlayManager(
+        self.func_man = ImageOverlayManager(
             bbox, colorbar=self.cbar,
             loc_signal=self.loc_changed,
             image_signal=self.image_changed,
+            props_signal=self.image_props_changed,
             overlay=overlay
             )
-        vbox.addWidget(self.overlay_manager.make_panel(parent=self))
+        
+        vbox.addWidget(self.func_man.make_panel(parent=self))
         QtGui.QWidget.setSizePolicy(self,
                                     QtGui.QSizePolicy.Expanding,
                                     QtGui.QSizePolicy.Expanding)
@@ -63,8 +71,6 @@ class ImageOverlayWindow( OverlayWindowInterface ):
         self.cbar.fig.set_size_inches(r.width()/100., r.height()/200.)
         self.cbar.fig.canvas.draw()
         
-        self.setObjectName('Image Overlay Controls')
-
     def _strip_overlay(self):
         self.cbar.initialize()
 
@@ -99,7 +105,6 @@ class ImageOverlayManager( OverlayInterface ):
     # WHEN THE THE MASK IS "DIRTY" (IE RECENTLY APPLIED, BUT NOT USED)
     work_arr = Property(Array, depends_on='tval, _new_overlay')
     ordered_idx = Property(Array, depends_on='_new_overlay, tval, ana_xform')
-##     ordered_map = Property(Array, depends_on='ordered_idx')
 
     max_t = Property(depends_on='_new_overlay')
     max_t_label = Property(depends_on='_new_overlay')
@@ -130,7 +135,7 @@ class ImageOverlayManager( OverlayInterface ):
         return a
 
     def __init__(self, bbox, colorbar=None,
-                 loc_signal=None, image_signal=None,
+                 loc_signal=None, image_signal=None, props_signal=None,
                  overlay=None, **traits):
         """
         Parameters
@@ -145,6 +150,9 @@ class ImageOverlayManager( OverlayInterface ):
         image_signal : QtCore.pyqtSignal (optional)
             optional PyQt4 callback signal to emit when updating the image
             (call pattern is image_signal.emit(self))
+        props_signal : QtCore.pyqtSignal (optional)
+            optional PyQt4 callback signal to emit when only updating
+            image mapping properties
         overlay : str, NIPY Image, VolumeSlicer type (optional)
             some version of the data to be overlaid
         """
@@ -155,6 +163,7 @@ class ImageOverlayManager( OverlayInterface ):
         self.cbar = colorbar
         self._loc_signal = loc_signal
         self._image_signal = image_signal
+        self._props_signal = props_signal
         if overlay:
             self.update_overlay(overlay)
         else:
@@ -195,6 +204,11 @@ class ImageOverlayManager( OverlayInterface ):
     def send_location_signal(self, loc):
         if self._loc_signal:
             self._loc_signal.emit(*loc)
+
+    @on_trait_change('norm, cmap_option, interpolation')
+    def send_props_signal(self):
+        if self._props_signal:
+            self._props_signal.emit(self)
     
     ### CALLBACKS
     def _lbutton_fired(self):
@@ -209,11 +223,12 @@ class ImageOverlayManager( OverlayInterface ):
 
     def _mask_button_fired(self):
         self.threshold = (self.tval, self.comp)
-        self.create_mask()
+        self.send_props_signal()
+##         self.create_mask()
 
     def _clear_button_fired(self):
         self.threshold = (self.tval, 'inactive')
-        self.send_image_signal()
+        self.send_props_signal()
 
     @on_trait_change('order') #, dispatch='new')
     def find_peak(self):
@@ -241,18 +256,6 @@ class ImageOverlayManager( OverlayInterface ):
             self.peak_color = hx
         self.send_location_signal((xyz_a + xyz_b)/2)
 
-    #@on_trait_change('tval')
-    def create_mask(self):
-        if self.overlay is None:
-            return
-        # try leaving overlay as-is.. just let the plotting objects
-        # reference this object's mask
-##         self.overlay.update_mask(self.mask, positive_mask=False)
-
-##         print 'should update main window plots; mask sum:', self.mask.sum()
-##         self.overlay.update_mask_crit(self.comp, self.tval)
-        self.send_image_signal()
-
     @on_trait_change('tval')
     def move_cbar_indicator(self):
         if not self.cbar:
@@ -269,8 +272,7 @@ class ImageOverlayManager( OverlayInterface ):
         new_slicer = ResampledVolumeSlicer(
             img, bbox=self.bbox, grid_spacing=[float(self.grid_size)]*3
             )
-        self.update_overlay(new_slicer, silently=True)
-        self.create_mask() # this also sends the new image signal
+        self.update_overlay(new_slicer)
 
     ### PROPERTY FUNCTIONS
     @cached_property

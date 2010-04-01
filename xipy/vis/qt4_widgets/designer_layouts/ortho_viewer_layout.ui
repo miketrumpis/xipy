@@ -296,44 +296,71 @@
     <property name="title">
      <string>Position Information</string>
     </property>
-    <widget class="QLabel" name="xyz_label">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>61</width>
-       <height>17</height>
+       <width>231</width>
+       <height>91</height>
       </rect>
      </property>
-     <property name="text">
-      <string>mm</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="vox_label">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>60</y>
-       <width>61</width>
-       <height>17</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>vox</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="over_vox_label">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>90</y>
-       <width>61</width>
-       <height>17</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>over vox</string>
-     </property>
+     <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,1">
+      <property name="spacing">
+       <number>-1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="xyz_label">
+        <property name="text">
+         <string>mm</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>0 0 0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="vox_label">
+        <property name="text">
+         <string>vox</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>0 0 0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="over_vox_label">
+        <property name="text">
+         <string>over vox</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </widget>
    <widget class="MplQT4OrthoSlicesWidget" name="ortho_figs_widget">
@@ -427,7 +454,7 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuLoad_Image">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
@@ -444,7 +471,7 @@
      <string>Tools</string>
     </property>
    </widget>
-   <addaction name="menuLoad_Image"/>
+   <addaction name="menuFile"/>
    <addaction name="menuView"/>
    <addaction name="menuTools"/>
   </widget>
@@ -665,6 +692,38 @@
     <hint type="sourcelabel">
      <x>832</x>
      <y>398</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>536</x>
+     <y>187</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cmap_box</sender>
+   <signal>currentIndexChanged(QString)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>set_cmap(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>435</x>
+     <y>404</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>536</x>
+     <y>187</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>interp_box</sender>
+   <signal>currentIndexChanged(QString)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>set_interp(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>435</x>
+     <y>434</y>
     </hint>
     <hint type="destinationlabel">
      <x>536</x>

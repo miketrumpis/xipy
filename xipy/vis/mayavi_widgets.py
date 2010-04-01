@@ -17,7 +17,8 @@ from enthought.mayavi import mlab
 
 import numpy as np
 from scipy import ndimage
-from matplotlib import cm
+## from matplotlib import cm
+import xipy.vis.color_mapping as cm
 
 from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
      VolumeSlicerInterface
@@ -340,7 +341,7 @@ class OrthoView3D(HasTraits):
         assert type(overlay) is ResampledVolumeSlicer, 'Mayavi widget can only handle ResampledVolumeSlicer image types'
         arr = overlay.image_arr.transpose()
         self._over_rgba_bytes = rgba_blending.normalize_and_map(
-            arr, cm.jet,
+            arr, self.func_man.colormap,
             alpha=self.func_man.alpha(scale=self.alpha_scaling),
             norm_min=self.func_man.norm[0], norm_max=self.func_man.norm[1]
             )
@@ -582,8 +583,8 @@ class OrthoView3D(HasTraits):
 
 class MayaviWidget(TopLevelAuxiliaryWindow):
 
-    def __init__(self, functional_manager=None,
-                 parent=None, main_ref=None, **traits):
+    def __init__(self, parent=None, main_ref=None, functional_manager=None,
+                 **traits):
         TopLevelAuxiliaryWindow.__init__(self,
                                          parent=parent,
                                          main_ref=main_ref)

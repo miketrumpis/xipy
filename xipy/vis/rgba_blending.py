@@ -51,7 +51,7 @@ def normalize_and_map(arr, cmap, alpha=1, norm_min=None, norm_max=None):
     ----------
     arr : ndarray
         array to map
-    cmap : matplotlib.colors.LinearSegmentedColormap
+    cmap : xipy.vis.color_mapping.MixedAlphaColormap
         the mapping function
     alpha : scalar or len-256 iterable (optional)
         the strength of this map when alpha blending;
@@ -63,23 +63,23 @@ def normalize_and_map(arr, cmap, alpha=1, norm_min=None, norm_max=None):
     """
     norm = mpl.colors.Normalize(vmin=norm_min, vmax=norm_max)
     scaled = norm(arr)
-    # XYZ: this is quite a hack to get things going for now
-    if hasattr(alpha, '__iter__'):
-        cmap = mpl.colors.LinearSegmentedColormap('new', cmap._segmentdata,
-                                                  N=256)
-        cmap._init()
-        lut = cmap._lut*255
-        lut[:256,-1] = alpha
-        lut = lut.astype(np.uint8)
-        if np.ma.getmask(scaled) is not np.ma.nomask:
-            xa = scaled.filled(fill_value=0)
-        else:
-            xa = scaled.copy()
-        np.putmask(xa, xa==1.0, .999999)
-        np.clip(xa*256, -1, 256, out=xa)
-        bytes = lut.take(xa.astype('i'), axis=0, mode='clip')
-    else:
-        bytes = cmap(scaled, alpha=alpha, bytes=True)
+##     # XYZ: this is quite a hack to get things going for now
+##     if hasattr(alpha, '__iter__'):
+##         cmap = mpl.colors.LinearSegmentedColormap('new', cmap._segmentdata,
+##                                                   N=256)
+##         cmap._init()
+##         lut = cmap._lut*255
+##         lut[:256,-1] = alpha
+##         lut = lut.astype(np.uint8)
+##         if np.ma.getmask(scaled) is not np.ma.nomask:
+##             xa = scaled.filled(fill_value=0)
+##         else:
+##             xa = scaled.copy()
+##         np.putmask(xa, xa==1.0, .999999)
+##         np.clip(xa*256, -1, 256, out=xa)
+##         bytes = lut.take(xa.astype('i'), axis=0, mode='clip')
+##     else:
+    bytes = cmap(scaled, alpha=alpha, bytes=True)
     return bytes
 
 def quick_min_max_norm(arr):
@@ -87,4 +87,3 @@ def quick_min_max_norm(arr):
     an -= np.nanmin(an)
     an /= np.nanmax(an)
     return an
-

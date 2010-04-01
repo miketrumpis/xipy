@@ -1,11 +1,15 @@
 import matplotlib as mpl
-import matplotlib.cm
 from matplotlib.lines import Line2D
 from matplotlib.image import AxesImage
 import numpy as np
 
+import xipy.vis.color_mapping as cm
+
 now = True
-BLITTING = True
+
+# I am setting this globally?? why is there no easier way!
+mpl.rcParams['xtick.labelsize'] = 9
+mpl.rcParams['ytick.labelsize'] = 9
 
 def try_or_pass(default=None):
     def dec(func):
@@ -35,25 +39,22 @@ class SliceFigure(object):
         self._slice_images = []
         self.px, self.py = px, py
         if not fig.axes:
-            ax = self.fig.add_subplot(111, aspect='equal', adjustable='box')
+            self.ax = self.fig.add_subplot(111, aspect='equal',
+                                           adjustable='box')
         else:
-            ax = self.get_axesobj()
+            self.ax = self.fig.axes[0]
         self.set_limits(limits)
         self._init_crosshairs(px,py)
-                
-    # not to be confused with Figure.get_axes() which returns a list
-    def get_axesobj(self):
-        # let's say there's only 1 axes in the figure
-        return self.fig.axes[0]
-
+        self._saved_size = self.ax.bbox.size
+    
     # axes properties:
     # xlim, ylim
     @try_or_pass()
     def _get_xlim(self):
-        return self.get_axesobj().get_xlim()
+        return self.ax.get_xlim()
     @try_or_pass()
     def _set_xlim(self, xlim):
-        ax = self.get_axesobj()
+        ax = self.ax
         ax.set_xlim(xlim)
         if ax.artists:
             row_line = ax.artists[0]
@@ -61,10 +62,10 @@ class SliceFigure(object):
         self.draw(save=True)
     @try_or_pass()
     def _get_ylim(self):
-        return self.get_axesobj().get_ylim()
+        return self.ax.get_ylim()
     @try_or_pass()
     def _set_ylim(self, ylim):
-        ax = self.get_axesobj()
+        ax = self.ax
         ax.set_ylim(ylim)
         if ax.artists:
             col_line = ax.artists[1]
@@ -82,7 +83,7 @@ class SliceFigure(object):
         col_line = Line2D(col_data[0], col_data[1],
                           color="r", linewidth=0.75, alpha=.5)
         self.crosshairs = (row_line, col_line)
-        ax = self.get_axesobj()
+        ax = self.ax
         ax.add_artist(row_line)
         ax.add_artist(col_line)
         self._noblit_list.append(row_line)
@@ -92,20 +93,21 @@ class SliceFigure(object):
         ylim = self.ylim
         xlim = self.xlim
         data_wd, data_ht = (xlim[1]-xlim[0], ylim[1]-ylim[0])
-##         row_data = ((px+.5-data_wd/4., px+.5+data_wd/4.), (py-.5, py+.5))
-##         col_data = ((px-.5, px+.5), (py+.5-data_ht/4., py+.5+data_ht/4.))
-        row_data = ((px+.5-data_wd/4., px+.5+data_wd/4.), (py, py))
-        col_data = ((px, px), (py+.5-data_ht/4., py+.5+data_ht/4.))
+        # make cross hairs the same length, based on the minimum extent
+        xhair_len = min(data_wd, data_ht)/4.0
+        row_data = ((px-xhair_len, px+xhair_len), (py, py))
+        col_data = ((px, px), (py-xhair_len, py+xhair_len))
         return row_data, col_data
 
     def _draw_crosshairs(self):
         if hasattr(self, 'crosshairs') and self._blit:
             if self.bkgrnd is not None:
                 self.canvas.restore_region(self.bkgrnd)
-            self.get_axesobj().draw_artist(self.crosshairs[0])
-            self.get_axesobj().draw_artist(self.crosshairs[1])
-            self.canvas.blit(self.get_axesobj().bbox)
-        self.draw(when=now)
+            self.ax.draw_artist(self.crosshairs[0])
+            self.ax.draw_artist(self.crosshairs[1])
+            self.canvas.blit(self.ax.bbox)
+        else:
+            self.draw(when=now)
             
     def set_limits(self, lims):
         self.xlim = lims[:2]
@@ -132,12 +134,15 @@ class SliceFigure(object):
         self.draw(when=now)
     
     def spawn_image(self, sl_data, loc=None, **img_kws):
-        ax = self.get_axesobj()
+        ax = self.ax
         ax.hold(True)
         if 'origin' not in img_kws:
             img_kws['origin'] = 'lower'
         if 'extent' not in img_kws:
             img_kws['extent'] = self.xlim + self.ylim
+        if 'cmap' not in img_kws:
+            # important to make SURE this is a home-grown colormap!
+            img_kws['cmap'] = cm.jet
         img = AxesImage(ax, **img_kws)
         ax.images.append(img)
         s_img = SliceImage(self, img, sl_data)
@@ -150,7 +155,7 @@ class SliceFigure(object):
         try:
             idx = self._slice_images.index(s_img)
             self._slice_images.pop(idx)
-            self.get_axesobj().images.pop(idx)
+            self.ax.images.pop(idx)
         except:
             pass
 
@@ -164,7 +169,7 @@ class SliceFigure(object):
     def get_imageobj(self, num=-1):
         if num < 0:
             num = self._img_num
-        images = self.get_axesobj().images
+        images = self.ax.images
         return images[num] if len(images) > num else None
 
     def _savebbox(self):
@@ -176,14 +181,20 @@ class SliceFigure(object):
             for s, artist in zip(state, self._noblit_list):
                 if s:
                     artist.set_visible(False)
-         
-        self.bkgrnd = self.canvas.copy_from_bbox(self.get_axesobj().bbox)
+            self.draw(when=now)
+
+        self.bkgrnd = self.canvas.copy_from_bbox(self.ax.bbox)
         if any(state):
             for s, artist in zip(state, self._noblit_list):
                 if s:
                     artist.set_visible(True)
 
     def draw(self, when=not now, save=False):
+        # if the axes have been resized, then force a save of the image
+        if not (self.ax.bbox.size == self._saved_size).all():
+            print 'forcing a save'
+            self._saved_size = self.ax.bbox.size
+            save = True
         if save:
             self._savebbox()
         if when:
@@ -191,6 +202,13 @@ class SliceFigure(object):
             self.canvas.draw()
         else:
             self.canvas.draw_idle()
+
+## # XYZ: SHOULD ACTUALLY MAKE THIS AN AXESIMAGE SUBCLASS.. CONSIDER
+## # OVER-RIDING to_rgba()
+
+## class SliceImage(AxesImage):
+##     # this is an optional lut for the alpha channel
+##     alpha_lut = None
 
 class SliceImage(object):
     """ This is a fancy container for a MPL AxesImage object, which can
@@ -201,7 +219,7 @@ class SliceImage(object):
         self.fig = fig # parent SliceFigure
         self.img = img # AxesImage
         self.data = data # ndarray
-        if len(data.shape) != 2:
+        if data.dtype.char != 'B' and len(data.shape) != 2:
             raise ValueError("data needs to have exactly two dimensions")
         self.img.set_data(data)
         self.data = data
@@ -263,13 +281,13 @@ class SliceImage(object):
             self.img.set_norm(props['norm'])
         if 'alpha' in props:
             self.img.set_alpha(props['alpha'])
-        self.draw(save=True)
+        self.fig.draw(save=True)
     
     def set_data(self, data):
         self.data = data
         self.img.set_data(data)
         self.fig.draw(save=True)
-        #self.fig.draw(save=True, when=now)
+##         self.fig.draw(save=True, when=now)
 
 
     
@@ -282,7 +300,32 @@ if __name__=='__main__':
         mpl.use('Qt4Agg')
     import matplotlib.figure
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
-    fig = mpl.figure.Figure()
-    fig.canvas = Canvas(fig)
-    sfig = SliceFigure(fig, [-50,50,-50,50])
+    import matplotlib.pyplot as pp    
+##     fig = mpl.figure.Figure()
+##     fig.canvas = Canvas(fig)
+    fig = pp.figure()
+    sfig = SliceFigure(fig, [-50,50,-50,50], blit=True)
     img = sfig.spawn_image(np.random.randn(100,100))
+
+    # connect a crosshair moving event
+    def _move_xhair(ev):
+        if not ev.inaxes:
+            return
+        sfig.move_crosshairs(ev.xdata, ev.ydata)
+
+    # if clicking outside the axes, then run through a series of 20 images
+    def _animate_images(ev):
+        if ev.inaxes:
+            return
+        for x in xrange(20):
+            img.set_data(np.random.randn(100,100))
+
+    fig.canvas.mpl_connect('motion_notify_event', _move_xhair)
+##     fig.canvas.mpl_connect('button_press_event', _animate_images)
+
+    pp.show()
+##     import cProfile, pstats
+##     cProfile.runctx('pp.show()', globals(), locals(), 'sfigure.prof')
+##     s = pstats.Stats('sfigure.prof')
+##     s.strip_dirs().sort_stats('cumulative').print_stats()
+    

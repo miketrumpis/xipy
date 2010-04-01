@@ -47,7 +47,8 @@ from build_helpers import make_cython_ext
 pix_ext, cmdclass = make_cython_ext(
     'xipy.vis._blend_pix',
     has_cython,
-    include_dirs = [np.get_include()])
+    include_dirs = [np.get_include()]
+    )
 
 
 def main(**extra_args):
