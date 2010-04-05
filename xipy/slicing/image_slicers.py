@@ -26,7 +26,7 @@ class VolumeSlicerInterface(object):
             The image to slice
         bbox : iterable (optional)
             The {x,y,z} limits of the enrounding volume box. If None, then
-            slices planes in the natural box of the image. This argument
+            slice planes in the natural box of the image. This argument
             is useful for overlaying an image onto another image's volume box
         mask : bool or ndarray (optional)
             A binary mask, with same shape as image, with unmasked points
@@ -147,8 +147,8 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         xyz_image = ni_api.Image(np.asarray(image),
                                  reorder_output(image.coordmap, 'xyz'))
         self.coordmap = xyz_image.coordmap
-        self.raw_data = np.asarray(xyz_image)
-        nvox = np.product(self.raw_data.shape)
+        self.raw_image = xyz_image
+        nvox = np.product(self.raw_image.shape)
         # if the volume array of the map is more than 100mb in memory,
         # better use a memmap
         self._use_mmap = nvox*8 > 100e6
@@ -156,7 +156,7 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
                                               order=interpolation_order,
                                               use_mmap=self._use_mmap)
         if mask is True:
-            mask = compute_mask(self.raw_data, cc=0, m=.1, M=.999)
+            mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
         if type(mask) is np.ndarray:
             self.update_mask(mask, positive_mask=True)
         else:
@@ -318,7 +318,8 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         image = vu.fix_analyze_image(image, fliplr=fliplr)
         xyz_image = ni_api.Image(np.asarray(image),
                                  reorder_output(image.coordmap, 'xyz'))
-        self.raw_data = np.asarray(xyz_image)
+
+        self.raw_image = xyz_image
         self.coordmap = xyz_image.coordmap
         self._natural_bbox = vu.world_limits(xyz_image)
         if bbox is None:
@@ -350,7 +351,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         self.bbox = zip(bb_min, bb_max)
         
         if mask is True:
-            mask = compute_mask(self.raw_data, cc=0, m=.1, M=.999)
+            mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
         if type(mask) is np.ndarray:
             # sets self.raw_mask and self._mask and self._masking=True,
             # also converts self.image_arr to a MaskedArray
@@ -366,7 +367,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
     
     def update_mask(self, mask, positive_mask=True):
         # XYZ: CURRENTLY OBLITERATES OLD MASK! IS THIS DESIRABLE?
-        assert mask.shape == self.raw_data.shape, \
+        assert mask.shape == self.raw_image.shape, \
                           'mask shape does not match image shape'
         self._masking = True
         if positive_mask:

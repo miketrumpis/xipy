@@ -1,6 +1,7 @@
 import numpy as np
 from nipy.core import api as ni_api
-from nipy.algorithms.resample import resample
+## from nipy.algorithms.resample import resample
+from xipy.external import resample
 from nipy.core.reference.coordinate_map import reorder_output, reorder_input, \
      compose #, drop_io_dim
 from scipy import ndimage
@@ -120,7 +121,7 @@ def maximum_world_distance(limits):
     dist = ( (diffs)**2 ).sum(axis=-1)**.5
     return dist.max()
     
-def resample_to_world_grid(img, bbox=None, grid_spacing=None):
+def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3):
     cmap_xyz = reorder_output(img.coordmap, 'xyz')
     T = cmap_xyz.affine
     if grid_spacing is None:
@@ -144,13 +145,15 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None):
     mapping = compose(cmap_xyz, img.coordmap.inverse)
     #mapping = compose(resamp_affine, mapping1.inverse)
 
-    new_img = resample(img, resamp_affine, mapping.affine, tuple(new_dims))
+    new_img = resample.resample(img, resamp_affine, mapping.affine,
+                                tuple(new_dims), order=order)
 
     return new_img
 
 
 def find_image_threshold(arr, percentile=90., debug=False):
-    bsizes, bpts = np.histogram(arr.flatten(), bins=100)
+    nbins = 200
+    bsizes, bpts = np.histogram(arr.flatten(), bins=nbins)
     # heuristically, this should show up near the middle of the
     # second peak of the intensity histogram
     start_pt = np.abs(bpts - arr.max()/2.).argmin()
@@ -160,8 +163,8 @@ def find_image_threshold(arr, percentile=90., debug=False):
     zcross = np.argwhere(bval==bsizes).flatten()[0]
     thresh = (bpts[zcross] + bpts[zcross+1])/2.
     # interpolate the percentile value from the bin edges
-    bin_lo = int(percentile)
-    bin_hi = int(round(percentile + 0.5))
+    bin_lo = int(percentile * nbins / 100.0)
+    bin_hi = int(round(percentile * nbins / 100.0 + 0.5))
     p_hi = percentile - bin_lo # proportion of hi bin
     p_lo = bin_hi - percentile # proportion of lo bin
 ##     print bin_hi, bin_lo, p_hi, p_lo
@@ -171,7 +174,7 @@ def find_image_threshold(arr, percentile=90., debug=False):
         import matplotlib.pyplot as pp
         f = pp.figure()
         ax = f.add_subplot(111)
-        ax.hist(arr.flatten(), bins=100)
+        ax.hist(arr.flatten(), bins=nbins)
         l = mpl.lines.Line2D([thresh, thresh], [0, .25*bsizes.max()],
                              linewidth=2, color='r')
         ax.add_line(l)

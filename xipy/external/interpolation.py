@@ -37,11 +37,16 @@ class ImageInterpolator(object):
 
     def _buildknots(self, use_mmap):
         if self.order > 1:
-            data = ndimage.spline_filter(
-                np.nan_to_num(np.asarray(self.image).astype('d')),
-                self.order)
+##             data = ndimage.spline_filter(
+##                 np.nan_to_num(np.asarray(self.image).astype('d')),
+##                 self.order)
+            in_data = np.asarray(self.image)
+            data = ndimage.spline_filter(in_data,
+                                         order=self.order,
+                                         output=in_data.dtype)
         else:
-            data = np.nan_to_num(np.asarray(self.image).astype('d'))
+##             data = np.nan_to_num(np.asarray(self.image).astype('d'))
+            data = np.asarray(self.image)
 
         if use_mmap:
             if self._datafile is None:
@@ -73,23 +78,25 @@ class ImageInterpolator(object):
         """
         Parameters
         ----------
-        points : values in self.image.coordmap.output_coords 
+        points : ndarray, shape (nx x ny x nz x R)
+            values in self.image.coordmap.output_coords
 
         Returns
         -------
         V: ndarray
            interpolator of self.image evaluated at points
         """
-        points = np.array(points, np.float64)
-        output_shape = points.shape[1:]
-        points.shape = (points.shape[0], np.product(output_shape))
-        voxels = self.image.coordmap.inverse(points.T).T
-        V = ndimage.map_coordinates(self.data, 
+##         points = np.array(points, np.float64)
+##         output_shape = points.shape[:-1]
+##         points.shape = (np.product(output_shape), points.shape[-1])
+        voxels = self.image.coordmap.inverse(points).T
+        V = ndimage.map_coordinates(self.data,
                                     voxels,
-                                    #order=self.order,
+                                    order=self.order,
                                     prefilter=False,
+                                    output=self.data.dtype,
                                     **interp_kws)
         # ndimage.map_coordinates returns a flat array,
         # it needs to be reshaped to the original shape
-        V.shape = output_shape
+##         V.shape = output_shape
         return V

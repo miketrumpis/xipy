@@ -123,11 +123,11 @@ class ImageOverlayManager( OverlayInterface ):
 
     def alpha(self, scale=1.0, threshold=True):
         # scale may go between 0 and 4.. just map this from (0,1)
-        a = (255*scale/4.0)*self.base_alpha
+        a = (scale/4.0)*self.base_alpha
         if threshold and self.threshold[1] != 'inactive':
             tval, comp = self.threshold
             mn, mx = self.norm
-            lut_map = int(255 * (tval - mn)/mx)
+            lut_map = int(255 * (tval - mn)/(mx-mn))
             if comp == 'greater than':
                 a[:lut_map] = 0
             else:
@@ -177,13 +177,13 @@ class ImageOverlayManager( OverlayInterface ):
         if self.overlay.raw_mask is not None:
             self.orig_mask = np.logical_not(self.overlay.raw_mask)
         else:
-            self.orig_mask = np.zeros(self.overlay.raw_data.shape, np.bool)
+            self.orig_mask = np.zeros(self.overlay.raw_image.shape, np.bool)
         # this will be the array used for peak finding and threshold
         # setting. It is the "original" data, from the overlay slicer
         # object. Furthermore, all peak finding will be done on the
         # array's index coordinates, and not on the interpolated
         # data maps
-        self.m_arr = np.ma.masked_array(self.overlay.raw_data,
+        self.m_arr = np.ma.masked_array(np.asarray(self.overlay.raw_image),
                                         self.orig_mask,
                                         copy=False)
         # toggling False to True should reset properties???
@@ -265,7 +265,7 @@ class ImageOverlayManager( OverlayInterface ):
     @on_trait_change('grid_size')
     def new_grid_size(self):
         # could also use the overlay.update_grid_spacing function
-        img = ni_api.Image(self.overlay.raw_data, self.overlay.coordmap)
+        img = self.overlay.raw_image
 ##         mask = self.mask
 ##         new_slicer = SampledVolumeSlicer(img, bbox=self.bbox,
 ##                                          grid_spacing=[float(self.grid_size)]*3)

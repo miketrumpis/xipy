@@ -110,6 +110,10 @@ class OverlayInterface(t_api.HasTraits):
     """Different overlay managers will implement this interface
     """
 
+    # an interface to keep track of the current world position in
+    # an external plot
+    world_position = t_api.Array(shape=(3,))
+
     # an volume slicer for the voxel data
     overlay = t_api.Instance(VolumeSlicerInterface)
 
@@ -124,14 +128,14 @@ class OverlayInterface(t_api.HasTraits):
     ##### 3) interpolation
     
     # the min/max value of the overlay to map to colors
-    #norm = t_api.Tuple((0,1))
-    norm = (0,1)
+    norm = t_api.Tuple( (0.0, 0.0) )
+##     norm = (0,1)
     # the alpha channel function for the colormap
     def alpha(self, threshold=True):
         raise NotImplementedError
 
     # Color LUT options, and a reference to the matplotlib LUT
-    cmap_option = t_api.Enum(*cm.cmap_d.keys())
+    cmap_option = t_api.Enum(*sorted(cm.cmap_d.keys()))
     colormap = t_api.Property(depends_on='cmap_option')
     # Plotting interpolation options
     interpolation = t_api.Enum(['nearest', 'bilinear', 'sinc'])

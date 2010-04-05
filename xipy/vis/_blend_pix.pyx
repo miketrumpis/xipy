@@ -178,6 +178,42 @@ def resize_rgba_array(
                 n_arr[i,j,k,2] = arr[ii,jj,kk,2]
                 n_arr[i,j,k,3] = arr[ii,jj,kk,3]                
     return n_arr
+
+@cython.boundscheck(False)
+def resize_lookup_array(
+    new_shape, # new shape tuple
+    int i_bad,
+    np.ndarray[np.npy_int32, ndim=3] arr, # flattened array
+    np.ndarray[np.npy_double, ndim=1] dr, # grid spacing
+    np.ndarray[np.npy_double, ndim=1] r0, # offset vector
+    np.ndarray[np.npy_double, ndim=1] bdr, # grid spacing
+    np.ndarray[np.npy_double, ndim=1] br0 # offset vector
+    ): 
+
+    cdef Py_ssize_t ni = new_shape[0], nj = new_shape[1], nk = new_shape[2]
+    cdef Py_ssize_t oi = arr.shape[0], oj = arr.shape[1], ok = arr.shape[2]
+    cdef Py_ssize_t i, j, k, ii, jj, kk, u, nu
+    cdef np.ndarray[np.npy_int32, ndim=3] n_arr = np.ones(new_shape,
+                                                          dtype=np.int32)
+    n_arr *= i_bad
+    cdef np.npy_double wcoord
+    for i in xrange(ni):
+        wcoord = i*bdr[0] + br0[0]
+        ii = <Py_ssize_t>( (wcoord - r0[0])/dr[0] )
+        if not is_in_bounds(ii,oi):
+            continue
+        for j in xrange(nj):
+            wcoord = j*bdr[1] + br0[1]
+            jj = <Py_ssize_t>( (wcoord - r0[1])/dr[1] )
+            if not is_in_bounds(jj,oj):
+                continue
+            for k in xrange(nk):
+                wcoord = k*bdr[2] + br0[2]
+                kk = <Py_ssize_t>( (wcoord - r0[2])/dr[2] )
+                if not is_in_bounds(kk,ok):
+                    continue
+                n_arr[i,j,k] = arr[ii,jj,kk]
+    return n_arr
     
 @cython.boundscheck(False)
 def blend_same_size_arrays(np.ndarray[np.npy_ubyte, ndim=2] b_arr,

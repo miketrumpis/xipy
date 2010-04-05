@@ -12,13 +12,20 @@ from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
 from xipy.slicing import load_resampled_slicer, load_sampled_slicer
 
 class MayaviViewer(XIPYWindowApp):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, image=None):
         super(MayaviViewer, self).__init__(parent=parent,
                                            designer_layout=ui_layout_class())
 
         self.viewer = self.mayavi_widget.mr_vis
         self.plugin_launched.connect(self._add_panel)
         self.actionLoad_MR_File.triggered.connect(self.on_load_mr)
+
+        if image is not None:
+            try:
+                self.update_image(image)
+            except:
+                pass
+        
 
     def _add_panel(self, plugin_tool):
         self.mayavi_widget.add_toolbar(plugin_tool.func_man)

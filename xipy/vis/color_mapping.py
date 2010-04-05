@@ -1,7 +1,16 @@
-"""This module contains some modifications of Matplotlib colormapping code
+"""This module contains some modifications of Matplotlib colormapping code.
+see:
+http://matplotlib.sourceforge.net/
+
+MPL LICENSE:
+http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE?view=markup
+
+COLOR SCHEMES LICENSE:
+http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE_COLORBREWER?view=markup
+
 """
 import matplotlib as mpl
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, colorConverter
 import matplotlib.cbook as cbook
 from matplotlib._cm import datad
 import numpy as np
@@ -14,34 +23,11 @@ NP_CLIP_OUT = NP_MAJOR>=1 and NP_MINOR>=2
 
 class MixedAlphaColormap(LinearSegmentedColormap):
 
-    def __call__(self, X, alpha=1.0, bytes=False):
+    def lut_indices(self, X):
         """
-        *X* is either a scalar or an array (of any dimension).
-        If scalar, a tuple of rgba values is returned, otherwise
-        an array with the new shape = oldshape+(4,). If the X-values
-        are integers, then they are used as indices into the array.
-        If they are floating point, then they must be in the
-        interval (0.0, 1.0).
-        Alpha must be a scalar.
-        If bytes is False, the rgba values will be floats on a
-        0-1 scale; if True, they will be uint8, 0-255.
+        Convert the normalized scalar array X to indices into this
+        colormap's LUT, including indices into i_bad, i_over, i_under.
         """
-
-        if not self._isinit: self._init()
-        if cbook.iterable(alpha):
-            if len(alpha) != self.N:
-                raise ValueError('Provided alpha LUT is not the right length')
-            alpha = np.clip(alpha, 0, 1)
-            # repeat the last alpha value for i_under, i_over
-            alpha = np.r_[alpha, alpha[-1], alpha[-1]]
-        else:
-            alpha = min(alpha, 1.0) # alpha must be between 0 and 1
-            alpha = max(alpha, 0.0)
-
-        self._lut[:-1,-1] = alpha  # Don't assign global alpha to i_bad;
-                                   # it would defeat the purpose of the
-                                   # default behavior, which is to not
-                                   # show anything where data are missing.
         mask_bad = None
         if not cbook.iterable(X):
             vtype = 'scalar'
@@ -69,19 +55,94 @@ class MixedAlphaColormap(LinearSegmentedColormap):
         np.putmask(xa, xa<0, self._i_under)
         if mask_bad is not None and mask_bad.shape == xa.shape:
             np.putmask(xa, mask_bad, self._i_bad)
+        return xa
+
+    def fast_lookup(self, Xi, alpha=1.0, bytes=False):
+        """
+        *X* is already in the form of LUT indices, simply perform
+        an indexing into the LUT and return
+        """
+        if not self._isinit: self._init()
+        if not cbook.iterable(Xi):
+            vtype = 'scalar'
+            Xi = np.array([Xi])
+        else:
+            vtype = 'array'
+        if cbook.iterable(alpha):
+            if len(alpha) != self.N:
+                raise ValueError('Provided alpha LUT is not the right length')
+            alpha = np.clip(alpha, 0, 1)
+            # repeat the last alpha value for i_under, i_over
+            alpha = np.r_[alpha, alpha[-1], alpha[-1]]
+        else:
+            alpha = min(alpha, 1.0) # alpha must be between 0 and 1
+            alpha = max(alpha, 0.0)
+
+        self._lut[:-1,-1] = alpha  # Don't assign global alpha to i_bad;
+                                   # it would defeat the purpose of the
+                                   # default behavior, which is to not
+                                   # show anything where data are missing.
         if bytes:
             lut = (self._lut * 255).astype(np.uint8)
         else:
             lut = self._lut
-        rgba = np.empty(shape=xa.shape+(4,), dtype=lut.dtype)
-        lut.take(xa, axis=0, mode='clip', out=rgba)
+        rgba = np.empty(shape=Xi.shape+(4,), dtype=lut.dtype)
+        lut.take(Xi, axis=0, mode='clip', out=rgba)
                     #  twice as fast as lut[xa];
                     #  using the clip or wrap mode and providing an
                     #  output array speeds it up a little more.
         if vtype == 'scalar':
             rgba = tuple(rgba[0,:])
         return rgba
+        
+    def __call__(self, X, alpha=1.0, bytes=False):
+        """
+        *X* is either a scalar or an array (of any dimension).
+        If scalar, a tuple of rgba values is returned, otherwise
+        an array with the new shape = oldshape+(4,). If the X-values
+        are integers, then they are used as indices into the array.
+        If they are floating point, then they must be in the
+        interval (0.0, 1.0).
+        Alpha must be a scalar.
+        If bytes is False, the rgba values will be floats on a
+        0-1 scale; if True, they will be uint8, 0-255.
+        """
 
+        xa = self.lut_indices(X)
+        rgba = self.fast_lookup(xa, alpha=alpha, bytes=bytes)
+        return rgba
+        
+    # unfortunately need to grab this too, since it's staticmethod
+    # and not classmethod
+    @staticmethod
+    def from_list(name, colors, N=256, gamma=1.0):
+        """
+        Make a linear segmented colormap with *name* from a sequence
+        of *colors* which evenly transitions from colors[0] at val=0
+        to colors[-1] at val=1.  *N* is the number of rgb quantization
+        levels.
+        Alternatively, a list of (value, color) tuples can be given
+        to divide the range unevenly.
+        """
+
+        if not cbook.iterable(colors):
+            raise ValueError('colors must be iterable')
+
+        if cbook.iterable(colors[0]) and len(colors[0]) == 2 and \
+                not cbook.is_string_like(colors[0]):
+            # List of value, color pairs
+            vals, colors = zip(*colors)
+        else:
+            vals = np.linspace(0., 1., len(colors))
+
+        cdict = dict(red=[], green=[], blue=[])
+        for val, color in zip(vals, colors):
+            r,g,b = colorConverter.to_rgb(color)
+            cdict['red'].append((val, r, r))
+            cdict['green'].append((val, g, g))
+            cdict['blue'].append((val, b, b))
+
+        return MixedAlphaColormap(name, cdict, N, gamma)
 
 cmap_d = dict()
 

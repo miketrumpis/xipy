@@ -4,7 +4,7 @@ os.environ['ETS_TOOLKIT'] = 'qt4'
 from PyQt4 import QtGui, QtCore
 
 from enthought.traits.api import HasTraits, Instance, on_trait_change, Array, \
-     Bool, Range, Enum, Property, List
+     Bool, Range, Enum, Property, List, Tuple
 from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
      RangeEditor
 from enthought.tvtk.api import tvtk
@@ -28,44 +28,45 @@ from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis import rgba_blending
 import xipy.volume_utils as vu
-
 from nipy.core import api as ni_api
 
 import time
 
+import cProfile, pstats
+
 P_THRESH = 0.05
 CLUSTER_THRESH = 3
+
+def three_plane_pt(n1, n2, n3, x1, x2, x3):
+    nm = np.array((n1,n2,n3)).T
+    dt = np.linalg.det(nm)
+    n2x3 = np.cross(n2,n3)
+    n3x1 = np.cross(n3,n1)
+    n1x2 = np.cross(n1,n2)
+    x = ( np.dot(x1,n1)*n2x3 + np.dot(x2,n2)*n3x1 + np.dot(x3,n3)*n1x2 )
+    return x / dt
+
 
 class OrthoView3D(HasTraits):
     #---------------------------------------------------------------------------
     # Data and Figure
     #---------------------------------------------------------------------------
-##     anat_data = Array()
-##     over_data = Array()
-##     pstat_data = Array()
     scene = Instance(MlabSceneModel, ())
 
     anat_src = Instance(Source)
-##     over_src = Instance(Source)
+
+    blender = Instance(rgba_blending.BlendedImage, (),
+                       spline_order=0, transpose_inputs=False)
     blended_src = Instance(Source)
-    _blended_src_scalars = Array(dtype='B')
+##     _blended_src_scalars = Array(dtype='B')
     blob_surf_src = Instance(Source)
 
-##     anat_image = Instance(VolumeSlicerInterface)
-    # BE RESTRICTIVE ABOUT THE TYPE OF IMAGE COMING IN, UNTIL I FIGURE
-    # OUT RESAMPLING IN VTK
-    anat_image = Instance(ResampledVolumeSlicer)
-    # the anatomical image, normalized to [0,255] and mapped
-    # into RGBA components
-    _anat_rgba_bytes = Array(dtype='B')
+    anat_image = Instance(VolumeSlicerInterface)
 
     #---------------------------------------------------------------------------
     # Functional Overlay Manager
     #---------------------------------------------------------------------------
     func_man = Instance(OverlayInterface)
-    # the overlay image, normalized to [0,255] and mapped
-    # into RGBA components
-    _over_rgba_bytes = Array(dtype='B')
 
     #---------------------------------------------------------------------------
     # Scene Control Traits
@@ -81,9 +82,9 @@ class OrthoView3D(HasTraits):
     show_anat = Bool(False)
     show_func = Bool(False)
     show_cortex = Bool(False)
-    alpha_scaling = Range(low=0.0, high=4.0, value=1.0,
-                          editor=RangeEditor(low=0.0, high=4.0,
-                                             format='%1.2f', mode='slider'))
+    alpha_compress = Range(low=0.0, high=4.0, value=1.0,
+                           editor=RangeEditor(low=0.0, high=4.0,
+                                              format='%1.2f', mode='slider'))
 
 
     #---------------------------------------------------------------------------
@@ -97,13 +98,16 @@ class OrthoView3D(HasTraits):
 
     def __init__(self, parent=None, **traits):
         HasTraits.__init__(self, **traits)
-        
+        anat_alpha = np.ones(256)
+        anat_alpha[:5] = 0
+        self.blender.set(main_alpha=anat_alpha, trait_notify_change=False)
+        self.__reposition_planes_after_interaction = False
 
     #---------------------------------------------------------------------------
     # Default values
     #---------------------------------------------------------------------------
     def _anat_src_default(self):
-        s = ArraySource()
+        s = ArraySource(transpose_input_array=False)
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
 
     def _blended_src_default(self):
@@ -144,19 +148,41 @@ class OrthoView3D(HasTraits):
             # position the image plane widget at an unobtrusive cut
             dim = self._axis_index[ax]
             data_shape = self.blended_src.image_data.extent[::2]
-            data_shape = locals()['data_shape']
             ipw.ipw.slice_position = data_shape[dim]/4
+            # switch actions here
+            ipw.ipw.middle_button_action = 2
+            ipw.ipw.right_button_action = 0
             # name this widget and attribute it to self
             setattr(self, 'ipw_%s'%ax, ipw)
             ipw.ipw.add_observer(
+                'StartInteractionEvent',
+                getattr(self, '_%s_plane_interaction'%ax)
+                )
+            ipw.ipw.add_observer(
                 'InteractionEvent',
-                getattr(self, '_%s_planes_interaction'%ax)
+                getattr(self, '_%s_plane_interaction'%ax)
                 )
             ipw.ipw.add_observer(
                 'EndInteractionEvent',
-                self._update_for_cortex
+                self._register_position
                 )
+
         self._start_scene()
+
+    def _ipw_x(self, axname):
+        return getattr(self, 'ipw_%s'%axname, None)
+
+    def _snap_to_position(self, pos):
+        self._stop_scene()
+        anames = ('x', 'y', 'z')
+        pd = dict(zip( anames, pos ))
+        for ax in anames:
+            ipw = self._ipw_x(ax).ipw
+            ipw.plane_orientation='%s_axes'%ax
+            ipw.slice_position = pd[ax]
+        self._start_scene()
+        
+        
         
     def add_cortical_surf(self):
         # lifted from Gael Varoquax
@@ -201,7 +227,7 @@ class OrthoView3D(HasTraits):
         csurf = mlab.pipeline.set_active_attribute(
             mlab.pipeline.user_defined(self._contour,
                                        filter=self.poly_extractor),
-            point_scalars=surf_name
+            point_scalars='scalar'
             )
         self.cortical_surf = mlab.pipeline.surface(csurf,
                                                    colormap='copper',
@@ -252,21 +278,47 @@ class OrthoView3D(HasTraits):
     #---------------------------------------------------------------------------
     # Scene interaction callbacks 
     #---------------------------------------------------------------------------
-    def _x_planes_interaction(self, widget, event):
-        self._link_plane_point('x')
-    def _y_planes_interaction(self, widget, event):
-        self._link_plane_point('y')
-    def _z_planes_interaction(self, widget, event):
-        self._link_plane_point('z')
-    def _link_plane_point(self, ax):
+    def _x_plane_interaction(self, widget, event):
+        self._handle_plane_interaction('x', widget)
+    def _y_plane_interaction(self, widget, event):
+        self._handle_plane_interaction('y', widget)
+    def _z_plane_interaction(self, widget, event):
+        self._handle_plane_interaction('z', widget)
+    def _handle_plane_interaction(self, ax, widget):
+        if widget.GetCursorDataStatus():
+            # In other words, if moving the crosshairs in a plane
+            print 'listening for endinteraction'
+            self.__reposition_planes_after_interaction = True
+            return
+        # otherwise, do normal interaction
+        self._link_plane_points(ax, widget)
+
+    def _link_plane_points(self, ax, widget):
         ax_idx = self._axis_index[ax]
         ipw = getattr(self, 'ipw_%s'%ax).ipw
         planes_function = self.poly_extractor.implicit_function
         planes_function.points[ax_idx] = ipw.center
         planes_function.normals[ax_idx] = map(lambda x: -x, ipw.normal)
-    def _update_for_cortex(self, widget, event):
+
+    def _register_position(self, widget, event):
+        if self.__reposition_planes_after_interaction:
+            pos_ijk = widget.GetCurrentCursorPosition()
+            pos = self.anat_image.coordmap(pos_ijk)[0]
+            print 'snapping to pos', pos
+            self._snap_to_position(pos)
+            self.__reposition_planes_after_interaction = False
+        else:
+            pos = self._current_intersection()
+        if self.func_man:
+            self.func_man.world_position = self._current_intersection()
         if hasattr(self, 'cortical_surf') and self.show_cortex:
             self.anat_src.update()
+
+    def _current_intersection(self):
+        nx = self.ipw_x.ipw.normal; cx = self.ipw_x.ipw.center
+        ny = self.ipw_y.ipw.normal; cy = self.ipw_y.ipw.center
+        nz = self.ipw_z.ipw.normal; cz = self.ipw_z.ipw.center
+        return three_plane_pt(nx, ny, nz, cx, cy, cz)
     #---------------------------------------------------------------------------
     # Traits callbacks
     #---------------------------------------------------------------------------
@@ -288,20 +340,15 @@ class OrthoView3D(HasTraits):
             self.set(show_anat=False, trait_change_notify=False)
             return
         # this will assess the status of the image source and plotting
-        self.blend_sources()
-##         elif not hasattr(self, 'main_ipw_x'):
-##             self._update_main_from_anat_image()
-##         self.toggle_main_visible(self.show_anat)
+        self.change_source_data()
 
     @on_trait_change('show_func')
     def _show_func(self):
-        if not self.func_man:
+        if not self.func_man or not self.func_man.overlay:
             print 'no functional manager to provide an overlay'
             self.set(show_func=False, trait_change_notify=False)
-        self.blend_sources()
-##         elif not hasattr(self, 'over_ipw_x'):            
-##             self._update_overlay_from_func_man()
-##         self.toggle_over_visible(self.show_func)
+            return
+        self.change_source_data()
 
     @on_trait_change('show_psurfs')
     def _show_pval_blobs(self):
@@ -316,20 +363,31 @@ class OrthoView3D(HasTraits):
     @on_trait_change('func_man')
     def _link_stats(self):
         self.sync_trait('_pscores', self.func_man, alias='_stats_maps')
+        self._set_blender_norm()
 
-    @on_trait_change('alpha_scaling')
+    @on_trait_change('alpha_compress')
     def _alpha_scale(self):
-        self._update_colors_from_func_man()
+        if not self.func_man:
+            return
+        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
 
+    @on_trait_change('func_man.norm')
+    def _set_blender_norm(self):
+        print 'resetting scalar normalization from func_man.norm'
+        self.blender.over_norm = self.func_man.norm
+        
     @on_trait_change('func_man.threshold')
     def _set_threshold(self):
-        # now the func_man.alpha(threshold=True) will reflect the thresholding
-        self._update_colors_from_func_man()
-        # quickly remap the alpha component of over_rgba_bytes, this will
-        # be appx 4x faster than mapping all components
-        # XYZ: do this later
-##         alpha_chan = self._over_rgba_bytes[...,3]
-##         alpha_chan[:] = alpha.take(self._over_lut_idx, mode='clip')
+        print 'remapping alpha because of func_man.threshold',
+        if not self.func_man.overlay:
+            print 'but no func_man'
+            return
+        print ''
+        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
+
+    @on_trait_change('func_man.cmap_option')
+    def _set_over_cmap(self):
+        self.blender.over_cmap = self.func_man.colormap
     
     @on_trait_change('func_man.overlay_updated')
     def _update_colors_from_func_man(self):
@@ -338,34 +396,37 @@ class OrthoView3D(HasTraits):
         if not self.func_man or not self.func_man.overlay:
             return
         overlay = self.func_man.overlay
-        assert type(overlay) is ResampledVolumeSlicer, 'Mayavi widget can only handle ResampledVolumeSlicer image types'
-        arr = overlay.image_arr.transpose()
-        self._over_rgba_bytes = rgba_blending.normalize_and_map(
-            arr, self.func_man.colormap,
-            alpha=self.func_man.alpha(scale=self.alpha_scaling),
-            norm_min=self.func_man.norm[0], norm_max=self.func_man.norm[1]
+        # this could potentially change scalar mapping properties too
+        self.blender.trait_setq(
+            over_cmap=self.func_man.colormap,
+            over_norm=self.func_man.norm,
+            over_alpha=self.func_man.alpha(scale=self.alpha_compress)
             )
-        self.blend_sources()
+            
+        self.blender.over = overlay.raw_image
                 
     @on_trait_change('anat_image')
     def _update_colors_from_anat_image(self):
         """ When a new image is loaded, update the anat color bytes
         """
-        arr = self.anat_image.image_arr
-        # map with grayscale, alpha=1 (except for first few points)
-        a = np.ones(256, 'B')*255
-        a[:5] = 0
-        self._anat_rgba_bytes = rgba_blending.normalize_and_map(
-            arr.transpose(), cm.gray, alpha=a
-            )
-        
-        self._blended_src_scalars = self._anat_rgba_bytes.copy()
-        # this will kick off the scalar_data_changed stuff
-        self.blended_src.scalar_data = self._blended_src_scalars
-        self.blended_src.spacing = self.anat_image.grid_spacing
-        self.blended_src.origin = np.array(self.anat_image.bbox)[:,0]
-        self.blended_src.update_image_data = True #???
-        self.blend_sources()
+        self.__blocking_draw = True
+        self.blender.main = self.anat_image.raw_image
+        # hmmm there is a problem here when re-loading images..
+        # the appropriate rgba array may not be available or valid yet
+        self.change_source_data(new_position=True)
+        self.__blocking_draw = False
+
+        # flush previous arrays
+        n_arr = self.anat_src.image_data.point_data.number_of_arrays
+        names = [self.anat_src.image_data.point_data.get_array(i).name
+                 for i in xrange(n_arr)]
+        for n in names:
+            self.anat_src.image_data.point_data.remove_array(n)
+        # add new array
+        image_arr = self.anat_image.image_arr.transpose().copy()
+        self.anat_src.scalar_data = image_arr
+        self.anat_src.spacing = self.blender.img_spacing
+        self.anat_src.origin = self.blender.img_origin
 
     @on_trait_change('pscore_map')
     def _passthrough(self):
@@ -431,7 +492,17 @@ class OrthoView3D(HasTraits):
             self.blob_surf_src.update_image_data = True
             self._start_scene()
 
-    def blend_sources(self):
+    @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')
+    def _monitor_sources(self, obj, name, new):
+        if self.__blocking_draw:
+            return
+        print name, 'changed'
+        if name == 'main_rgba' and self.show_anat:
+            self.change_source_data()
+        elif name == 'over_rgba' and self.show_func:
+            self.change_source_data()
+    
+    def change_source_data(self, new_position=False):
         """ Create a pixel-blended array, whose contents depends on the
         current plotting conditions. Also check the status of the
         visibility of the plots.
@@ -441,41 +512,42 @@ class OrthoView3D(HasTraits):
         # PLOTTING THE OVERLAY... THIS WILL SIDESTEP THE ISSUE OF UPDATING
         # THE IMAGE DATA PROPERTIES, WHICH APPEARS TO CAUSE A HUGE DELAY
         
+
+
+        if self.show_func and self.show_anat:
+            print 'will plot blended'
+            img_data = self.blender.blended_rgba
+        elif self.show_func:
+            print 'will plot over plot'
+            img_data = self.blender.over_rgba
+        else:
+            print 'will plot anatomical'
+            img_data = self.blender.main_rgba
+
+        # if a new position, update (even if invisibly)
+        if new_position:
+            # this will kick off the scalar_data_changed stuff
+            self.blended_src.scalar_data = img_data.copy()
+            self.blended_src.spacing = self.blender.img_spacing
+            self.blended_src.origin = self.blender.img_origin
+            self.blended_src.update_image_data = True #???
+        
         if not self.show_func and not self.show_anat:
             self.toggle_planes_visible(False)
             return
+
         self._stop_scene()
 
-        # many combinations here..
-        # plot anatomical only
-        # plot anatomical with functional blended
-        # plot functional only (needs to blend into a zero-alpha anatomical)
-        
-        # the bytes arrays have been transposed, so reflect this
-        # in the grid orientation specs
-        main_dr = self.anat_image.grid_spacing[::-1]
-        main_r0 = np.array(self.anat_image.bbox)[::-1,0]
-        t0 = time.time()
-        print 'setting scalar data to anat bytes ',
-        self._blended_src_scalars[:] = self._anat_rgba_bytes
-        t = time.time()
-        print 'done, %1.3f sec'%(t-t0)
-        if self.show_func:
-            t0 = time.time()
-            print 'blending in functional bytes ',
-            if not self.show_anat:
-                self._blended_src_scalars[...,3] = 0
-            over_dr = self.func_man.overlay.grid_spacing[::-1]
-            over_r0 = np.array(self.func_man.overlay.bbox)[::-1,0]
-            over_bytes = self._over_rgba_bytes
-            blended = rgba_blending.resample_and_blend(
-                self._blended_src_scalars, main_dr, main_r0,
-                over_bytes, over_dr, over_r0
-                )
-            t = time.time()
-            print 'done, %1.3f sec'%(t-t0)
-        
+        if not new_position:
+            print 'changing data in-place'
+            self.blended_src.scalar_data[:] = img_data
+
         #self.blended_src.update_image_data = True
+        self.blended_src.update()
+##         cProfile.runctx('self.blended_src.update()', globals(), locals(),
+##                         'mayavi.prof')
+##         s = pstats.Stats('mayavi.prof')
+##         s.strip_dirs().sort_stats('cumulative').print_stats()
 
         if not hasattr(self, 'ipw_x'):
             t0 = time.time()
@@ -493,6 +565,8 @@ class OrthoView3D(HasTraits):
         t0 = time.time()
         print 'also starting scene ',
         self._start_scene()
+        # this seems hacky, but works
+        self.scene.render_window.render()
         t = time.time()
         print 'done, %1.3f sec'%(t-t0)
 
@@ -566,7 +640,7 @@ class OrthoView3D(HasTraits):
                 Item('show_anat', label='Show anatomical'),
                 Item('show_func', label='Show functional'),
                 Item('show_cortex', label='Show cortex'),
-                Item('alpha_scaling', style='custom', label='Alpha scaling')
+                Item('alpha_compress',style='custom',label='Alpha compression')
                 ),
             HGroup(
                 Item('pscore_map', label='P Score Map'),

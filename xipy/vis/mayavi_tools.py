@@ -84,13 +84,13 @@ class ArraySourceRGBA(src_api.ArraySource):
         """Call this function when you change the array data
         in-place."""
         d = self.image_data
-        time_wrap('d.modified()', locals())
+        d.modified()
         pd = d.point_data
         if self.scalar_data is not None:
-            time_wrap('pd.scalars.modified()', locals())
+            pd.scalars.modified()
         if self.vector_data is not None:
-            time_wrap('pd.vectors.modified()', locals())
-        time_wrap('self.data_changed = True', locals())
+            pd.vectors.modified()
+##         self.data_changed = True
 
 
 class ImagePlaneWidget_RGBA(ImagePlaneWidget):
@@ -146,7 +146,8 @@ image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
 if __name__ == '__main__':
     from xipy.vis import rgba_blending
-    from matplotlib import cm
+##     from matplotlib import cm
+    import xipy.vis.color_mapping as cm
     from enthought.mayavi import mlab
 
     #### Some synthetic data
@@ -184,18 +185,22 @@ if __name__ == '__main__':
                                      over_bytes2, over_dr, over_r0)
 
     #### Make the Mayavi sources
-    src1 = ArraySourceRGBA(transpose_input_array=False)
-##     src1.scalar_data = main_bytes1
-    src2 = ArraySourceRGBA(transpose_input_array=False)
-##     src2.scalar_data = main_bytes2
+##     src1 = ArraySourceRGBA(transpose_input_array=False)
+    src1 = src_api.ArraySource(transpose_input_array=False)
+    src1.scalar_data = main_bytes1[60]
+##     src2 = ArraySourceRGBA(transpose_input_array=False)
+    src2 = src_api.ArraySource(transpose_input_array=False)
+    src2.scalar_data = main_bytes2[60]
 
     src1 = mlab.pipeline.add_dataset(src1)
     src2 = mlab.pipeline.add_dataset(src2)
 
-    ipw1 = image_plane_widget_rgba(src1)
+##     ipw1 = image_plane_widget_rgba(src1)
+    ipw1 = mlab.pipeline.image_plane_widget(src1); ipw1.use_lookup_table = False
     ipw1.ipw.plane_orientation = 'z_axes'
     ipw1.ipw.slice_index = 30
-    ipw2 = image_plane_widget_rgba(src2)
+##     ipw2 = image_plane_widget_rgba(src2)
+    ipw2 = mlab.pipeline.image_plane_widget(src2); ipw2.use_lookup_table = False
     ipw2.ipw.plane_orientation = 'x_axes'
     ipw2.ipw.slice_index = 20
     mlab.show()

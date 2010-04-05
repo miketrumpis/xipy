@@ -53,9 +53,7 @@ class XIPYWindowApp(QtGui.QMainWindow):
             action = QtGui.QAction(self)
             action.setObjectName('action'+pname.replace(' ', '_'))
             callback = pclass.request_launch_callback(
-                self._launch_plugin_tool,
-                *self._plugin_args,
-                **self._plugin_kwargs
+                self._launch_plugin_tool
                 )
             action.triggered.connect(callback)
             self.menuTools.addAction(action)
