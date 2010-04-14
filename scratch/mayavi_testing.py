@@ -18,8 +18,9 @@ func = load_resampled_slicer('map_img.nii')
 
 func_man = ImageOverlayManager(anat.bbox, overlay=func)
 
-win = mayavi_widgets.MayaviWidget(parent=mainwin, functional_manager=func_man)
+win = mayavi_widgets.MayaviWidget(parent=mainwin)
 win.mr_vis.anat_image = anat
+win.add_toolbar(func_man)
 
 my_track_file = '/Users/mike/workywork/dipy-vis/brain1/brain1_scan1_fiber_track_mni.trk'
 from mini_track_control import mini_track_feature

@@ -7,7 +7,7 @@ from PyQt4 import QtGui, QtCore
 from enthought.traits.api \
     import HasTraits, HasPrivateTraits, Instance, Enum, Dict, Constant, Str, \
     List, on_trait_change, Float, File, Array, Button, Range, Property, \
-    cached_property, Event, Bool, Color, Int
+    cached_property, Event, Bool, Color, Int, String
     
 from enthought.traits.ui.api \
     import Item, Group, View, VGroup, HGroup, HSplit, \
@@ -119,11 +119,13 @@ class ImageOverlayManager( OverlayInterface ):
 
     # these are just to satisfy the informal "overlay manager" interface
     fill_value = np.nan
-    base_alpha = np.ones((256,), dtype='B')
+    description = String('An Overlay!')
+
+    _base_alpha = np.ones((256,), dtype='B')
 
     def alpha(self, scale=1.0, threshold=True):
         # scale may go between 0 and 4.. just map this from (0,1)
-        a = (scale/4.0)*self.base_alpha
+        a = (scale/4.0)*self._base_alpha
         if threshold and self.threshold[1] != 'inactive':
             tval, comp = self.threshold
             mn, mx = self.norm

@@ -4,6 +4,7 @@ import enthought.traits.ui.api as ui_api
 from nipy.core import api as ni_api
 from xipy.slicing.image_slicers import VolumeSlicerInterface
 from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
+import xipy.volume_utils as vu
 import xipy.vis.color_mapping as cm
 import numpy as np
 ## import matplotlib.cm as cm
@@ -105,35 +106,80 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
             launch_method(klass, *cb_args)
         return launch_callback
 
+
+class ThresholdMap(t_api.HasTraits):
+    map_voxels = t_api.Array
+    map_scalars = t_api.Array
+    thresh_limits = t_api.Tuple((0.0, 0.0))
+    thresh_mode = t_api.String
+    thresh_map_name = t_api.String
+
+    def create_binary_mask(self, type='negative'):
+        """Create a binary mask in the shape of map_scalars for the
+        current threshold conditions.
+
+        Parameters
+        ----------
+        type : str, optional
+            By default, make a MaskedArray convention mask ('negative').
+            Otherwise, set mask to True where values are unmasked ('positive')
+        """
+        if not self.thresh_map_name:
+            return None
+        mode = self.thresh_mode
+        limits = self.thresh_limits
+        map = self.map_scalars
+        if mode=='mask lower':
+            m = (map <= limits[0]) if type=='negative' else (map > limits[1])
+        elif mode=='mask higher':
+            m = (map >= limits[1]) if type=='negative' else (map < limits[0])
+        else:
+            m = ( (map >= limits[0]) & (map <= limits[1]) ) \
+                if type=='negative' \
+                else ( (map < limits[0]) | (map > limits[1]) )
+        return m
+    
+##     def map_to_imagedata(self, coordmap):
+##         # XYZ: SHOULD THINK ABOUT INTERPOLATING, RATHER THAN MAPPING
+##         # TO NEAREST INDEX
+##         map_indices = coordmap.inverse(self.map_voxels).astype('i')
+##         volume_scalars = vu.signal_array_to_masked_vol(
+##             self.map_scalars, self.map_indices, fill_value=np.nan
+##             ).filled()
+##         origin = coordmap.affine[:3,-1]
+##         spacing = vu.voxel_size(coordmap.affine)
+##         return (volume_scalars, origin, spacing)
+
 # XYZ: SHOULD MAKE A TEST CLASS TO PROBAR ANY INSTANCE OF THIS INTERFACE
 class OverlayInterface(t_api.HasTraits):
     """Different overlay managers will implement this interface
     """
 
     # an interface to keep track of the current world position in
-    # an external plot
+    # an external plot, and a means to push a position back
     world_position = t_api.Array(shape=(3,))
+    world_position_updated = t_api.Event
+    def _world_position_default(self):
+        return np.zeros(3)
 
-    # an volume slicer for the voxel data
+    # a volume slicer for the voxel data
     overlay = t_api.Instance(VolumeSlicerInterface)
-
     # an event to say the overlay is updated
     # XYZ: CAN'T TRAITS SIMPLY WATCH FOR "overlay" TO CHANGE?
     overlay_updated = t_api.Event
 
+    description = t_api.Any
     ##### SCALAR-TO-COLOR MAPPING PROPERTIES
     ##### 1) normalization parameters
     ##### 2) RGBA lookup-table
     ##### 2a) a(x) function for scalar-to-alpha mapping
     ##### 3) interpolation
-    
+    image_props_updated = t_api.Event
     # the min/max value of the overlay to map to colors
     norm = t_api.Tuple( (0.0, 0.0) )
-##     norm = (0,1)
     # the alpha channel function for the colormap
     def alpha(self, threshold=True):
         raise NotImplementedError
-
     # Color LUT options, and a reference to the matplotlib LUT
     cmap_option = t_api.Enum(*sorted(cm.cmap_d.keys()))
     colormap = t_api.Property(depends_on='cmap_option')
@@ -143,7 +189,8 @@ class OverlayInterface(t_api.HasTraits):
     # thresholding information.. masks plotting of the overlay function
     # above/below a scalar value: for instance a plotter could set
     # the alpha channel to zero for scalar values less than 0 
-    threshold = t_api.Tuple((0.0, 'inactive'))
+##     threshold = t_api.Tuple((0.0, 'inactive'))
+    threshold = t_api.Instance(ThresholdMap)
 
     # fill value if using masked arrays
     fill_value = t_api.Float(0.0)
@@ -151,7 +198,7 @@ class OverlayInterface(t_api.HasTraits):
     # additional stats map names, and lookup table
     _stats_maps = t_api.List
     stats_map = t_api.Enum(values='_stats_maps')
-    stats_map_arrays = {}
+##     stats_map_arrays = {}
 
     # a simple UI group for the image property elements, may be used
     # or over-ridden in subclasses
@@ -171,15 +218,10 @@ class OverlayInterface(t_api.HasTraits):
         ui = self.edit_traits(parent=parent, kind='subpanel').control
         return ui
 
-    def stats_overlay(self, stat_name):
-        """Return a VolumeSlicer type for the requested stats map.
+    def map_stats_like_overlay(self, map_mask=False, mask_type='negative'):
+        """Return a VolumeSlicer type for the current threshold scalar map.
         It is assumed that the map has the same voxel to world mapping
         as the current overlay.
-
-        Parameters
-        ----------
-        stat_name : str
-            The name of the stats mapping to return as a VolumeSlicer type
 
         Returns
         -------
@@ -189,15 +231,19 @@ class OverlayInterface(t_api.HasTraits):
         if self.overlay is None:
             print 'Overlay not yet loaded'
             return None
-        if stat_name not in self._stats_maps:
-            print 'Stats array not loaded:', stat_name
+        if self.threshold.thresh_map_name == '':
+            print 'No active threshold'
             return None
         oclass = type(self.overlay)
-        data = self.stats_map_arrays[stat_name]
+        if map_mask:
+            data = self.threshold.create_binary_mask(type=mask_type)
+        else:
+            data = self.threshold.scalar_map
         cmap = self.overlay.coordmap
         bbox = self.overlay.bbox # ???
-        return oclass(ni_api.Image(data, cmap), bbox=bbox)
-
+        grid_spacing = self.overlay.grid_spacing
+        return oclass(ni_api.Image(data, cmap),
+                      bbox=bbox, grid_spacing=grid_spacing)
 
 def overlay_thresholding_function(threshold, positive=True):
     """ Take the OverlayInterface threshold parameters and create a

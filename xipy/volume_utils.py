@@ -52,7 +52,7 @@ def limits_to_extents(ax_limits):
     axi_extents = ax_limits[SAG] + ax_limits[COR]
     return [sag_extents, cor_extents, axi_extents]
 
-def world_limits(img):
+def world_limits(*args):
     """Find the limits of an image volume's box in world space, given the voxel
     to world mapping of the CoordinateMap. The shape of the array is assumed to
     be given in the same order as the input coordinates of the CoordinateMap,
@@ -60,15 +60,21 @@ def world_limits(img):
 
     Parameters
     ----------
-    img : a NIPY Image
+    img : a NIPY Image ( if len(args) == 1 )
+    coordmap, shape : a NIPY Affine, and 3D grid shape ( if len(args) == 2 )
 
     Returns
     -------
     a list of 3 2-tuples of the minima/maxima on the x, y, and z axes
     """
-    T = reorder_output(img.coordmap, 'xyz').affine
+    if len(args) == 1:
+        coordmap = args[0].coordmap
+        shape = args[0].shape
+    else:
+        coordmap, shape = args
+    T = reorder_output(coordmap, 'xyz').affine
+    adim, bdim, cdim = shape
     box = np.zeros((8,3), 'd')
-    adim, bdim, cdim = img.shape
     # form a collection of vectors for each 8 corners of the box
     box = np.array([ [0, 0, 0, 1],
                      [adim, 0, 0, 1],
@@ -107,7 +113,7 @@ def maximum_world_distance(limits):
 
     Returns
     -------
-    the distance in mm
+    the distance
     """
     coords = []
     y_limits = limits[1]
@@ -269,8 +275,31 @@ def signal_array_to_masked_vol(sig, vox_indices,
         vx = np.product(sig.shape[1:])
         v = np.arange(vx)
         flat_idx *= vx
-        flat_idx += v
+        flat_idx = (flat_idx[:,None] + v).reshape(-1)
 
     s.flat[flat_idx] = sig
     vmask.flat[flat_idx] = False
     return np.ma.masked_array(s, mask=vmask, **ma_kw)
+
+
+## class FlatSubVolume(object):
+##     def __init__(self, map_scalars, map_voxels):
+##         self.map_scalars = map_scalars
+##         self.map_voxels = map_voxels
+
+##     def map_to_volume(self, coordmap, dims=(), array_order='C'):
+##         """Map self to a MaskedArray volume.
+
+##         Parameters
+##         ----------
+##         coordmap : NIPY CoordinateMap
+##             a coordinate mapping from array coordinates to world coordinates,
+##             where the world coordinate space is that from which map_voxels
+##             are drawn.
+
+##         Returns
+##         -------
+##         a masked array
+##         """
+##         map_indices = coordmap.inverse(self.map_voxels)
+##         return 

@@ -192,6 +192,14 @@ class BlendedImage(t_ui.HasTraits):
         print 'updating obytes from changed:', changed
         if not self.over:
             return
+        # this evaluates correctly as False if there is no mask
+        if np.all( np.ma.getmask(self.over._data) ):
+            # revert to a state of having no overlay image,
+            # and trigger a new blended image by setting
+            # main_rgba to itself
+            self.over = None
+            self.main_rgba = self.main_rgba
+            return
         if self.over_norm != (0., 0.):
             n = mpl.colors.Normalize(*self.over_norm)
         else:
@@ -281,7 +289,7 @@ class BlendedImage(t_ui.HasTraits):
             return
         print ''
         over_alpha = self._check_alpha(self.over_alpha)
-        a_under, a_over, a_bad = self.over_cmap._lut[-3:,-1]
+        a_under, a_over, a_bad = self.over_cmap._lut[-3:,-1]*255
         alpha_lut = np.r_[over_alpha*255, a_under, a_over, a_bad]
         alpha_lut.take(self._over_idx, axis=0,
                        mode='clip', out=self.over_rgba[...,3])

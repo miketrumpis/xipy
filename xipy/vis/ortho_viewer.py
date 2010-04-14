@@ -159,9 +159,9 @@ class OrthoViewer(XIPYWindowApp):
 
 ##     @QtCore.pyqtSlot(QtCore.QObject, float, float, float)
     def triggered_overlay_update(self, func_man):
-        self._overlay_thresholding = overlay_thresholding_function(
-            func_man.threshold, positive=False
-            )
+##         self._overlay_thresholding = overlay_thresholding_function(
+##             func_man.threshold, positive=False
+##             )
         pdict = make_mpl_image_properties(func_man)
         self.update_overlay_slices(func_man.overlay, **pdict)
 

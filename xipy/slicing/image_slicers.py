@@ -316,7 +316,10 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         """
 
         image = vu.fix_analyze_image(image, fliplr=fliplr)
-        xyz_image = ni_api.Image(np.asarray(image),
+##         xyz_image = ni_api.Image(np.asarray(image),
+##                                  reorder_output(image.coordmap, 'xyz'))
+        # XYZ: NEED TO BREAK API HERE FOR MASKED ARRAY
+        xyz_image = ni_api.Image(image._data,
                                  reorder_output(image.coordmap, 'xyz'))
 
         self.raw_image = xyz_image
@@ -386,6 +389,8 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
             self._mask = np.logical_not(self.raw_mask)
 
         print 'new unmasked pts:', np.logical_not(self._mask).sum()
+        # XYZ: IF THE DATA COMES INTO THIS CLASS AS A MASKED ARRAY,
+        # THE ORIGINAL FILL VALUE GETS LOST HERE
         self.image_arr = np.ma.masked_array(np.ma.getdata(self.image_arr),
                                             mask=self._mask)
         
@@ -415,7 +420,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         slicer = [slice(None)]*3
         slicer[ax] = idx
         pln = self.image_arr[tuple(slicer)]
-        # now self.image_arr is either an ndarray or a MaskedArray
+##         # now self.image_arr is either an ndarray or a MaskedArray
 ##         if self._masking:
 ##             m_pln = self._mask[tuple(slicer)]
 ##             return np.ma.masked_where(m_pln, pln)
