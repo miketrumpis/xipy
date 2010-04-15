@@ -1,0 +1,134 @@
+"""
+Some simple examples and utility functions for resampling.
+"""
+
+from scipy.ndimage import affine_transform
+import numpy as np
+
+from xipy.external.interpolation import ImageInterpolator
+from nipy.core.api import Image, CoordinateMap, Affine, ArrayCoordMap, compose
+import nipy.core.transforms.affines as affines
+
+
+def resample_img2img(source, target, order=3):
+    """ 
+    This wraps the resample function to resample one image onto another
+    the output of the function will give an image with shape of the target and data from the source
+    
+    Parameters
+    ----------
+    source : ``Image``
+       Image instance that is to be resampled
+    target : ``Image``
+       Image instance to which source is resampled
+       The output image will have the same shape as the target, and the same coordmap
+    order : ``int``, optional
+       What order of interpolation to use in `scipy.ndimage`
+
+    Returns
+    -------
+    output : ``Image`` 
+       Image with interpolated data and output.coordmap == target.coordmap 
+
+    Examples
+    --------      
+    >>> from nipy.testing import funcfile, anatfile
+    >>> from nipy.io.api import load_image
+    >>> aimg_source = load_image(anatfile)
+    >>> aimg_target = aimg_source
+    >>> # in this case, we resample aimg to itself
+    >>> resimg = resample_img2img(aimg_source, aimg_target)
+    >>> 
+    """
+    sip, sop = source.coordmap.ndim
+    tip, top = target.coordmap.ndim
+    #print sip, sop, tip, top
+    if sop != top:
+        raise ValueError("source coordmap output dimension not equal to target coordmap output dimension")
+    mapping = np.eye(sop+1) # this would usually be 3+1
+    resimg = resample(source, target.coordmap, mapping, target.shape, order=order)
+    return resimg
+
+
+def resample(image, target, mapping, shape, order=3):
+    """
+    Resample an image to a target CoordinateMap with a "world-to-world" mapping
+    and spline interpolation of a given order.
+
+    Here, "world-to-world" refers to the fact that mapping should be
+    a callable that takes a physical coordinate in "target"
+    and gives a physical coordinate in "image". 
+
+    Parameters
+    ----------
+    image : Image instance that is to be resampled
+    target :target CoordinateMap for output image
+    mapping : transformation from target.output_coords
+               to image.coordmap.output_coords, i.e. 'world-to-world mapping'
+               Can be specified in three ways: a callable, a
+               tuple (A, b) representing the mapping y=dot(A,x)+b
+               or a representation of this in homogeneous coordinates. 
+    shape : shape of output array, in target.input_coords
+    order : what order of interpolation to use in `scipy.ndimage`
+
+    Returns
+    -------
+    output : Image instance with interpolated data and output.coordmap == target
+                  
+    """
+
+    if not callable(mapping):
+        if type(mapping) is type(()):
+            A, b = mapping
+            ndimout = b.shape[0]
+            ndimin = A.shape[1]
+            mapping  = np.zeros((ndimout+1, ndimin+1))
+            mapping[:ndimout,:ndimin] = A
+            mapping[:ndimout,-1] = b
+            mapping[-1,-1] = 1.
+
+     # image world to target world mapping
+
+        TW2IW = Affine(mapping, target.output_coords, image.coordmap.output_coords)
+    else:
+        TW2IW = CoordinateMap(mapping, target.output_coords, image.coordmap.output_coords)
+
+    input_coords = target.input_coords
+    output_coords = image.coordmap.output_coords
+
+    # target voxel to image world mapping
+    TV2IW = compose(TW2IW, target)
+
+    # CoordinateMap describing mapping from target voxel to
+    # image world coordinates
+
+##     print TV2IW
+    if not isinstance(TV2IW, Affine):
+        # interpolator evaluates image at values image.coordmap.output_coords,
+        # i.e. physical coordinates rather than voxel coordinates
+##         print 'using interpolator'
+        grid = ArrayCoordMap.from_shape(TV2IW, shape)
+        interp = ImageInterpolator(image, order=order)
+        idata = interp.evaluate(grid.transposed_values)
+        del(interp)
+    else:
+        TV2IV = compose(image.coordmap.inverse, TV2IW)
+        if isinstance(TV2IV, Affine):
+            A, b = affines.to_matrix_vector(TV2IV.affine)
+##             print 'using affine_transform()', A, b
+            data = np.asarray(image)
+            idata = affine_transform(data, A,
+                                     offset=b,
+                                     output_shape=shape,
+                                     output=data.dtype,
+                                     order=order)
+        else:
+##             print 'using interpolator 2'
+            interp = ImageInterpolator(image, order=order)
+            grid = ArrayCoordMap.from_shape(TV2IV, shape)
+            idata = interp.evaluate(grid.values)
+            del(interp)
+            
+    return Image(idata, target.copy())
+
+        
