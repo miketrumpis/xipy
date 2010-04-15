@@ -483,7 +483,7 @@ class OrthoView3D(HasTraits):
     # Construct ImplicitPlaneWidget plots
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
-        ipw = mlab.pipeline.image_plane_widget(
+        ipw = image_plane_widget_rgba(
             self.blended_src,
             figure=self.scene.mayavi_scene,
             plane_orientation='%s_axes'%axis_name

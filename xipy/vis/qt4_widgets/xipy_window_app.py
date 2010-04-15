@@ -65,7 +65,7 @@ class XIPYWindowApp(QtGui.QMainWindow):
                 )
 ##             action.setText(pname)
 
-    def _launch_plugin_tool(self, pclass, *args):
+    def _launch_plugin_tool(self, pclass, *args, **pkwargs):
         if not self._plugin_args:
             msg = 'There are no plugin arguments specified in this app'
             raise ValueError(msg)
@@ -80,7 +80,8 @@ class XIPYWindowApp(QtGui.QMainWindow):
             tool = active_tool[0]
             print tool
             return
-        tool = pclass(*self._plugin_args, **self._plugin_kwargs)
+        pkwargs.update(self._plugin_kwargs)
+        tool = pclass(*self._plugin_args, **pkwargs)
 
 ##         tool = pclass(loc_methods, image_methods, im_props_methods,
 ##                       self.image.bbox, main_ref=self,
@@ -95,4 +96,6 @@ class XIPYWindowApp(QtGui.QMainWindow):
         self._active_tools.append(tool)
         self.plugin_launched.emit(tool)
 
-        
+    def make_tool_from_functional_manager(self, pclass, func_man, **pkwargs):
+        pkwargs['functional_manager'] = func_man
+        self._launch_plugin_tool(pclass, **pkwargs)

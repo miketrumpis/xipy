@@ -39,6 +39,7 @@ class ImageOverlayWindow( OverlayWindowInterface ):
 
     def __init__(self, loc_connections, image_connections,
                  image_props_connections, bbox,
+                 functional_manager=None,
                  overlay=None, external_loc=None,
                  parent=None, main_ref=None):
         OverlayWindowInterface.__init__(self,
@@ -53,14 +54,21 @@ class ImageOverlayWindow( OverlayWindowInterface ):
         self.cbar = ColorbarPanel(parent=self, figsize=(6,2))
 
         vbox.addWidget(self.cbar)
-        
-        self.func_man = ImageOverlayManager(
-            bbox, colorbar=self.cbar,
-            loc_signal=self.loc_changed,
-            image_signal=self.image_changed,
-            props_signal=self.image_props_changed,
-            overlay=overlay
-            )
+        if functional_manager is None or \
+               type(functional_manager) is not ImageOverlayManager:
+            self.func_man = ImageOverlayManager(
+                bbox, colorbar=self.cbar,
+                loc_signal=self.loc_changed,
+                image_signal=self.image_changed,
+                props_signal=self.image_props_changed,
+                overlay=overlay
+                )
+        else:
+            self.func_man = functional_manager
+            self.func_man.loc_signal=self.loc_changed
+            self.func_man.image_signal=self.image_changed
+            self.func_man.props_signal=self.image_props_changed
+            self.func_man.cbar = self.cbar
         
         vbox.addWidget(self.func_man.make_panel(parent=self))
         QtGui.QWidget.setSizePolicy(self,
@@ -158,14 +166,14 @@ class ImageOverlayManager( OverlayInterface ):
         overlay : str, NIPY Image, VolumeSlicer type (optional)
             some version of the data to be overlaid
         """
-        HasTraits.__init__(self, **traits)
-        # this is a necessary argument when creating any new overlays
+        OverlayInterface.__init__(self,
+                                  loc_signal=loc_signal,
+                                  props_signal=props_signal,
+                                  image_signal=image_signal,
+                                  **traits)
         self.bbox = bbox
         self._new_overlay = False
         self.cbar = colorbar
-        self._loc_signal = loc_signal
-        self._image_signal = image_signal
-        self._props_signal = props_signal
         if overlay:
             self.update_overlay(overlay)
         else:
@@ -200,17 +208,17 @@ class ImageOverlayManager( OverlayInterface ):
 
     def send_image_signal(self):
         self.overlay_updated = True
-        if self._image_signal:
-            self._image_signal.emit(self)
+        if self.image_signal:
+            self.image_signal.emit(self)
 
     def send_location_signal(self, loc):
-        if self._loc_signal:
-            self._loc_signal.emit(*loc)
+        if self.loc_signal:
+            self.loc_signal.emit(*loc)
 
     @on_trait_change('norm, cmap_option, interpolation')
     def send_props_signal(self):
-        if self._props_signal:
-            self._props_signal.emit(self)
+        if self.props_signal:
+            self.props_signal.emit(self)
     
     ### CALLBACKS
     def _lbutton_fired(self):

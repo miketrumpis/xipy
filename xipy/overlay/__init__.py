@@ -214,6 +214,26 @@ class OverlayInterface(t_api.HasTraits):
     def _get_colormap(self):
         return cm.cmap_d[self.cmap_option]
 
+    def __init__(self, loc_signal=None, props_signal=None,
+                 image_signal=None, **traits):
+        """
+        Parameters
+        ----------
+        loc_signal : QtCore.pyqtSignal
+            optional PyQt4 callback signal to emit when peak finding
+            (call pattern is loc_signal.emit(x,y,z))
+        props_signal : QtCore.pyqtSignal
+            optional PyQt4 callback signal to emit when image colormapping
+            properties change
+        image_signal : QtCore.pyqtSignal
+            optional PyQt4 callback signal to emit when updating the image
+            (call pattern is image_signal.emit(self))
+        """
+        self.image_signal = image_signal
+        self.loc_signal = loc_signal
+        self.props_signal = props_signal
+        t_api.HasTraits.__init__(self, **traits)
+
     def make_panel(self, parent=None):
         ui = self.edit_traits(parent=parent, kind='subpanel').control
         return ui
