@@ -20,7 +20,7 @@ from xipy.slicing.image_slicers import SampledVolumeSlicer, \
      ResampledVolumeSlicer
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.colorbar_panel import ColorbarPanel
-from xipy.overlay import OverlayInterface, OverlayWindowInterface
+from xipy.overlay import OverlayInterface, OverlayWindowInterface, ThresholdMap
 from xipy.volume_utils import signal_array_to_masked_vol
 
 from nipy.core import api as ni_api
@@ -85,8 +85,6 @@ class ImageOverlayWindow( OverlayWindowInterface ):
 class ImageOverlayManager( OverlayInterface ):
     """ A data management class to interact with an image
     """
-
-    _new_overlay = Event
     lbutton = Button('Load Overlay Image')
     # Localizer functions
     _xform_by_name = {
@@ -100,7 +98,8 @@ class ImageOverlayManager( OverlayInterface ):
     _numfeatures = Int(150)
     _one = Int(1)
     order = Range('_one', '_numfeatures')
-    
+
+    _recompute_props = Event
     tval = Range(low='min_t', high='max_t',
                  editor=RangeEditor(low_name='min_t', high_name='max_t',
                                     low_label='min_t_label',
@@ -108,16 +107,16 @@ class ImageOverlayManager( OverlayInterface ):
                                     format='%1.2f'))
     comp = Enum('greater than', 'less than')
 
-    mask = Property(Array, depends_on='tval, comp, _new_overlay')
+    mask = Property(Array, depends_on='tval, comp, _recompute_props')
     # XYZ: RETHINK WHEN ordered_idx SHOULD BE RECALCULATED.. MAYBE ONLY
     # WHEN THE THE MASK IS "DIRTY" (IE RECENTLY APPLIED, BUT NOT USED)
-    work_arr = Property(Array, depends_on='tval, _new_overlay')
-    ordered_idx = Property(Array, depends_on='_new_overlay, tval, ana_xform')
+    work_arr = Property(Array, depends_on='tval, _recompute_props')
+    ordered_idx = Property(Array, depends_on='_recompute_props, tval, ana_xform')
 
-    max_t = Property(depends_on='_new_overlay')
-    max_t_label = Property(depends_on='_new_overlay')
-    min_t = Property(depends_on='_new_overlay')
-    min_t_label = Property(depends_on='_new_overlay')
+    max_t = Property(depends_on='_recompute_props')
+    max_t_label = Property(depends_on='_recompute_props')
+    min_t = Property(depends_on='_recompute_props')
+    min_t_label = Property(depends_on='_recompute_props')
     mask_button = Button('Apply Mask')
     clear_button = Button('Clear Mask')
 
@@ -129,19 +128,19 @@ class ImageOverlayManager( OverlayInterface ):
     fill_value = np.nan
     description = String('An Overlay!')
 
-    _base_alpha = np.ones((256,), dtype='B')
+    _base_alpha = 2*np.ones((256,), dtype='B')
 
     def alpha(self, scale=1.0, threshold=True):
         # scale may go between 0 and 4.. just map this from (0,1)
         a = (scale/4.0)*self._base_alpha
-        if threshold and self.threshold[1] != 'inactive':
-            tval, comp = self.threshold
-            mn, mx = self.norm
-            lut_map = int(255 * (tval - mn)/(mx-mn))
-            if comp == 'greater than':
-                a[:lut_map] = 0
-            else:
-                a[lut_map+1:] = 0
+##         if threshold and self.threshold[1] != 'inactive':
+##             tval, comp = self.threshold
+##             mn, mx = self.norm
+##             lut_map = int(255 * (tval - mn)/(mx-mn))
+##             if comp == 'greater than':
+##                 a[:lut_map] = 0
+##             else:
+##                 a[lut_map+1:] = 0
         return a
 
     def __init__(self, bbox, colorbar=None,
@@ -172,8 +171,8 @@ class ImageOverlayManager( OverlayInterface ):
                                   image_signal=image_signal,
                                   **traits)
         self.bbox = bbox
-        self._new_overlay = False
         self.cbar = colorbar
+        self.threshold = ThresholdMap()
         if overlay:
             self.update_overlay(overlay)
         else:
@@ -196,11 +195,16 @@ class ImageOverlayManager( OverlayInterface ):
         self.m_arr = np.ma.masked_array(np.asarray(self.overlay.raw_image),
                                         self.orig_mask,
                                         copy=False)
-        # toggling False to True should reset properties???
-        self._new_overlay = True 
+        # Trigger some properties to clear their caches
+        self._recompute_props = True
+
+        # Updating...
+        #   scalar norm parameters
         print 'normalizing from', self.min_t, 'to', self.max_t
         self.norm = (self.min_t, self.max_t)
         print self.norm
+        #   threshold scalars (just use same array, nothing fancy yet)
+        self.threshold.map_scalars = np.ma.getdata(self.m_arr)
         if self.cbar:
             self.cbar.change_norm(mpl.colors.normalize(*self.norm))
         if not silently:
@@ -232,13 +236,24 @@ class ImageOverlayManager( OverlayInterface ):
         self.find_peak()
 
     def _mask_button_fired(self):
-        self.threshold = (self.tval, self.comp)
-        self.send_props_signal()
+        self.threshold.thresh_map_name = 'overlay scalars'        
+        if self.comp == 'greater than':
+            self.threshold.thresh_mode = 'mask higher'
+            self.threshold.thresh_limits = (self.min_t, self.tval)
+        else:
+            self.threshold.thresh_mode = 'mask lower'
+            self.threshold.thresh_limits = (self.tval, self.max_t)
+        self._recompute_props = True
+        self.overlay.update_mask(self.mask, positive_mask=False)
+##         self.send_props_signal()
+        self.send_image_signal()
 ##         self.create_mask()
 
     def _clear_button_fired(self):
-        self.threshold = (self.tval, 'inactive')
-        self.send_props_signal()
+        self.threshold.thresh_map_name = ''
+        self._recompute_props = True        
+        self.send_image_signal()
+##         self.send_props_signal()
 
     @on_trait_change('order') #, dispatch='new')
     def find_peak(self):
@@ -312,14 +327,10 @@ class ImageOverlayManager( OverlayInterface ):
         """
         if self.overlay is None:
             return None
-        om = self.orig_mask # neg mask
-        if self.comp=='greater than':
-            # mask True for all vals less than or equal to threshold
-            nm = self.m_arr.data <= self.tval # neg mask
-        else:
-            # mask True all vals greater than or equal to threshold
-            nm = self.m_arr.data >= self.tval
-        m = nm | om
+        m = self.orig_mask # neg mask
+        nm = self.threshold.create_binary_mask()
+        if nm is not None:
+            m |= nm
         return m
 
     @cached_property
@@ -353,7 +364,7 @@ class ImageOverlayManager( OverlayInterface ):
                     Item('interpolation', label='Interpolation'),
                     ),
                 Item('_'),
-                Item('comp', label='Threshold Comparison'),
+                Item('comp', label='Mask values'),
                 Item('tval', style='custom', label='Overlay Threshold'),
                 HGroup(
                     Item('mask_button', show_label=False),

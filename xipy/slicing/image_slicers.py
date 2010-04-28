@@ -1,6 +1,5 @@
 from nipy.core import api as ni_api
 from nipy.core.reference.coordinate_map import reorder_output
-from nipy.neurospin.utils.mask import compute_mask
 import numpy as np
 from scipy import ndimage
 from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup
@@ -155,8 +154,8 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         self.interpolator = ImageInterpolator(xyz_image,
                                               order=interpolation_order,
                                               use_mmap=self._use_mmap)
-        if mask is True:
-            mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
+##         if mask is True:
+##             mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
         if type(mask) is np.ndarray:
             self.update_mask(mask, positive_mask=True)
         else:
@@ -353,8 +352,8 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
                                                  self.grid_spacing)]
         self.bbox = zip(bb_min, bb_max)
         
-        if mask is True:
-            mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
+##         if mask is True:
+##             mask = compute_mask(np.asarray(self.raw_image), cc=0, m=.1, M=.999)
         if type(mask) is np.ndarray:
             # sets self.raw_mask and self._mask and self._masking=True,
             # also converts self.image_arr to a MaskedArray

@@ -110,8 +110,29 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
 class ThresholdMap(t_api.HasTraits):
     map_voxels = t_api.Array
     map_scalars = t_api.Array
+
+    # thresh limits are a pair of numbers that indicate the "good range"
+    # of values in the scalar map. Depending on the mode, the mask will
+    # work as follows:
+
+    # * mask lower:
+    #   Values lower than thresh_limits[0] will be masked out
+    #
+    # * mask higher:
+    #   Values higher than thresh_limits[1] will be masked out
+    #
+    # * mask between:
+    #   Values greater than thresh_limits[0] and less than thresh_limits[1]
+    #   will be masked out
+    #
+    # * mask outside:
+    #   Values less than thresh_limits[0] union values greater than
+    #   thesh_limits[1] will be masked out
     thresh_limits = t_api.Tuple((0.0, 0.0))
-    thresh_mode = t_api.String
+    thresh_mode = t_api.Enum('mask lower', 'mask higher',
+                             'mask between', 'mask outside')
+##     thresh_mode = t_api.String
+
     thresh_map_name = t_api.String
 
     def create_binary_mask(self, type='negative'):
@@ -130,13 +151,17 @@ class ThresholdMap(t_api.HasTraits):
         limits = self.thresh_limits
         map = self.map_scalars
         if mode=='mask lower':
-            m = (map <= limits[0]) if type=='negative' else (map > limits[1])
+            m = (map < limits[0]) if type=='negative' else (map >= limits[0])
         elif mode=='mask higher':
-            m = (map >= limits[1]) if type=='negative' else (map < limits[0])
-        else:
-            m = ( (map >= limits[0]) & (map <= limits[1]) ) \
+            m = (map > limits[1]) if type=='negative' else (map <= limits[1])
+        elif mode=='mask between':
+            m = ( (map > limits[0]) & (map < limits[1]) ) \
                 if type=='negative' \
-                else ( (map < limits[0]) | (map > limits[1]) )
+                else ( (map <= limits[0]) | (map >= limits[1]) )
+        else: # mask outside
+            m = ( (map < limits[0]) | (map > limits[1]) ) \
+                if type=='negative' \
+                else ( (map >= limits[0]) & (map <= limits[1]) )
         return m
     
 ##     def map_to_imagedata(self, coordmap):

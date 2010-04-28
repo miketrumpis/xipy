@@ -27,8 +27,8 @@ cmaps.sort()
 
 class OrthoViewer(XIPYWindowApp):
     
-    def __init__(self, image=None, fliplr=False, parent=None):
-##         QtGui.QMainWindow.__init__(self)
+    def __init__(self, image=None, mayavi_viewer=True,
+                 fliplr=False, parent=None):
         super(OrthoViewer, self).__init__(parent=parent,
                                           designer_layout=ui_layout_class())
 
@@ -37,7 +37,6 @@ class OrthoViewer(XIPYWindowApp):
         # R[0,0], in the index to world transform
         self._fliplr = fliplr
         
-##         self.setupUi(self)
 
         # kick in the manual connections etc written below
         self.extra_setup_ui()
@@ -48,14 +47,13 @@ class OrthoViewer(XIPYWindowApp):
             self.update_image(image)
         except ValueError:
             print 'no image to load in __init__()'
-            
-        # Creates Mayavi 3D view
-        self.create_mayavi_window()
-        # do a little catch up with the informing
-        if self._image_loaded:
-            self.mayavi_widget.mr_vis.anat_image = self.image
 
-##         self.create_plugin_options()
+        if mayavi_viewer:
+            # Creates Mayavi 3D view
+            self.create_mayavi_window()
+            # do a little catch up with the informing
+            if self._image_loaded:
+                self.mayavi_widget.mr_vis.anat_image = self.image
     
     def extra_setup_ui(self):
         # set up cmap options
@@ -105,7 +103,8 @@ class OrthoViewer(XIPYWindowApp):
         self.mayavi_widget = mayavi_widget
 
     def _update_mayavi_viewer_panel(self, plugin):
-        self.mayavi_widget.add_toolbar(plugin.func_man)
+        if hasattr(self, 'mayavi_widget') and self.mayavi_widget is not None:
+            self.mayavi_widget.add_toolbar(plugin.func_man)
 
     @with_attribute('_image_loaded')
     def _update_plugin_params(self):
@@ -154,7 +153,7 @@ class OrthoViewer(XIPYWindowApp):
         self.ortho_figs_widget.initialize_plots(planes, (0,0,0), limits,
                                                 interpolation=interp,
                                                 cmap=cmap)
-        if hasattr(self, 'mayavi_widget'):
+        if hasattr(self, 'mayavi_widget') and self.mayavi_widget is not None:
             self.mayavi_widget.mr_vis.anat_image = self.image
 
 ##     @QtCore.pyqtSlot(QtCore.QObject, float, float, float)
@@ -308,12 +307,24 @@ class OrthoViewer(XIPYWindowApp):
         self.update_ranges(plot_limits)
 
 
-def ortho_viewer(image=None, fliplr=False):
-    win = OrthoViewer(image=image, fliplr=fliplr)
+def ortho_viewer(show=True, **kwargs):
+    """Create an OrthoViewer, and optionally show it. (If showing, a
+    QApplication process must already be started)
+    """
+    win = OrthoViewer(**kwargs)
+    if show:
+        win.show()
     return win
 
-def view_mr(mr_image, fliplr=False):
-    return ortho_viewer(image=mr_image, fliplr=fliplr)
+def view_mr(mr_image, show=True, **kwargs):
+    """Create an OrthoViewer showing this image, and optionally show it.
+    (If showing, a QApplication process must already be started)
+    """
+    win = ortho_viewer(image=mr_image, **kwargs)
+    if show:
+        win.show()
+    return win
+
 
 
 if __name__=='__main__':
