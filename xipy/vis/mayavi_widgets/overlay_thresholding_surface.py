@@ -48,6 +48,7 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         if not self.thresh:
             print 'no overlay thresholding available'
             self.trait_setq(show_tsurfs=False)
+            return
         elif not hasattr(self, 'thresh_surf') or not self.thresh_surf:
             self.add_threshold_surf()
         self.thresh_surf.visible = self.show_tsurfs
@@ -105,16 +106,18 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         sctype = s_arr.dtype
         # this will be a negative mask, so threshold everything > 0.5
         t_arr = np.ma.getmask(overlay.image_arr)
-        if t_arr is False:
-            t_arr = np.ones(overlay.image_arr.shape, sctype).transpose().flatten()
+        if t_arr is np.ma.nomask:
+            t_arr = np.zeros(overlay.image_arr.shape, sctype).transpose().flatten()
         else:
             t_arr = t_arr.astype(sctype).transpose().flatten()
+        
 
         scalars.scalar_data = s_arr.copy()
-##         scalars.image_data.point_data.get_array(0).name = 'overlay'
         scalars.scalar_name = 'overlay'
-        scalars.origin = overlay.coordmap.affine[:3,-1]
-        scalars.spacing = vu.voxel_size(overlay.coordmap.affine)
+        scalars.origin = np.array(overlay.bbox)[:,0]
+        scalars.spacing = overlay.grid_spacing
+##         scalars.origin = overlay.coordmap.affine[:3,-1]
+##         scalars.spacing = vu.voxel_size(overlay.coordmap.affine)
         self.display._stop_scene()
         scalars.update_image_data = True
         thresh_pts = scalars.image_data.point_data.get_array('threshold')
@@ -126,15 +129,25 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
             ts = mlab.pipeline.set_active_attribute(scalars,
                                                     point_scalars='threshold')
             self.thresh = mlab.pipeline.threshold(
-                ts, low=0.0, up=0.5
+                ts #, low=0.0, up=0.5
                 )
-            self.thresh.auto_reset_lower = False
-            self.thresh.auto_reset_upper = False
+##             self.thresh.auto_reset_lower = False
+##             self.thresh.auto_reset_upper = False
             self.thresh.filter_type = 'cells'
             self.surf_scalars = mlab.pipeline.set_active_attribute(
                 self.thresh, point_scalars='overlay'
                 )
-            
+
+        # try to threshold between (0, .5)..
+        # if this fails, then let everything pass
+        try:
+            self.thresh.upper_threshold = 0.5
+        except:
+            pass
+        try:
+            self.thresh.lower_threshold = 0.0
+        except:
+            pass
         self.display._start_scene()
 
 

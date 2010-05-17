@@ -9,23 +9,25 @@ import xipy.vis.color_mapping as cm
 
 # XYZ: SUCKY CLASS NEEDS SERIOUS WORK
 
-class ColorbarPanel(QtGui.QWidget):
+## class ColorbarPanel(QtGui.QWidget):
+class ColorbarPanel(Canvas):
     """A small panel holding an MPL colorbar
     """
     def __init__(self, cmap=None, norm=None, parent=None, **kwargs):
-        QtGui.QWidget.__init__(self, parent)
-        self.setParent(parent)
-        self.fig = Figure(figsize=kwargs.get('figsize', (2,1)),
+##         QtGui.QWidget.__init__(self, parent)
+##         self.setParent(parent)
+        fig = Figure(figsize=kwargs.get('figsize', (2,1)),
                           dpi=kwargs.get('dpi', 100))
-        self.fig.canvas = Canvas(self.fig)
-        self.fig.canvas.setParent(self)
-        Canvas.setSizePolicy(self.fig.canvas, QtGui.QSizePolicy.Expanding,
-                             QtGui.QSizePolicy.Expanding)
-        Canvas.updateGeometry(self.fig.canvas)
-        self.ax = self.fig.add_axes([.2, .2, .6, .6])
+##         self.fig.canvas = Canvas(self.fig)
+##         self.fig.canvas.setParent(self)
+        self.ax = fig.add_axes([.1, .2, .8, .6])
         self.cb = self._create_colorbar(cmap, norm)
         self.t_pos = None
-        self.fig.canvas.draw_idle()
+        Canvas.__init__(self, fig)
+        Canvas.setSizePolicy(self, QtGui.QSizePolicy.Expanding,
+                             QtGui.QSizePolicy.Expanding)
+        Canvas.updateGeometry(self)
+        self.draw_idle()
 
     def _create_colorbar(self, cmap, norm):
         cmap = cmap or cm.gray
@@ -34,7 +36,8 @@ class ColorbarPanel(QtGui.QWidget):
         self.ax.clear()
         cb = mpl.colorbar.ColorbarBase(self.ax, cmap=cmap, norm=norm,
                                        orientation='horizontal',
-                                       ticks=ticks)
+                                       ticks=ticks,
+                                       format='%1.3f')
         for xt,_,_ in self.ax.xaxis.iter_ticks():
             xt.label.set_fontsize(9.0)
         return cb
@@ -47,8 +50,9 @@ class ColorbarPanel(QtGui.QWidget):
             self.cb.lines.remove()
         except:
             pass
+        self.t_pos = np.clip(self.t_pos, *self.cb.get_clim())
         self.cb.add_lines([self.t_pos], ['k'], [2.0])
-        self.fig.canvas.draw_idle()
+        self.draw_idle()
 
     def __call__(self, x):
         rgb = self.cb.to_rgba(x)
@@ -59,7 +63,7 @@ class ColorbarPanel(QtGui.QWidget):
     
     def initialize(self):
         self.cb = self._create_colorbar(None, None)
-        self.fig.canvas.draw_idle()
+        self.draw_idle()
     
     def add_cbar(self, cmap, norm, t_pos=None):
         self.cb = self._create_colorbar(cmap, norm)
@@ -67,7 +71,7 @@ class ColorbarPanel(QtGui.QWidget):
             self.t_pos = t_pos
             self._mark_threshold()
         else:
-            self.fig.canvas.draw_idle()
+            self.draw_idle()
 
     def change_cmap(self, cmap):
         if str(cmap) in cm.cmap_d:

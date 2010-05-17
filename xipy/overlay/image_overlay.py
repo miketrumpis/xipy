@@ -68,7 +68,7 @@ class ImageOverlayWindow( OverlayWindowInterface ):
             self.func_man.loc_signal=self.loc_changed
             self.func_man.image_signal=self.image_changed
             self.func_man.props_signal=self.image_props_changed
-            self.func_man.cbar = self.cbar
+            self.func_man.connect_colorbar(self.cbar)
             # breaking independence
             if self.func_man.overlay is not None:
                 print 'requesting new image signal'
@@ -80,8 +80,8 @@ class ImageOverlayWindow( OverlayWindowInterface ):
                                     QtGui.QSizePolicy.Expanding)
         self.updateGeometry()
         r = self.geometry()
-        self.cbar.fig.set_size_inches(r.width()/100., r.height()/200.)
-        self.cbar.fig.canvas.draw()
+        self.cbar.figure.set_size_inches(r.width()/100., r.height()/200.)
+        self.cbar.draw()
         
     def _strip_overlay(self):
         self.cbar.initialize()
@@ -105,10 +105,10 @@ class ImageOverlayManager( OverlayInterface ):
     order = Range('_one', '_numfeatures')
 
     _recompute_props = Event
-    tval = Range(low='min_t', high='max_t',
-                 editor=RangeEditor(low_name='min_t', high_name='max_t',
-                                    low_label='min_t_label',
-                                    high_label='max_t_label',
+    tval = Range(low='_min_t', high='_max_t',
+                 editor=RangeEditor(low_name='_min_t', high_name='_max_t',
+                                    #low_label='min_t_label',
+                                    #high_label='max_t_label',
                                     format='%1.2f'))
     comp = Enum('greater than', 'less than')
 
@@ -119,10 +119,12 @@ class ImageOverlayManager( OverlayInterface ):
     ordered_idx = Property(Array,
                            depends_on='_recompute_props, tval, ana_xform')
 
-    max_t = Property(depends_on='_recompute_props')
-    max_t_label = Property(depends_on='_recompute_props')
-    min_t = Property(depends_on='_recompute_props')
-    min_t_label = Property(depends_on='_recompute_props')
+    _min_t = Float
+    _max_t = Float
+##     max_t = Property(depends_on='_recompute_props')
+##     max_t_label = Property(depends_on='_recompute_props')
+##     min_t = Property(depends_on='_recompute_props')
+##     min_t_label = Property(depends_on='_recompute_props')
     mask_button = Button('Apply Mask')
     clear_button = Button('Clear Mask')
 
@@ -130,9 +132,10 @@ class ImageOverlayManager( OverlayInterface ):
 
     peak_color = Color
 
+    description = Property(depends_on='overlay_updated, tval, mask_button, clear_button')
+
     # these are just to satisfy the informal "overlay manager" interface
     fill_value = np.nan
-    description = String('An Overlay!')
 
     _base_alpha = 2*np.ones((256,), dtype='B')
 
@@ -177,42 +180,31 @@ class ImageOverlayManager( OverlayInterface ):
                                   image_signal=image_signal,
                                   **traits)
         self.bbox = bbox
-        self.cbar = colorbar
         self.threshold = ThresholdMap()
+        self.connect_colorbar(colorbar)
         if overlay:
             self.update_overlay(overlay)
         else:
             self.overlay is None
 
     def update_overlay(self, overlay, silently=False):
-##         self.overlay = load_sampled_slicer(overlay, self.bbox)
         self.overlay = load_resampled_slicer(overlay, self.bbox)
-        print 'world bbox:', self.bbox
-        print 'overlay bbox:', self.overlay.bbox
-        if self.overlay.raw_mask is not None:
-            self.orig_mask = np.logical_not(self.overlay.raw_mask)
-        else:
+        self.orig_mask = np.ma.getmask(self.overlay.raw_image._data)
+        if self.orig_mask is np.ma.nomask:
             self.orig_mask = np.zeros(self.overlay.raw_image.shape, np.bool)
-        # this will be the array used for peak finding and threshold
-        # setting. It is the "original" data, from the overlay slicer
-        # object. Furthermore, all peak finding will be done on the
-        # array's index coordinates, and not on the interpolated
-        # data maps
-        self.m_arr = np.ma.masked_array(np.asarray(self.overlay.raw_image),
-                                        self.orig_mask,
-                                        copy=False)
+        self._min_t = float(np.ma.min(self.overlay.raw_image._data))
+        self._max_t = float(np.ma.max(self.overlay.raw_image._data))
+
         # Trigger some properties to clear their caches
         self._recompute_props = True
 
         # Updating...
         #   scalar norm parameters
-        print 'normalizing from', self.min_t, 'to', self.max_t
-        self.norm = (self.min_t, self.max_t)
+        print 'normalizing from', self._min_t, 'to', self._max_t
+        self.norm = (self._min_t, self._max_t)
         print self.norm
         #   threshold scalars (just use same array, nothing fancy yet)
-        self.threshold.map_scalars = np.ma.getdata(self.m_arr)
-        if self.cbar:
-            self.cbar.change_norm(mpl.colors.normalize(*self.norm))
+        self.threshold.map_scalars = np.asarray(self.overlay.raw_image)
         if not silently:
             self.send_image_signal()
 
@@ -224,6 +216,8 @@ class ImageOverlayManager( OverlayInterface ):
             self.image_signal.emit(self)
 
     def send_location_signal(self, loc):
+        self.world_position = np.array(loc)
+        self.world_position_updated = True
         if self.loc_signal:
             self.loc_signal.emit(*loc)
 
@@ -247,12 +241,21 @@ class ImageOverlayManager( OverlayInterface ):
         self.threshold.thresh_map_name = 'overlay scalars'        
         if self.comp == 'greater than':
             self.threshold.thresh_mode = 'mask higher'
-            self.threshold.thresh_limits = (self.min_t, self.tval)
+            self.threshold.thresh_limits = (self._min_t, self.tval)
         else:
             self.threshold.thresh_mode = 'mask lower'
-            self.threshold.thresh_limits = (self.tval, self.max_t)
+            self.threshold.thresh_limits = (self.tval, self._max_t)
         self._recompute_props = True
-        self.overlay.update_mask(self.mask, positive_mask=False)
+        m_arr = np.ma.masked_array(
+            np.asarray(self.overlay.raw_image),
+            self.mask
+            )
+        img = ni_api.Image(m_arr, self.overlay.raw_image.coordmap)
+        self.overlay = ResampledVolumeSlicer(
+            img, bbox=self.bbox,
+            mask=np.logical_not(m_arr.mask),
+            grid_spacing=self.overlay.grid_spacing
+            )
         self.send_image_signal()
 
     def _clear_button_fired(self):
@@ -270,12 +273,12 @@ class ImageOverlayManager( OverlayInterface ):
         else:
             pk_flat_idx = self.ordered_idx[self.order-1]
 
-        vol_idx = np.array(np.lib.index_tricks.unravel_index(pk_flat_idx,
-                                                             self.m_arr.shape))
+        vol_idx = np.array(np.lib.index_tricks.unravel_index(
+            pk_flat_idx, self.overlay.raw_image.shape))
         
         xyz_a = self.overlay.coordmap(vol_idx)[0]
         xyz_b = self.overlay.coordmap(vol_idx+1)[0]
-        pk_val_arr = self.m_arr[tuple(vol_idx)]
+        pk_val_arr = np.asarray(self.overlay.raw_image)[tuple(vol_idx)]
         print xyz_a, xyz_b
         print 'vox coords:', vol_idx, 'should cut to coords', (xyz_a+xyz_b)/2
         print 'peak value:', pk_val_arr
@@ -287,11 +290,30 @@ class ImageOverlayManager( OverlayInterface ):
             self.peak_color = hx
         self.send_location_signal((xyz_a + xyz_b)/2)
 
+    # -- Some ColorbarPanel interaction --
+    def connect_colorbar(self, colorbar):
+        self.cbar = colorbar
+        self._set_cbar_norm()
+        self._set_cbar_cmap()
+        self._move_cbar_indicator()
+    
     @on_trait_change('tval')
-    def move_cbar_indicator(self):
+    def _move_cbar_indicator(self):
         if not self.cbar:
             return
         self.cbar.change_threshold(self.tval)
+    @on_trait_change('norm')
+    def _set_cbar_norm(self):
+        if not self.cbar:
+            return
+        print 'image norm changed'
+        self.cbar.change_norm(mpl.colors.normalize(*self.norm))
+    @on_trait_change('cmap_option')
+    def _set_cbar_cmap(self):
+        if not self.cbar:
+            return
+        print 'image cmap changed'
+        self.cbar.change_cmap(self.colormap)
 
     @on_trait_change('grid_size')
     def new_grid_size(self):
@@ -305,27 +327,19 @@ class ImageOverlayManager( OverlayInterface ):
             )
         self.update_overlay(new_slicer)
 
-    ### PROPERTY FUNCTIONS
+    # Property Getters
     @cached_property
-    def _get_max_t(self):
-        print 'recomputing max_t'
-        if self.overlay is None:
-            return 0.0
-        mx = self.m_arr.max()
-        return int(1000*mx)/1000.0
-    @cached_property
-    def _get_max_t_label(self):
-        return '%1.2f'%self.max_t
-    @cached_property
-    def _get_min_t(self):
-        print 'recomputing min_t'
-        if self.overlay is None:
-            return 0.0
-        mn = self.m_arr.min()
-        return int(1000*mn)/1000.0
-    @cached_property
-    def _get_min_t_label(self):
-        return '%1.2f'%self.min_t
+    def _get_description(self):
+        um_pts = np.logical_not(self.mask).sum()
+        d_range = self.norm
+        dstr = \
+"""
+Overlay image
+data range: (%1.3f, %1.3f)
+unmasked points: %d
+"""%(d_range[0], d_range[1], um_pts)
+        return dstr
+
     @cached_property
     def _get_mask(self):
         """ Create a negative mask of the overlay map, where points
@@ -343,7 +357,8 @@ class ImageOverlayManager( OverlayInterface ):
     def _get_work_arr(self):
         if self.overlay is None:
             return None
-        return np.ma.masked_array(self.m_arr.data, mask=self.mask, copy=False)
+        data = np.asarray(self.overlay.raw_image)
+        return np.ma.masked_array(data, mask=self.mask, copy=False)
     @cached_property
     def _get_ordered_idx(self):
         """ Create a list of sorted map indices

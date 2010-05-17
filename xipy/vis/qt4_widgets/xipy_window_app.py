@@ -78,6 +78,7 @@ class XIPYWindowApp(QtGui.QMainWindow):
             print tool
             return
         pkwargs.update(self._plugin_kwargs)
+        print self._plugin_args, pkwargs
         tool = pclass(*self._plugin_args, **pkwargs)
         tool.show()
         tool.activateWindow()

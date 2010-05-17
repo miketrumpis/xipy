@@ -283,7 +283,10 @@ class OverlayInterface(t_api.HasTraits):
             return None
         oclass = type(self.overlay)
         if map_mask:
-            data = self.threshold.create_binary_mask(type=mask_type)
+            if mask_type=='negative':
+                data = self.threshold.binary_mask.astype('d')
+            else:
+                data = (~self.threshold.binary_mask).astype('d')
         else:
             data = self.threshold.scalar_map
         cmap = self.overlay.coordmap

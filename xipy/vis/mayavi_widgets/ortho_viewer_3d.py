@@ -1,3 +1,6 @@
+# std lib
+import time
+
 # NumPy
 import numpy as np
 
