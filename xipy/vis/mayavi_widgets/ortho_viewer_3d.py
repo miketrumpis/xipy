@@ -1,8 +1,10 @@
-import os
-os.environ['ETS_TOOLKIT'] = 'qt4'
+# NumPy
+import numpy as np
 
-from PyQt4 import QtGui, QtCore
+# NIPY
+from nipy.core import api as ni_api
 
+# Enthought library
 from enthought.traits.api import HasTraits, Instance, on_trait_change, Array, \
      Bool, Range, Enum, Property, List, Tuple, DelegatesTo, TraitError
 from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
@@ -15,27 +17,20 @@ from enthought.mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
 from enthought.mayavi.modules.text import Text
 from enthought.mayavi import mlab
 
-import numpy as np
-from scipy import ndimage
-## from matplotlib import cm
-import xipy.vis.color_mapping as cm
-
+# XIPY imports
 from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
      VolumeSlicerInterface
 from xipy.overlay import OverlayInterface, ThresholdMap
-from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
 from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis import rgba_blending
 import xipy.volume_utils as vu
-from nipy.core import api as ni_api
 
-import time
+from xipy.vis.mayavi_widgets import VisualComponent
+from xipy.vis.mayavi_widgets.overlay_blending import OverlayBlendingComponent
+from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
+from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
 
-import cProfile, pstats
-
-P_THRESH = 0.05
-CLUSTER_THRESH = 3
 
 def three_plane_pt(n1, n2, n3, x1, x2, x3):
     nm = np.array((n1,n2,n3)).T
@@ -45,342 +40,9 @@ def three_plane_pt(n1, n2, n3, x1, x2, x3):
     n1x2 = np.cross(n1,n2)
     x = ( np.dot(x1,n1)*n2x3 + np.dot(x2,n2)*n3x1 + np.dot(x3,n3)*n1x2 )
     return x / dt
-                                                       
-class VisualComponent(HasTraits):
-    # NOTE! IT IS VERY IMPORTANT TO SET THIS UP AS A CONCRETE
-    # INSTANCE BEFORE CREATING ANY SUBCLASSES
-##     display = Instance('xipy.vis.mayavi_widgets.OrthoView3D')
-    pass
-    
-class OverlayBlendingComponent(VisualComponent):
-    """A class to take control of blending overlay colors into the main
-    display's blended image source
-    """
-    
-    blender = DelegatesTo('display')
-    func_man = DelegatesTo('display')
-
-    # ----- This will eventually become this VisualComponent's UI widget -----
-    show_func = DelegatesTo('display')
-    alpha_compress = DelegatesTo('display')
-    # ------------------------------------------------------------------------
-    @on_trait_change('show_func')
-    def _show_func(self):
-        if not self.func_man or not self.func_man.overlay:
-            print 'no functional manager to provide an overlay'
-            self.trait_setq(show_func=False)
-            return
-        self.display.change_source_data()
-    
-    @on_trait_change('alpha_compress')
-    def _alpha_scale(self):
-        if not self.func_man:
-            return
-        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
-
-    @on_trait_change('func_man.norm')
-    def _set_blender_norm(self):
-        print 'resetting scalar normalization from func_man.norm'
-        self.blender.over_norm = self.func_man.norm
-        
-    @on_trait_change('func_man.threshold')
-    def _set_threshold(self):
-        print 'remapping alpha because of func_man.threshold',
-        if not self.func_man.overlay:
-            print 'but no func_man'
-            return
-        print ''
-        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
-
-    @on_trait_change('func_man.cmap_option')
-    def _set_over_cmap(self):
-        self.blender.over_cmap = self.func_man.colormap
-
-    @on_trait_change('func_man.overlay_updated')
-    def _update_colors_from_func_man(self):
-        """ When a new overlay is signaled, update the overlay color bytes
-        """
-        if not self.func_man or not self.func_man.overlay:
-            return
-        overlay = self.func_man.overlay
-        # this could potentially change scalar mapping properties too
-        self.blender.trait_setq(
-            over_cmap=self.func_man.colormap,
-            over_norm=self.func_man.norm,
-            over_alpha=self.func_man.alpha(scale=self.alpha_compress)
-            )
-            
-        self.blender.over = overlay.raw_image
-
-class OverlayThresholdingSurfaceComponent(VisualComponent):
-    """A class to take control of thresholding the overlay, and creating
-    surfaces of unmasked regions
-    """
-
-    func_man = DelegatesTo('display')
-    _func_thresh = DelegatesTo('display')
-    func_scalars = DelegatesTo('display')
-    notch_mode = Property
-    thresh = Instance('enthought.mayavi.filters.threshold.Threshold')
-
-    # ----- This will eventually become this VisualComponent's UI widget -----
-    show_tsurfs = DelegatesTo('display')
-    # ------------------------------------------------------------------------
-
-    @on_trait_change('show_tsurfs')
-    def _show_thresh_surfaces(self):
-        if not self.thresh:
-            print 'no overlay thresholding available'
-            self.trait_setq(show_tsurfs=False)
-        elif not hasattr(self, 'thresh_surf') or not self.thresh_surf:
-            self.add_threshold_surf()
-        self.thresh_surf.visible = self.show_tsurfs
-        self.display.scene.render_window.render()
-        
-    def add_threshold_surf(self):
-        if not self.thresh:
-            return
-        mn, mx = self.func_man.norm
-        colormap = self.func_man.cmap_option
-        self.display._stop_scene()
-        surf = mlab.pipeline.surface(
-            self.surf_scalars, vmin=mn, vmax=mx,
-            colormap=colormap, representation='wireframe',
-            opacity=0.35, figure=self.display.scene.mayavi_scene
-            )
-        self.thresh_surf = surf
-        self.display._start_scene()
-
-    @on_trait_change('func_man')
-    def _reset_all_arrays(self):
-        self.func_scalars.children = []
-        # flush previous arrays
-        n_arr = self.func_scalars.image_data.point_data.number_of_arrays
-        names = [self.func_scalars.image_data.point_data.get_array(i).name
-                 for i in xrange(n_arr)]
-        for n in names:
-            self.func_scalars.image_data.point_data.remove_array(n)
-        self.func_scalars.scalar_data = None
-        self.thresh = None
-        self.thresh_surf = None
-        self.surf_scalars = None
-
-##     @on_trait_change('func_man.overlay')
-##     def _update_overlay_scalars(self):
-##         overlay = self.func_man.overlay
-##         if not overlay:
-##             return
-##         self.func_scalars.scalar_data = overlay.image_arr.transpose().copy()
-##         self.func_scalars.image_data.point_data.get_array(0).name = 'overlay'
-##         self.func_scalars.origin = overlay.coordmap.affine[:3,-1]
-##         self.func_scalars.spacing = vu.voxel_size(overlay.coordmap.affine)
-##         self.display._stop_scene()
-##         self.func_scalars.update_image_data = True
-##         self.display._start_scene()
-
-    @on_trait_change('func_man.overlay')
-    def _update_overlay_scalars(self):
-        overlay = self.func_man.overlay
-        scalars = self.func_scalars
-        if not overlay:
-            return
-
-        s_arr = np.ma.filled(overlay.image_arr)
-        sctype = s_arr.dtype
-        # this will be a negative mask, so threshold everything > 0.5
-        t_arr = np.ma.getmask(overlay.image_arr)
-        if t_arr is False:
-            t_arr = np.ones(overlay.image_arr.shape, sctype).transpose().flatten()
-        else:
-            t_arr = t_arr.astype(sctype).transpose().flatten()
-
-        scalars.scalar_data = s_arr.copy()
-##         scalars.image_data.point_data.get_array(0).name = 'overlay'
-        scalars.scalar_name = 'overlay'
-        scalars.origin = overlay.coordmap.affine[:3,-1]
-        scalars.spacing = vu.voxel_size(overlay.coordmap.affine)
-        self.display._stop_scene()
-        scalars.update_image_data = True
-        thresh_pts = scalars.image_data.point_data.get_array('threshold')
-        if thresh_pts:
-            thresh_pts.from_array(t_arr)
-        else:
-            n = scalars.image_data.point_data.add_array(t_arr)
-            scalars.image_data.point_data.get_array(n).name = 'threshold'
-            ts = mlab.pipeline.set_active_attribute(scalars,
-                                                    point_scalars='threshold')
-            self.thresh = mlab.pipeline.threshold(
-                ts, low=0.0, up=0.5
-                )
-            self.thresh.auto_reset_lower = False
-            self.thresh.auto_reset_upper = False
-            self.thresh.filter_type = 'cells'
-            self.surf_scalars = mlab.pipeline.set_active_attribute(
-                self.thresh, point_scalars='overlay'
-                )
-            
-        self.display._start_scene()
 
 
-##     def _get_notch_mode(self):
-##         return self._func_thresh.thresh_mode=='mask between'
-
-##     @on_trait_change('_func_thresh.map_scalars')
-##     def _remap_threshold_scalars(self):
-##         if not self._func_thresh.thresh_map_name:
-##             print 'map_scalars changed, but threshold inactive'
-##             return
-##         if self.notch_mode:
-##             self._map_threshold_mask()
-##             return
-##         stats_vol = self.func_man.map_stats_like_overlay()
-##         s_arr = stats_vol.image_arr.transpose().ravel()
-##         assert np.size(s_arr) == np.size(self.func_man.overlay.image_arr), \
-##                'The size of the threshold mask does not match the size ' \
-##                'of the overlay array'
-
-##         pt_arr = self.func_scalars.image_data.point_data.get_array('threshold')
-##         if pt_arr:
-##             pt_arr.from_array(s_arr)
-##         else:
-##             n = self.func_scalars.image_data.point_data.add_array(s_arr)
-##             self.func_scalars.image_data.point_data.get_array(n).name = 'threshold'
-##             self.thresh = mlab.pipeline.threshold(
-##                 mlab.pipeline.set_active_attribute(
-##                     self.func_scalars, point_scalars='threshold'
-##                     ),
-##                 figure=self.display.scene.mayavi_scene                
-##                 )
-##             self._update_thresh_lims()
-
-##     def _map_threshold_mask(self):
-##         mask_vol = self.func_man.map_stats_like_overlay(map_mask=True,
-##                                                         mask_type='positive')
-##         m_arr = mask_vol.image_arr.transpose().ravel()
-##         assert np.size(m_arr) == np.size(self.func_man.overlay.image_arr), \
-##                'The size of the threshold mask does not match the size ' \
-##                'of the overlay array'
-
-##         pt_arr = self.func_scalars.image_data.point_data.get_array('threshold')
-##         if pt_arr:
-##             pt_arr.from_array(m_arr)
-##         else:
-##             n = self.func_scalars.image_data.point_data.add_array(m_arr)
-##             self.func_scalars.image_data.point_data.get_array(n).name = 'threshold'
-##             self.thresh = mlab.pipeline.threshold(
-##                 mlab.pipeline.set_active_attribute(
-##                     self.func_scalars, point_scalars='threshold'
-##                     ),
-##                 low=0.5,
-##                 figure=self.display.scene.mayavi_scene
-##                 )
-            
-##     @on_trait_change('_func_thresh.thresh_limits')
-##     def _update_thresh_lims(self):
-##         if not self.thresh:
-##             return
-##         if self.notch_mode:
-##             # need to remap the whole array
-##             self._map_threshold_mask()
-##         lims = self._func_thresh.thresh_limits
-##         try:
-##             self.thresh.lower_threshold = lims[0]
-##         except TraitError:
-##             pass
-##         try:
-##             self.thresh.upper_threshold = lims[1]
-##         except TraitError:
-##             pass
-    
-class CorticalSurfaceComponent(VisualComponent):
-
-    anat_scalars = DelegatesTo('display')
-    anat_image = DelegatesTo('display')
-    poly_extractor = DelegatesTo('display')
-
-    # ----- This will eventually become this VisualComponent's UI widget -----
-    show_cortex = DelegatesTo('display')
-    # ------------------------------------------------------------------------
-
-    @on_trait_change('show_cortex')
-    def _show_cortex(self):
-        if not self.anat_image:
-            self.trait_setq(show_cortex=False)
-            return
-        elif not hasattr(self, 'cortical_surf') or not self.cortical_surf:
-            self.add_cortical_surf()
-        self.cortical_surf.visible = self.show_cortex
-    
-    def add_cortical_surf(self):
-        # lifted from Gael Varoquax
-        self.display._stop_scene()
-        # this seems to
-        # 1) smooth a thresholding mask (>4800)
-        # 2) fill the holes of wherever this smoothed field is > 0.5
-        # 3) smooth the final, filled mask
-
-        # XYZ: TRY TO USE BRAIN MASK EXTRACTION HERE INSTEAD OF THRESHOLD
-
-        # OK.. WANT TO HAVE EXACTLY THE SAME SUPPORT FOR THE SURFACE IMAGE
-        # AND THE IMAGE PLANE IMAGES..
-
-##         print 'getting brain mask'
-##         img_arr = self.anat_image.image_arr.filled(fill_value=0)
-## ##         anat_support = vu.auto_brain_mask(img_arr)
-## ##         print 'getting smoothed mask'
-## ##         anat_blurred = ndimage.gaussian_filter(anat_support.astype('d'), 6)
-## ##         anat_blurred = ( (anat_blurred > .5) | anat_support ).astype('d')
-##         anat_blurred = ndimage.gaussian_filter(img_arr, 6)
-        
-        anat_blurred = ndimage.gaussian_filter(
-            (ndimage.morphology.binary_fill_holes(
-                ndimage.gaussian_filter(
-                    (self.anat_image.image_arr > 4800).astype(np.float), 6)
-                > 0.5
-                )).astype(np.float),
-            2).T.ravel()
-        n = self.anat_scalars.image_data.point_data.add_array(
-            anat_blurred.T.ravel()
-            )
-        self.anat_scalars.image_data.point_data.get_array(n).name = 'blurred'
-        surf_name = self.anat_scalars.image_data.point_data.get_array(n-1).name
-        self.anat_scalars.image_data.point_data.update()
-        anat_blurred = mlab.pipeline.set_active_attribute(
-            self.anat_scalars, point_scalars='blurred'
-            )
-        anat_blurred.update_pipeline()
-        self._contour = mlab.pipeline.contour(anat_blurred)
-        
-        csurf = mlab.pipeline.set_active_attribute(
-            mlab.pipeline.user_defined(self._contour,
-                                       filter=self.poly_extractor),
-            point_scalars='scalar'
-            )
-        self.cortical_surf = mlab.pipeline.surface(
-            csurf,
-            colormap='copper',
-            opacity=1,
-            #vmin=4800, vmax=5000)
-            vmin=10, vmax=7230,
-            figure=self.display.scene.mayavi_scene
-            )
-        self.cortical_surf.enable_contours = True
-        self.cortical_surf.contour.filled_contours = True
-        self.cortical_surf.contour.auto_contours = True
-##         self.cortical_surf.contour.contours = [5000, 7227.8]
-        self.cortical_surf.actor.property.backface_culling = True
-        self.cortical_surf.actor.mapper.interpolate_scalars_before_mapping = True
-        self.cortical_surf.actor.property.interpolation = 'flat'
-        
-##         # Add opacity variation to the colormap
-##         cmap = self.cortical_surf.module_manager.scalar_lut_manager.lut.table.to_array()
-##         cmap[128:, -1] = 0.7*255
-##         cmap[:128, -1] = 0.9*255
-##         self.cortical_surf.module_manager.scalar_lut_manager.lut.table = cmap
-        self.display._start_scene()
-
-
-class OrthoView3D(HasTraits):
+class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     # Data and Figure
     #---------------------------------------------------------------------------
@@ -413,11 +75,9 @@ class OrthoView3D(HasTraits):
                            editor=RangeEditor(low=0.0, high=4.0,
                                               format='%1.2f', mode='slider'))
 
-
     #---------------------------------------------------------------------------
     # Other Traits
     #---------------------------------------------------------------------------
-    #planes_function = Instance(tvtk.Planes, ())
     poly_extractor = Instance(tvtk.ExtractPolyDataGeometry, ())
     info = Instance(Text)
     
@@ -428,7 +88,10 @@ class OrthoView3D(HasTraits):
         self.blender
         self.func_man
         # First, add self to the VisualComponent base class
-        VisualComponent.add_class_trait('display', self)
+        try:
+            VisualComponent.add_class_trait('display', self)
+        except TraitError:
+            VisualComponent.display = self
         # -- In the future, I want to actually have the VisualComponent
         # classes "own" the traits, and have this class have a bunch
         # of DelegatesTo references to a list of them
@@ -817,53 +480,3 @@ class OrthoView3D(HasTraits):
         title='XIPY 3D Viewer Controls',
         )
 
-
-class MayaviWidget(TopLevelAuxiliaryWindow):
-
-    def __init__(self, parent=None, main_ref=None, functional_manager=None,
-                 **traits):
-        TopLevelAuxiliaryWindow.__init__(self,
-                                         parent=parent,
-                                         main_ref=main_ref)
-        layout = QtGui.QVBoxLayout(self)
-        layout.setMargin(0)
-        layout.setSpacing(0)
-        if functional_manager:
-            traits['func_man'] = functional_manager
-        self.mr_vis = OrthoView3D(**traits)
-        layout.addWidget(self.mr_vis.edit_traits(parent=self,
-                                                 kind='subpanel').control)
-        self.func_widget = None
-        self.layout_box = layout
-        if functional_manager is not None:
-            self.add_toolbar(functional_manager)
-        self.setObjectName('3D Plot')
-
-    def add_toolbar(self, functional_manager):
-        self.mr_vis.func_man = functional_manager
-##         if self.func_widget is not None:
-##             print 'removing old func widget'
-##             self.layout_box.removeWidget(self.func_widget)
-##             self.func_widget.close()
-##         else:
-##             print 'not removing old func widget'
-##         self.func_widget = functional_manager.make_panel(parent=self)
-##         self.layout_box.addWidget(self.func_widget)
-##         self.update()
-
-if __name__=='__main__':
-    from PyQt4 import QtCore, QtGui
-    import sys
-    if QtGui.QApplication.startingUp():
-        app = QtGui.QApplication(sys.argv)
-    else:
-        app = QtGui.QApplication.instance() 
-
-    win = MayaviWidget()
-    
-    win.show()
-    app.exec_()
-                        
-    
-
-    

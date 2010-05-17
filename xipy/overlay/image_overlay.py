@@ -69,6 +69,10 @@ class ImageOverlayWindow( OverlayWindowInterface ):
             self.func_man.image_signal=self.image_changed
             self.func_man.props_signal=self.image_props_changed
             self.func_man.cbar = self.cbar
+            # breaking independence
+            if self.func_man.overlay is not None:
+                print 'requesting new image signal'
+                self.func_man.send_image_signal()
         
         vbox.addWidget(self.func_man.make_panel(parent=self))
         QtGui.QWidget.setSizePolicy(self,
@@ -94,6 +98,7 @@ class ImageOverlayManager( OverlayInterface ):
         }
     ana_xform = Enum(['max', 'min', 'absmax'])
     loc_button = Button('Find Extremum')
+    
     # this number controls searching for the Nth highest/lowest value
     _numfeatures = Int(150)
     _one = Int(1)
@@ -111,7 +116,8 @@ class ImageOverlayManager( OverlayInterface ):
     # XYZ: RETHINK WHEN ordered_idx SHOULD BE RECALCULATED.. MAYBE ONLY
     # WHEN THE THE MASK IS "DIRTY" (IE RECENTLY APPLIED, BUT NOT USED)
     work_arr = Property(Array, depends_on='tval, _recompute_props')
-    ordered_idx = Property(Array, depends_on='_recompute_props, tval, ana_xform')
+    ordered_idx = Property(Array,
+                           depends_on='_recompute_props, tval, ana_xform')
 
     max_t = Property(depends_on='_recompute_props')
     max_t_label = Property(depends_on='_recompute_props')
@@ -211,8 +217,10 @@ class ImageOverlayManager( OverlayInterface ):
             self.send_image_signal()
 
     def send_image_signal(self):
+        print 'sending overlay updated'
         self.overlay_updated = True
         if self.image_signal:
+            print 'sending image signal'
             self.image_signal.emit(self)
 
     def send_location_signal(self, loc):
@@ -245,9 +253,7 @@ class ImageOverlayManager( OverlayInterface ):
             self.threshold.thresh_limits = (self.tval, self.max_t)
         self._recompute_props = True
         self.overlay.update_mask(self.mask, positive_mask=False)
-##         self.send_props_signal()
         self.send_image_signal()
-##         self.create_mask()
 
     def _clear_button_fired(self):
         self.threshold.thresh_map_name = ''
@@ -327,8 +333,8 @@ class ImageOverlayManager( OverlayInterface ):
         """
         if self.overlay is None:
             return None
-        m = self.orig_mask # neg mask
-        nm = self.threshold.create_binary_mask()
+        m = self.orig_mask.copy() # neg mask
+        nm = self.threshold.binary_mask
         if nm is not None:
             m |= nm
         return m
@@ -387,4 +393,4 @@ class ImageOverlayManager( OverlayInterface ):
 if __name__=='__main__':
     bbox = [(-100,100)]*3
     overmanager = ImageOverlayManager(bbox)
-    overmanager.configure_traits()
+    overmanager.edit_traits()

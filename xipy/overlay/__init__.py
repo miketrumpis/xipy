@@ -7,8 +7,6 @@ from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
 import xipy.volume_utils as vu
 import xipy.vis.color_mapping as cm
 import numpy as np
-## import matplotlib.cm as cm
-
 
 class OverlayWindowInterface(TopLevelAuxiliaryWindow):
     """ This class defines the PyQt4 layer interface that an overlay
@@ -131,9 +129,20 @@ class ThresholdMap(t_api.HasTraits):
     thresh_limits = t_api.Tuple((0.0, 0.0))
     thresh_mode = t_api.Enum('mask lower', 'mask higher',
                              'mask between', 'mask outside')
-##     thresh_mode = t_api.String
 
     thresh_map_name = t_api.String
+
+    # subclasses must fire this event whenever the mask must be recaculated
+    map_changed = t_api.Event
+
+    binary_mask = t_api.Property(depends_on='map_changed')
+
+    @t_api.on_trait_change('map_scalars, thresh_limits, thresh_mode')
+    def _dirty_mask(self):
+        self.map_changed = True
+
+    def _get_binary_mask(self):
+        return self.create_binary_mask()
 
     def create_binary_mask(self, type='negative'):
         """Create a binary mask in the shape of map_scalars for the
@@ -164,66 +173,59 @@ class ThresholdMap(t_api.HasTraits):
                 else ( (map >= limits[0]) & (map <= limits[1]) )
         return m
     
-##     def map_to_imagedata(self, coordmap):
-##         # XYZ: SHOULD THINK ABOUT INTERPOLATING, RATHER THAN MAPPING
-##         # TO NEAREST INDEX
-##         map_indices = coordmap.inverse(self.map_voxels).astype('i')
-##         volume_scalars = vu.signal_array_to_masked_vol(
-##             self.map_scalars, self.map_indices, fill_value=np.nan
-##             ).filled()
-##         origin = coordmap.affine[:3,-1]
-##         spacing = vu.voxel_size(coordmap.affine)
-##         return (volume_scalars, origin, spacing)
 
 # XYZ: SHOULD MAKE A TEST CLASS TO PROBAR ANY INSTANCE OF THIS INTERFACE
 class OverlayInterface(t_api.HasTraits):
     """Different overlay managers will implement this interface
     """
 
-    # an interface to keep track of the current world position in
-    # an external plot, and a means to push a position back
+    # Interface to keep track of the current world position in
+    # an external plot, and a means to push a position back to listeners
     world_position = t_api.Array(shape=(3,))
     world_position_updated = t_api.Event
     def _world_position_default(self):
         return np.zeros(3)
 
-    # a volume slicer for the voxel data
+    # VolumeSlicer for the voxel data
     overlay = t_api.Instance(VolumeSlicerInterface)
-    # an event to say the overlay is updated
+
+    # Event to say the overlay is updated
     # XYZ: CAN'T TRAITS SIMPLY WATCH FOR "overlay" TO CHANGE?
     overlay_updated = t_api.Event
 
+    # A text description of the overlay
     description = t_api.Any
-    ##### SCALAR-TO-COLOR MAPPING PROPERTIES
-    ##### 1) normalization parameters
-    ##### 2) RGBA lookup-table
-    ##### 2a) a(x) function for scalar-to-alpha mapping
-    ##### 3) interpolation
-    image_props_updated = t_api.Event
+    
+    # Sclar-to-color mapping parameters:
+    
+    # 1) normalization parameters
     # the min/max value of the overlay to map to colors
     norm = t_api.Tuple( (0.0, 0.0) )
-    # the alpha channel function for the colormap
-    def alpha(self, threshold=True):
-        raise NotImplementedError
-    # Color LUT options, and a reference to the matplotlib LUT
+
+    # 2) RGBA lookup-table
+    # Color LUT options, and a reference to the LUT object
     cmap_option = t_api.Enum(*sorted(cm.cmap_d.keys()))
     colormap = t_api.Property(depends_on='cmap_option')
-    # Plotting interpolation options
+
+    # 2a) a(x) function for scalar-to-alpha mapping
+    def alpha(self, threshold=True):
+        raise NotImplementedError
+
+    # 3) interpolation
     interpolation = t_api.Enum(['nearest', 'bilinear', 'sinc'])
 
-    # thresholding information.. masks plotting of the overlay function
-    # above/below a scalar value: for instance a plotter could set
-    # the alpha channel to zero for scalar values less than 0 
-##     threshold = t_api.Tuple((0.0, 'inactive'))
+    # Signal for when the image should be redrawn
+    image_props_updated = t_api.Event
+
+    # Thresholding information
     threshold = t_api.Instance(ThresholdMap)
 
-    # fill value if using masked arrays
+    # Fill value (if using masked arrays)
     fill_value = t_api.Float(0.0)
 
-    # additional stats map names, and lookup table
+    # Additional stats map names, and lookup table
     _stats_maps = t_api.List
     stats_map = t_api.Enum(values='_stats_maps')
-##     stats_map_arrays = {}
 
     # a simple UI group for the image property elements, may be used
     # or over-ridden in subclasses

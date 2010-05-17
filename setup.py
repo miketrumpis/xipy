@@ -37,11 +37,6 @@ if len(set(('develop', 'bdist_egg', 'bdist_rpm', 'bdist', 'bdist_dumb',
 if not 'extra_setuptools_args' in globals():
     extra_setuptools_args = dict()
 
-
-from numpy.distutils.command.build_ext import build_ext
-
-cmdclass = dict(build_ext=build_ext)
-
 # Construct the Cython extension
 from build_helpers import make_cython_ext
 pix_ext, cmdclass = make_cython_ext(
@@ -50,6 +45,8 @@ pix_ext, cmdclass = make_cython_ext(
     include_dirs = [np.get_include()]
     )
 
+from numpy.distutils.command.build_ext import build_ext
+cmdclass.update( dict(build_ext=build_ext) )
 
 def main(**extra_args):
     from numpy.distutils.core import setup

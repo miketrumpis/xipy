@@ -6,6 +6,7 @@ import sys
 import optparse
 
 def main():
+
     usage = 'usage: %prog [options]'
     
     op = optparse.OptionParser(usage=usage)
@@ -15,16 +16,21 @@ def main():
     op.add_option('-o', '--overlay-file', dest='overlay',
                   help='Nifti file to use for overlays', type='string',
                   default=None)
+    op.add_option('-2', '--2donly', dest='no_mayavi_viewer',
+                  action='store_true',
+                  help='Do not launch the 3D viewer',
+                  default=False)
 
     
     (opts, args) = op.parse_args()
 
     # THIS MUST HAPPEN FIRST BEFORE IMPORTING ENTHOUGHT STUFF!!!
     app = QtGui.QApplication(sys.argv)
-    
-    from xipy.vis.three_dee_viewer import MayaviViewer
+
+    from xipy.vis.ortho_viewer import ortho_viewer
     import xipy.volume_utils as vu
-    win = MayaviViewer(image=opts.image)
+    win = ortho_viewer(image=opts.image,
+                       mayavi_viewer=not opts.no_mayavi_viewer)
 
     if hasattr(win, 'image') and opts.overlay is not None:
         from xipy.overlay.image_overlay import ImageOverlayManager, \

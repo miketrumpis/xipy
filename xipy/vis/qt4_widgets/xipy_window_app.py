@@ -2,17 +2,18 @@ from PyQt4 import QtGui, QtCore
 from xipy.overlay.plugins import all_registered_plugins
 
 class XIPYWindowApp(QtGui.QMainWindow):
-    _active_tools = []
-
-    # these must be populated by the subclass app
-    _plugin_args = ()
-    _plugin_kwargs = dict()
 
     plugin_launched = QtCore.pyqtSignal(object)
 
     def __init__(self, image=None, parent=None, designer_layout=None):
         super(XIPYWindowApp, self).__init__(parent=parent)
-        print designer_layout
+
+        self._active_tools = []
+
+        # these must be populated by the subclass app
+        self._plugin_args = ()
+        self._plugin_kwargs = dict()
+
         if designer_layout:
             # kick in the Qt Designer generated layout and callback connections
             designer_layout.setupUi(self)
@@ -70,10 +71,6 @@ class XIPYWindowApp(QtGui.QMainWindow):
             msg = 'There are no plugin arguments specified in this app'
             raise ValueError(msg)
         
-##         loc_methods = (self.ortho_figs_widget.update_location, )
-##         image_methods = (self.triggered_overlay_update, )
-##         im_props_methods = (self.change_overlay_props, )
-##         out_loc_signal = self.ortho_figs_widget.xyz_state[float,float,float]
         active_tool = filter(lambda x: type(x)==pclass, self._active_tools)
         if active_tool:
             print 'already launched this tool, so make it active (eventually)'
@@ -82,13 +79,6 @@ class XIPYWindowApp(QtGui.QMainWindow):
             return
         pkwargs.update(self._plugin_kwargs)
         tool = pclass(*self._plugin_args, **pkwargs)
-
-##         tool = pclass(loc_methods, image_methods, im_props_methods,
-##                       self.image.bbox, main_ref=self,
-##                       external_loc=out_loc_signal)
-##         # go ahead and emit location signal to flush everything through
-##         out_loc_signal.emit(*self.ortho_figs_widget.active_voxel)
-
         tool.show()
         tool.activateWindow()
         toggle = tool.toggle_view_action()
