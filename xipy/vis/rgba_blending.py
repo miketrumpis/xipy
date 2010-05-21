@@ -1,8 +1,23 @@
+# NumPy
 import numpy as np
+
+# Matplotlib
 import matplotlib as mpl
+from matplotlib.colors import Normalize
+
+# Enthought Traits
+import enthought.traits.api as t_ui
+import enthought.traits.ui.api as ui_api
+
+# NIPY
+import nipy.core.api as ni_api
+
+# XIPY
 from _blend_pix import resample_and_blend, resize_lookup_array
-import _blend_pix
-from time import time
+from _blend_pix import *
+import xipy.vis.color_mapping as cm
+import xipy.volume_utils as vu
+from xipy.slicing.image_slicers import ResampledIndexVolumeSlicer, SAG, COR, AXI
 
 def blend_two_images(base_img, base_cmap, base_alpha,
                      over_img, over_cmap, over_alpha):
@@ -74,45 +89,32 @@ def quick_min_max_norm(arr):
     an /= np.nanmax(an)
     return an
 
-import enthought.traits.ui.api as ui_api
-import enthought.traits.api as t_ui
-import xipy.vis.color_mapping as cm
-from matplotlib.colors import Normalize
-import xipy.volume_utils as vu
-import nipy.core.api as ni_api
-
 def blend_helper(a1, a2):
     xyz_shape = a1.shape[:3]
     npts = np.prod(xyz_shape)
     a1.shape = (npts, 4)
     a2.shape = (npts, 4)
-    _blend_pix.blend_same_size_arrays(a1, a2)
+    blend_same_size_arrays(a1, a2)
     a1.shape = xyz_shape + (4,)
     a2.shape = xyz_shape + (4,)
 
-class BlendedImage(t_ui.HasTraits):
 
-    main_spline_order = t_ui.Range(low=0,high=5,value=0)
-    over_spline_order = t_ui.Range(low=0,high=5,value=0)
-    transpose_inputs = t_ui.Bool(True)
+class BlendedArrays(t_ui.HasTraits):
+    """
+    This class can color map and blend two like-sized arrays
+    of luminance values transformed into LUT indices
+    """
 
-    # the scalar images
-    main = t_ui.Instance(ni_api.Image) #ResampledVolumeSlicer)
-    over = t_ui.Instance(ni_api.Image) #ResampledVolumeSlicer)
-
-    img_spacing = t_ui.Property(depends_on='main')
-    img_origin = t_ui.Property(depends_on='main')
-
-    # the LUT index images
-    _main_idx = t_ui.Array()
-    _over_idx = t_ui.Array()
+    # The LUT index images
+    _main_idx = t_ui.Array(comparison_mode=t_ui.NO_COMPARE)
+    _over_idx = t_ui.Array(comparison_mode=t_ui.NO_COMPARE)
 
     # the RGBA byte arrays
-    main_rgba = t_ui.Array(dtype='B', comparison_mode=t_ui.NO_COMPARE) #t_ui.Instance(t_ui.Array, dtype='B')
-    over_rgba = t_ui.Array(dtype='B', comparison_mode=t_ui.NO_COMPARE) #t_ui.Instance(t_ui.Array, dtype='B')
-    blended_rgba = t_ui.Property(depends_on='main_rgba, over_rgba') #t_ui.Array(dtype='B') #t_ui.Instance(t_ui.Array, dtype='B')
+    main_rgba = t_ui.Array(dtype='B', comparison_mode=t_ui.NO_COMPARE)
+    over_rgba = t_ui.Array(dtype='B', comparison_mode=t_ui.NO_COMPARE)
+    blended_rgba = t_ui.Property(depends_on='main_rgba, over_rgba')
 
-    # color mapping properties
+    # Color mapping properties
     main_cmap = t_ui.Instance(cm.MixedAlphaColormap)
     over_cmap = t_ui.Instance(cm.MixedAlphaColormap)    
 
@@ -120,10 +122,9 @@ class BlendedImage(t_ui.HasTraits):
     over_norm = t_ui.Tuple((0.0, 0.0))
 
     main_alpha = t_ui.Any # can be a float or array??
-    over_alpha = t_ui.Any 
+    over_alpha = t_ui.Any
 
     def __init__(self, **traits):
-        # for now, main and over are ResampledVolumeSlicer types
         t_ui.HasTraits.__init__(self, **traits)
         if not self.main_cmap:
             self.set(main_cmap=cm.gray, trait_change_notify=False)
@@ -133,174 +134,321 @@ class BlendedImage(t_ui.HasTraits):
             self.set(main_alpha=1.0, trait_change_notify=False)
         if self.over_alpha is None:
             self.set(over_alpha=1.0, trait_change_notify=False)
-    @t_ui.cached_property
-    def _get_img_spacing(self):
-        spacing = vu.voxel_size(self.main.affine)
-        return spacing[::-1] if not self.transpose_inputs else spacing
-    @t_ui.cached_property
-    def _get_img_origin(self):
-        origin = np.array(vu.world_limits(self.main))[:,0]
-        return origin[::-1] if not self.transpose_inputs else origin
 
+    def update_main_props(self, cmap=None, alpha=None, norm=None):
+        self._update_props(
+            'main', cmap=cmap, alpha=alpha, norm=norm
+            )
+
+    def update_over_props(self, cmap=None, alpha=None, norm=None):
+        self._update_props(
+            'over', cmap=cmap, alpha=alpha, norm=norm
+            )
+
+    def _update_props(self, array, **props):
+        pvals = (); pnames = ()
+        for name in ('cmap', 'alpha', 'norm'):
+            v = props.get(name)
+            if v is not None:
+                pvals += (v,)
+                pnames += (name,)        
+        if not len(pvals):
+            return
+        update_dict = dict(
+            ( (array+'_'+prop, pval)
+              for prop, pval in zip(pnames, pvals) )
+            )
+        if len(pvals)==1:
+            self.trait_set(**update_dict)
+        else:
+            self.trait_setq(**update_dict)
+            name = array+'_cmap'
+            self._remap_index_image(name, None)
+    
     def _check_alpha(self, alpha):
         if mpl.cbook.iterable(alpha):
             return np.clip(alpha, 0, 1)
-        # assuming both cmaps have the same # of colors!!
-        return np.ones(self.main_cmap.N)*max(0.0, min(alpha, 1.0))
+        # assuming both cmaps have 256 colors!!
+        return np.ones(256)*max(0.0, min(alpha, 1.0))
 
-##     @t_ui.on_trait_change('main_rgba, over_rgba')
-##     def _reblend_bytes(self):
     @t_ui.cached_property
     def _get_blended_rgba(self):
-##         if self.blended_rgba.shape == (0,):
-##             self.blended_rgba = self.main_rgba.copy()
-##         else:
-##             self.blended_rgba[:] = self.main_rgba
+        print 'update to blended image triggered'
+        has_over = len(self.over_rgba)
+        has_main = len(self.main_rgba)
+        if has_main and not has_over:
+            return self.main_rgba
+        if has_over and not has_main:
+            return self.over_rgba
         blended_rgba = self.main_rgba.copy()
-        if self.over:
-            blend_helper(blended_rgba, self.over_rgba)
+        blend_helper(blended_rgba, self.over_rgba)
         return blended_rgba
 
-    @t_ui.on_trait_change('main, main_spline_order, main_norm')
-    def _update_mbytes(self, name, new):
-        if not self.main:
-            return
-        if self.main_norm != (0., 0.):
-            n = mpl.colors.Normalize(*self.main_norm)
+    # Keep main/over RGBA values locked to the index images
+    @t_ui.on_trait_change('_main_idx, _over_idx')
+    def _map_rgba(self, name, new):
+        if name=='_main_idx':
+            self.main_rgba = self.main_cmap.fast_lookup(
+                self._main_idx, alpha=self.main_alpha, bytes=True
+                )
         else:
-            n = mpl.colors.Normalize()
-        compressed = n(self.main._data)
-        raw_idx = self.main_cmap.lut_indices(compressed)
-        main_idx_image = vu.resample_to_world_grid(
-            ni_api.Image(raw_idx, self.main.coordmap),
-            order=self.main_spline_order
-            )
-        # would be nice to transpose before resampling
-        if self.transpose_inputs:
-            self._main_idx = np.asarray(main_idx_image).transpose().copy()
-        else:
-            self._main_idx = np.asarray(main_idx_image)
-        self.main_rgba = self.main_cmap.fast_lookup(
-            self._main_idx, alpha=self.main_alpha, bytes=True
-            )
-        # if the main grid changed, need to update obytes
-        if name=='main':
-            self._update_obytes('foo', 'foo')
-        
-    @t_ui.on_trait_change('over, over_spline_order, over_norm')
-    def _update_obytes(self, changed, new):
-        print 'updating obytes from changed:', changed
-        if not self.over:
-            return
-        # this evaluates correctly as False if there is no mask
-        if np.all( np.ma.getmask(self.over._data) ):
-            # revert to a state of having no overlay image,
-            # and trigger a new blended image by setting
-            # main_rgba to itself
-            self.over = None
-            self.main_rgba = self.main_rgba
-            return
-        if self.over_norm != (0., 0.):
-            n = mpl.colors.Normalize(*self.over_norm)
-        else:
-            n = mpl.colors.Normalize()
-        compressed = n(self.over._data)
-        raw_idx = self.over_cmap.lut_indices(compressed)
-        over_idx_image = vu.resample_to_world_grid(
-            ni_api.Image(raw_idx, self.over.coordmap),
-            order=self.over_spline_order
-            )
-        if self.transpose_inputs:
-            temp_over_idx = np.asarray(over_idx_image).transpose().copy()
-        else:
-            temp_over_idx = np.asarray(over_idx_image)
-        if not self.main:
-            self._over_idx = temp_over_idx
-        else:
-            # still need to quickly upsample this volume into the
-            # main volume grid
-            over_r0 = np.array(vu.world_limits(over_idx_image))[:,0]
-            over_dr = vu.voxel_size(over_idx_image.affine)
-            main_r0 = np.array(vu.world_limits(self.main))[:,0]
-            main_dr = vu.voxel_size(self.main.affine)
-            ibad = self.over_cmap._i_bad
-            if self.transpose_inputs:
-                self._over_idx = resize_lookup_array(
-                    self.main.shape, ibad,
-                    temp_over_idx,
-                    over_dr[::-1], over_r0[::-1],
-                    main_dr[::-1], main_r0[::-1])
-            else:
-                self._over_idx = resize_lookup_array(
-                    self.main.shape, ibad,
-                    temp_over_idx,
-                    over_dr, over_r0,
-                    main_dr, main_r0)
-                
-        self.over_rgba = self.over_cmap.fast_lookup(
-            self._over_idx, alpha=self.over_alpha, bytes=True
-            )
-        return
-        
-
-    @t_ui.on_trait_change('main_cmap')
-    def _remap_main(self):
-        if not self.main:
-            return
-        self.main_rgba[:] = self.main_cmap.fast_lookup(
-            self._main_idx, alpha=self.main_alpha, bytes=True
-            )
-        # have to do this explicitly to set off trait notification
-        self.main_rgba = self.main_rgba
-
-    @t_ui.on_trait_change('over_cmap')
-    def _remap_over(self):
-        print 'remapping over bytes', 
-        if not self.over:
-            print ' but no overlay'
-            return
-        print ''
-        self.over_rgba[:] = self.over_cmap.fast_lookup(
-            self._over_idx, alpha=self.over_alpha, bytes=True
-            )
-        # have to do this explicitly to set off trait notification
-        self.over_rgba = self.over_rgba
-
-
-    @t_ui.on_trait_change('main_alpha')
-    def _fast_remap_main_alpha(self):
-        if not self.main:
-            return
-        main_alpha = self._check_alpha(self.main_alpha)
-        a_under, a_over, a_bad = self.main_cmap._lut[-3:,-1]
-        alpha_lut = np.r_[main_alpha*255, a_under, a_over, a_bad]
-        alpha_lut.take(self._main_idx, axis=0,
-                       mode='clip', out=self.main_rgba[...,3])
-        print 'looked up new main alpha chan'
-        self.trait_setq(main_alpha=main_alpha)
-        # have to do this explicitly to set off trait notification
-        self.main_rgba = self.main_rgba
-
-    @t_ui.on_trait_change('over_alpha')
-    def _fast_remap_over_alpha(self):
-        print 'remapping over alpha bytes',
-        if not self.over:
-            print 'but no overlay'
-            return
-        print ''
-        over_alpha = self._check_alpha(self.over_alpha)
-        a_under, a_over, a_bad = self.over_cmap._lut[-3:,-1]*255
-        alpha_lut = np.r_[over_alpha*255, a_under, a_over, a_bad]
-        alpha_lut.take(self._over_idx, axis=0,
-                       mode='clip', out=self.over_rgba[...,3])
-        print 'looked up new over alpha chan'
-        self.trait_setq(over_alpha=over_alpha)
-        # have to do this explicitly to set off trait notification
-        self.over_rgba = self.over_rgba
-
-##     @t_ui.on_trait_change('over_rgba, main_rgba, blended_rgba')
-##     def _test_trait_notify(self, name, new):
-##         print name, 'got changed in BlendedImage'
+            self.over_rgba = self.over_cmap.fast_lookup(
+                self._over_idx, alpha=self.over_alpha, bytes=True
+                )
     
+    @t_ui.on_trait_change('main_cmap, over_cmap')
+    def _remap_index_image(self, name, new):
+        print 'remapping', name
+        if name=='main_cmap' and len(self._main_idx):
+            self.main_rgba[:] = self.main_cmap.fast_lookup(
+                self._main_idx, alpha=self.main_alpha, bytes=True
+                )
+            # have to do this explicitly to set off trait notification
+            self.main_rgba = self.main_rgba
+        elif len(self._over_idx):
+            self.over_rgba[:] = self.over_cmap.fast_lookup(
+                self._over_idx, alpha=self.over_alpha, bytes=True
+                )
+            self.over_rgba = self.over_rgba
+
+    @t_ui.on_trait_change('main_alpha, over_alpha')
+    def _fast_remap_alpha(self, name, changed):
+        print 'remapping alpha'
+        if name=='main_alpha':
+            # store new alpha
+            main_alpha = self._check_alpha(self.main_alpha)
+            self.trait_setq(main_alpha=main_alpha)
+            if len(self._main_idx):
+                # if there's an image, remap it
+                a_under, a_over, a_bad = self.main_cmap._lut[-3:,-1]
+                alpha_lut = np.r_[main_alpha*255, a_under, a_over, a_bad]
+                alpha_lut.take(self._main_idx, axis=0,
+                               mode='clip', out=self.main_rgba[...,3])
+                print 'looked up new main alpha chan'
+                # have to do this explicitly to set off trait notification
+                self.main_rgba = self.main_rgba
+        elif name=='over_alpha':
+            # store new alpha
+            over_alpha = self._check_alpha(self.over_alpha)
+            self.trait_setq(over_alpha=over_alpha)
+            if len(self._over_idx):
+                # if there's an image, remap it
+                a_under, a_over, a_bad = self.over_cmap._lut[-3:,-1]
+                alpha_lut = np.r_[over_alpha*255, a_under, a_over, a_bad]
+                alpha_lut.take(self._over_idx, axis=0,
+                               mode='clip', out=self.over_rgba[...,3])
+                print 'looked up new over alpha chan'
+                # have to do this explicitly to set off trait notification
+                self.over_rgba = self.over_rgba
+            
     # handle norm later.. I'm thinking this can be accomplished with a
     # sort of transfer function from integer indices to indices
+
+
+class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
+    """
+    This class is a BlendedArrays object, whose main and over arrays
+    are the index images from two ResampledIndexVolumeSlicers.
+
+    """
+
+    # the possibly mapped/scalar images
+    main = t_ui.Any(comparison_mode=t_ui.NO_COMPARE)
+    over = t_ui.Any(comparison_mode=t_ui.NO_COMPARE)
+
+    main_spline_order = t_ui.Range(low=0,high=5,value=0)
+    over_spline_order = t_ui.Range(low=0,high=5,value=0)
+    transpose_inputs = t_ui.Bool(True)
+
+    # Image properties of the blended image array
+    img_spacing = t_ui.Property(depends_on='main')
+    img_origin = t_ui.Property(depends_on='main')
+
+    # Adapting to ResampledIndexVolumeSlicer spec
+    image_arr = t_ui.Property #(depends_on='main_rgba, over_rgba')
+
+    def __init__(self, **traits):
+        BlendedArrays.__init__(self, **traits)
+        self._adapt_to_slicer()
+
+    def _adapt_to_slicer(self):
+        bad_idx = cm.MixedAlphaColormap.i_bad
+        # copy some attrs to match the blended image
+        copied_attrs = ['bbox', '_natural_bbox', 'grid_spacing', 'coordmap']
+        copied_from = self._prevailing_image()
+        if copied_from:
+            for attr in copied_attrs:
+                setattr(self, attr, getattr(copied_from, attr))
+##             self.image_arr = self.blended_rgba
+            shape = self.image_arr.shape
+            self.null_planes = [np.zeros((shape[0], shape[1], 4),'B'),
+                                np.zeros((shape[0], shape[2], 4),'B'),
+                                np.zeros((shape[1], shape[2], 4),'B')]
+            return
+        # just fake numbers???
+        self.bbox = [ (-10.,10.) ] * 3
+        self._natural_bbox = [ (0.,0.) ] * 3
+        self.grid_spacing = np.array([1.]*3)
+        self.coordmap = ni_api.Affine.from_start_step(
+            'ijk', 'xyz', np.array([-10]*3), np.ones(3)
+            )
+##         self.image_arr = self.blended_rgba.reshape(0,0,0,4)
+        shape = (10,10,10)
+        self.null_planes = [np.zeros((shape[0], shape[1], 4),'B'),
+                            np.zeros((shape[0], shape[2], 4),'B'),
+                            np.zeros((shape[1], shape[2], 4),'B')]
+
+            
+    def _prevailing_image(self):
+        if self.main:
+            return self.main
+        elif self.over:
+            return self.over
+        return None
+
+    def cut_image(self, loc, axes=(SAG, COR, AXI), transpose=True, **interp_kw):
+        """
+        Return len(axes) planes, which are cut along the axes specified.
+
+        Parameters
+        ----------
+        loc : iterable, len-3
+            The coordinates of the cut location
+        axes : iterable, len-1, 2, or 3
+            The returned planes will be those normal to these axes (by default
+            all three SAG, COR, AXI axes)
+        transpose : bool
+            Whether to return the planes in transpose or not
+        interp_kw : dict
+            Keyword args for the interpolating machinery
+            (ie, ndimage.map_coordinates keyword args)
+
+        Returns
+        _______
+        len(axes) planes
+        """
+        # intercept call to cut_image and re-jigger inputs if necessary
+
+        # normally, indexing along i, j, k respectively indexes
+        # along SAG, COR, AXI
+
+        # if the indices have been transposed, then i', j', k'
+        # index into AXI, COR, SAG
+        kwargs = {}
+        kwargs.update(**interp_kw)
+        if self.transpose_inputs:
+            args = (loc[::-1],)
+##             args = (loc,)
+            ax_rev = {0:2, 1:1, 2:0}
+            kwargs['axes'] = [ax_rev[ax] for ax in axes]
+            kwargs['transpose'] = not transpose
+            return super(BlendedImages, self).cut_image(*args, **kwargs)
+        else:
+            args = (loc,)
+            kwargs['axes'] = axes
+            kwargs['transpose'] = transpose
+            return super(BlendedImages, self).cut_image(*args, **kwargs)
+            
+
+    @t_ui.cached_property
+    def _get_img_spacing(self):
+        image = self._prevailing_image()
+        if image is None:
+            return None
+        spacing = image.grid_spacing
+        return spacing[::-1] if self.transpose_inputs else spacing
+    @t_ui.cached_property
+    def _get_img_origin(self):
+        # not sure what to do here
+        image = self._prevailing_image()
+        if image is None:
+            return None
+        origin = np.array(image.bbox)[:,0]
+        return origin[::-1] if self.transpose_inputs else origin
+
+    def _get_image_arr(self):
+        if not len(self.blended_rgba):
+            return self.blended_rgba.reshape(0,0,0,4)
+        else:
+            return self.blended_rgba
+
+    @t_ui.on_trait_change('main')
+    def _update_mbytes(self):
+        if self.main==None:
+            # "unload" main image
+            self._main_idx = np.array([], np.int32)
+            # trigger remapping of over index
+            self.over = self.over
+            return
+        if type(self.main)==ni_api.Image:
+            main = ResampledIndexVolumeSlicer(self.main, norm=self.main_norm)
+            # go ahead and be re-entrant
+            self.main = main
+            return
+        if type(self.main) != ResampledIndexVolumeSlicer:
+            raise ValueError('main image should be a NIPY Image, or '\
+                             'a ResampledIndexVolumeSlicer')
+
+        if self.transpose_inputs:
+            self.trait_setq(_main_idx  = self.main.image_arr.transpose().copy())
+        else:
+            self.trait_setq(_main_idx = self.main.image_arr)
+
+        if len(self._over_idx) and \
+               self.main.image_arr.shape != self._over_idx.shape:
+            self._resample_over_into_main()
+        self._main_idx = self._main_idx
+        self._adapt_to_slicer()
+
+    @t_ui.on_trait_change('over')
+    def _udpate_obytes(self):
+        if self.over==None:
+            self._over_idx = np.array([], np.int32)
+            self._adapt_to_slicer()
+            return
+        if type(self.over)==ni_api.Image:
+            over = ResampledIndexVolumeSlicer(self.over, norm=self.over_norm)
+            # go ahead and be re-entrant
+            self.over = over
+            return
+        if type(self.over) != ResampledIndexVolumeSlicer:
+            raise ValueError('over image should be a NIPY Image, or '\
+                             'a ResampledIndexVolumeSlicer')
+        
+        if self.transpose_inputs:
+            temp_idx = self.over.image_arr.transpose().copy()
+        else:
+            temp_idx = self.over.image_arr
+
+        if not self.main:
+            self._over_idx = temp_idx
+            self._adapt_to_slicer()
+        else:
+            self.trait_setq(_over_idx=temp_idx)
+            self._resample_over_into_main()
+
+    def _resample_over_into_main(self):
+##         over_r0 = np.array(self.over.bbox)[:,0] if self.transpose_inputs \
+##                   else np.array(self.over.bbox)[::-1,0]
+##         over_dr = self.over.grid_spacing[:] if self.transpose_inputs \
+##                   else self.over.grid_spacing[::-1]
+##         main_r0 = self.img_origin[::-1]
+##         main_dr = self.img_spacing[::-1]
+        over_r0 = np.array(self.over.bbox)[::-1,0] if self.transpose_inputs \
+                  else np.array(self.over.bbox)[:,0]
+        main_r0 = np.array(self.main.bbox)[::-1,0] if self.transpose_inputs \
+                  else np.array(self.main.bbox)[:,0]
+
+        over_dr = self.over.grid_spacing[::-1] if self.transpose_inputs \
+                  else self.over.grid_spacing
+        main_dr = self.main.grid_spacing[::-1] if self.transpose_inputs \
+                  else self.main.grid_spacing
+        
+        
+        i_bad = self.over_cmap.i_bad
+        self._over_idx = resize_lookup_array(
+            self._main_idx.shape, i_bad,
+            self._over_idx,
+            over_dr, over_r0,
+            main_dr, main_r0
+            )

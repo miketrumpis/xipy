@@ -26,6 +26,7 @@ from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis.mayavi_widgets import VisualComponent
 from xipy.vis import rgba_blending
+import xipy.vis.color_mapping as cm
 import xipy.volume_utils as vu
 
 class OverlayThresholdingSurfaceComponent(VisualComponent):
@@ -57,11 +58,12 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
     def add_threshold_surf(self):
         if not self.thresh:
             return
+        # BUT VMIN, VMAX IS NOW (0,255) SINCE WE'RE LOOKING AT INDICES
         mn, mx = self.func_man.norm
         colormap = self.func_man.cmap_option
         self.display._stop_scene()
         surf = mlab.pipeline.surface(
-            self.surf_scalars, vmin=mn, vmax=mx,
+            self.surf_scalars, vmin=0, vmax=255,
             colormap=colormap, representation='wireframe',
             opacity=0.35, figure=self.display.scene.mayavi_scene
             )
@@ -102,14 +104,20 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         if not overlay:
             return
 
-        s_arr = np.ma.filled(overlay.image_arr)
+##         s_arr = np.ma.filled(overlay.image_arr)
+        # this is now the index array--scalars normalized between 0-255
+        # MixedAlphaColormap.i_bad is the key for masking: look for that value
+        s_arr = overlay.image_arr
         sctype = s_arr.dtype
         # this will be a negative mask, so threshold everything > 0.5
-        t_arr = np.ma.getmask(overlay.image_arr)
-        if t_arr is np.ma.nomask:
-            t_arr = np.zeros(overlay.image_arr.shape, sctype).transpose().flatten()
-        else:
-            t_arr = t_arr.astype(sctype).transpose().flatten()
+##         t_arr = np.ma.getmask(overlay.image_arr)
+        i_bad = cm.MixedAlphaColormap.i_bad
+        t_arr = np.where(s_arr==i_bad,1,0).astype(sctype).transpose().flatten()
+        
+##         if t_arr is np.ma.nomask:
+##             t_arr = np.zeros(overlay.image_arr.shape, sctype).transpose().flatten()
+##         else:
+##             t_arr = t_arr.astype(sctype).transpose().flatten()
         
 
         scalars.scalar_data = s_arr.copy()

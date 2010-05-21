@@ -1,18 +1,28 @@
-from nipy.core import api as ni_api
-from nipy.core.reference.coordinate_map import reorder_output
+# NumPy / Scipy
 import numpy as np
 from scipy import ndimage
+
+# Matplotlib normalization
+from matplotlib import colors
+
+# NIPY
+from nipy.core import api as ni_api
+from nipy.core.reference.coordinate_map import reorder_output
+
+# XIPY
 from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup
 from xipy.external.interpolation import ImageInterpolator
 import xipy.volume_utils as vu
+import xipy.vis.color_mapping as cm
 
 
 class VolumeSlicerInterface(object):
-    """ Interface only class!
+    """
+    Interface only class!
 
     This class defines an interface for all different VolumeSlicerInterface
     types,
-    specifically the cut_plane() usage.
+    specifically the cut_image() usage.
     """
     def __init__(self, image, bbox=None, mask=False,
                  grid_spacing=None, fliplr=False):
@@ -40,7 +50,8 @@ class VolumeSlicerInterface(object):
         raise NotImplementedError('This interface class is not for real use')
 
     def _cut_plane(self, ax, coord, **interp_kw):
-        """For a given axis in {SAG, COR, AXI}, make a plane cut in the
+        """
+        For a given axis in {SAG, COR, AXI}, make a plane cut in the
         volume at the coordinate value.
 
         Parameters
@@ -58,7 +69,8 @@ class VolumeSlicerInterface(object):
         pass
     
     def cut_image(self, loc, axes=(SAG, COR, AXI), transpose=True, **interp_kw):
-        """ Return len(axes) planes, which are cut along the axes specified.
+        """
+        Return len(axes) planes, which are cut along the axes specified.
 
         Parameters
         ----------
@@ -77,18 +89,23 @@ class VolumeSlicerInterface(object):
         _______
         len(axes) planes
         """
-        
+##         axes = sorted(axes)
         used_params = zip( axes, [loc[i] for i in axes] )
         
         planes = [self._cut_plane(ax, coord, **interp_kw)
                   for ax, coord in used_params]
         if transpose:
-            return [p.T for p in planes]
+            # only transpose the plane axes (0 and 1), in
+            # case this plane has vector information in the last dimension
+            axes = np.arange(len(planes[0].shape))
+            axes[0] = 1; axes[1] = 0
+            return [p.transpose(*axes) for p in planes]
         else:
             return planes
 
     def update_mask(self, mask, positive_mask=True):
-        """Reset the mask of the raw image data.
+        """
+        Reset the mask of the raw image data.
 
         Parameters
         ----------
@@ -111,7 +128,8 @@ class VolumeSlicerInterface(object):
 
 
 class SampledVolumeSlicer(VolumeSlicerInterface):
-    """ This object cuts up an image along the axes defined by its
+    """
+    This object cuts up an image along the axes defined by its
     CoordinateMap target space. The SampledVolumeSlicer provides slices
     through an image such that the cut planes extend across the three
     {x,y,z} planes of the target space. Each plane is sampled from the
@@ -241,7 +259,8 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         return new_coord
         
     def _cut_plane(self, ax, coord, **interp_kw):
-        """For a given axis in {SAG, COR, AXI}, make a plane cut in the
+        """
+        For a given axis in {SAG, COR, AXI}, make a plane cut in the
         volume at the coordinate value.
 
         Parameters
@@ -283,7 +302,8 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         raise NotImplementedError('not sure how to do this yet')
 
 class ResampledVolumeSlicer(VolumeSlicerInterface):
-    """ This object cuts up an image along the axes defined by its
+    """
+    This object cuts up an image along the axes defined by its
     CoordinateMap target space. The ResampledVolumeSlicer provides slices
     through an image such that the cut planes extend across the three
     {x,y,z} planes of the target space. Each plane is cut from a fully
@@ -332,7 +352,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
 
         # only resample if the image actually need a warping/rotation..
         # if the requested bounding box is different than the natural
-        # bounding box, then be smart about index bounds
+        # bounding box, then don't resample but be smart when indexing
         if not np.allclose(xyz_image.affine.diagonal()[:3], self.grid_spacing):
             print 'resampling entire Image volume'
             world_image = vu.resample_to_world_grid(
@@ -395,7 +415,8 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         
         
     def _cut_plane(self, ax, coord):
-        """For a given axis name, find the points on the transverse grid
+        """
+        For a given axis name, find the points on the transverse grid
         and make a cut at the given coord
 
         Parameters
@@ -419,146 +440,99 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         slicer = [slice(None)]*3
         slicer[ax] = idx
         pln = self.image_arr[tuple(slicer)]
-##         # now self.image_arr is either an ndarray or a MaskedArray
-##         if self._masking:
-##             m_pln = self._mask[tuple(slicer)]
-##             return np.ma.masked_where(m_pln, pln)
         return pln
 
-def partition_and_fill_masks(mask):
-    rmask = np.logical_not(mask)
-    labels, mx_label = ndimage.label(rmask)
-
-    filled = []
-    for l in xrange(1,mx_label+1):
-        lmask = (rmask==l)
-        lmask = np.array([ ndimage.binary_fill_holes(m) for m in lmask ])
-        filled.append(lmask)
-    return filled
-
-##### OLD CODE ... DELETE SOON ###############################################
-class ImageSlicer(object):
-    """ This class should be able to
-      * slice an image in three planes (sagittal, coronal, axial),
-        in the case of voxel space mode, this will just slice along
-        indices i, j, and k respectively
-      * look up voxel locations from (x,y,z) locations
-      * yield grid extents in i,j,k (or x,y,z)
-      * switch modes between 'world' space and voxel space
+class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
     """
-    def __init__(self, ni_img, mode='world', fliplr=False):
-        self.img = vu.fix_analyze_image(ni_img, fliplr=fliplr)
-        T = self.img.affine[:3,:3]
-        self.dv = (T**2).sum(axis=0)**0.5
-        if not np.allclose(np.eye(3), T/self.dv):
-            print 'resampling image to standard grid'
-            self.world_img = vu.resample_to_world_grid(self.img)
-        else:
-            self.world_img = self.img
-        self.world_img._data = np.ma.masked_array(self.world_img._data)
+    This class creates a resampled volume of indices into a color LUT,
+    and otherwise operates identically as a ResampledVolumeSlicer.
+    """
 
-        # make a new affine from ijk to voxel space (eg scanner lab frame)
-        Tvox = np.diag(self.dv.tolist() + [1])
-        # get the offset vector in "world" space
-        r0 = self.img.affine[:3,3]
-        # and rotate it back to voxel space
-        r0_vx = np.linalg.solve(T/self.dv, r0)
-        Tvox[:3,3] = r0_vx
-        vspace_coordmap = ni_api.Affine.from_params('ijk', 'xyz', Tvox)
-        self.vox_img = ni_api.Image(self.img._data, vspace_coordmap)
-
-        # set up masked planes where requested slices are invalid
-        w_shape = self.world_img.shape
-        self.ortho_null_planes=[np.ma.masked_all((w_shape[0], w_shape[1]),'B'),
-                                np.ma.masked_all((w_shape[0], w_shape[2]),'B'),
-                                np.ma.masked_all((w_shape[1], w_shape[2]),'B')]
-        v_shape = self.vox_img.shape
-        self.vox_null_planes=[np.ma.masked_all((v_shape[0], v_shape[1]), 'B'),
-                              np.ma.masked_all((v_shape[0], v_shape[2]), 'B'),
-                              np.ma.masked_all((v_shape[1], v_shape[2]), 'B')]
-        self.switch_mode(mode)
-
-    # a couple of properties
-    def _get_image(self):
-        return self.working_img
-    def _get_cmap(self):
-        return self.working_img.coordmap
-    image = property(_get_image)
-    coordmap = property(_get_cmap)
-
-    def switch_mode(self, mode):
-        if mode=='world':
-            self.mode = mode
-            self.working_img = self.world_img
-            self.working_nulls = self.ortho_null_planes
-        if mode=='voxel':
-            self.mode = mode
-            self.working_img = self.vox_img
-            self.working_nulls = self.vox_null_planes
-        else:
-            # didn't recognize mode string, do nothing
-            pass
+    def __init__(self, image, bbox=None, norm=None,
+                 grid_spacing=None, fliplr=False):
+        """
+        Creates a new ResampledVolumeSlicer
         
-    def get_slicers(self, loc):
-        inv_mapping = self.working_img.coordmap.inverse
-        ijk = np.round(inv_mapping(loc)[0]).astype('i')
-##         ijk = inv_mapping(loc)[0].astype('i')
-        # create a 3x3 list of slice objects
-        slicers = [ [slice(None)]*3 for x in ['la', 'di', 'da'] ]
-        # hit the diagonals with the voxel indices
-        for x in [0,1,2]:
-            # negative indexing will technically work,
-            # so make sure that it fails by setting the slicer to
-            # something absurd
-            if ijk[x] < 0:
-                slicers[x] = ['party']
-            else:
-                slicers[x][x] = ijk[x]
-        # slicers are returned in indexing order i,j,k -- 
-        # thus the planes they slice are sag, cor, axi
-        slicers = [tuple(sl) for sl in slicers]
-        return slicers
-
-
-    def get_image_slices(self, loc, axes=(SAG, COR, AXI), transpose=True):
-        """ Return len(axes) planes, which are cut along the axes specified.
-
         Parameters
         ----------
-        loc : iterable, len-3
-            The coordinates of the cut location
-        axes : iterable, len-1, 2, or 3
-            The returned planes will be those normal to these axes (by default
-            all three SAG, COR, AXI axes)
-
-        Returns
-        _______
-        len(axes) planes
+        image : a NIPY Image
+            The image to slice
+        bbox : iterable (optional)
+            The {x,y,z} limits of the enrounding volume box. If None, then
+            slices planes in the natural box of the image. This argument
+            is useful for overlaying an image onto another image's volume box
+        norm : (black-pt, white-pt) pair or mpl.colors.Normalize instance
+            Limits for normalizing the scalar values. If image contains
+        grid_spacing : iterable (optional)
+            New grid spacing for the sliced planes. If None, then the
+            natural voxel spacing is used.
+        fliplr : bool (optional)
+            Set True if the transform from voxel indices to world coordinates
+            maps to a left-handed space, (Radiological convention)
         """
-        slicers = self.get_slicers(loc)
+        image = vu.fix_analyze_image(image, fliplr=fliplr)
         
-##         if n >= 0:
-##             try:
-##                 planes = self.working_img._data[slicers[n]].T
-##             except:
-##                 planes = self.working_nulls[n].T
-##         else:
-        planes = []
-        params = [(i, slicers[i]) for i in axes]
-        for n, sl in params:
-            try:
-                planes.append(self.working_img._data[sl])
-            except:
-                planes.append(self.working_nulls[n])
-        if transpose:
-            return [p.T for p in planes]
+        # XYZ: NEED TO BREAK API HERE FOR MASKED ARRAY
+        vol_data = np.ma.masked_array(image._data)
+        xyz_cmap = reorder_output(image.coordmap, 'xyz')
+        xyz_image = ni_api.Image(vol_data,
+                                 reorder_output(image.coordmap, 'xyz'))
+        if norm is not False:
+            # normalize the image data to the range [0,1]
+            if norm is None or norm==(0, 0):
+                norm = colors.Normalize()
+            elif type(norm) in (list, tuple):
+                norm = colors.Normalize(*norm)
+            elif type(norm) is not colors.Normalize:
+                raise ValueError('Could not parse normalization parameter')
+            compressed = norm(vol_data)
+            # map to indices
+            raw_idx = cm.MixedAlphaColormap.lut_indices(compressed)
         else:
-            return planes
+            raw_idx = np.asarray(xyz_image)
         
+        self._natural_bbox = vu.world_limits(xyz_cmap, vol_data.shape)
+        if bbox is None:
+            bbox = self._natural_bbox
+        self.grid_spacing = vu.voxel_size(xyz_cmap.affine) \
+                            if grid_spacing is None else grid_spacing
 
-    def get_extents(self):
-        if self.mode=='world':
-            return vu.world_limits(self.world_img)
+        # only resample if the image actually need a warping/rotation..
+        # if the requested bounding box is different than the natural
+        # bounding box, then don't resample but be smart when indexing
+        idx_image = ni_api.Image(raw_idx, xyz_cmap)
+        bad_idx = cm.MixedAlphaColormap.i_bad
+        if not np.allclose(xyz_cmap.affine.diagonal()[:3], self.grid_spacing):
+            print 'resampling entire Image volume'
+            # Resample to a diagonal affine with grid spacing as given.
+            # Fill in boundary voxels with "i_bad", so they are hidden
+            # in the color mapping
+            world_idx_image = vu.resample_to_world_grid(
+                idx_image, grid_spacing=self.grid_spacing,
+                order=0,
+                cval=bad_idx
+                )
         else:
-            return vu.vox_limits(self.vox_img)
+            world_idx_image = idx_image
+
+
+        self.coordmap = world_idx_image.coordmap
+        self.image_arr = np.asarray(world_idx_image)
+
+        w_shape = world_idx_image.shape
+        self.null_planes = [np.ones((w_shape[0], w_shape[1]),'B')*bad_idx,
+                            np.ones((w_shape[0], w_shape[2]),'B')*bad_idx,
+                            np.ones((w_shape[1], w_shape[2]),'B')*bad_idx]
+        # take down the final bounding box; this will define the
+        # field of the overlay plot
+        bb_min = world_idx_image.affine[:3,-1]
+        bb_max = [b0 + l*dv for b0, l, dv in zip(bb_min,
+                                                 w_shape,
+                                                 self.grid_spacing)]
+        self.bbox = zip(bb_min, bb_max)
+        
+    def update_mask(self, mask, positive_mask=True):
+        raise NotImplementedError('no updating masks in index mapped images')
+
+            
         

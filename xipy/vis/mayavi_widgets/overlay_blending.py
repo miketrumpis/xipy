@@ -44,7 +44,7 @@ class OverlayBlendingComponent(VisualComponent):
     def _show_func(self):
         if not self.func_man or not self.func_man.overlay:
             print 'no functional manager to provide an overlay'
-            self.trait_setq(show_func=False)
+            self.set(show_func=False, trait_change_notify=False)
             return
         self.display.change_source_data()
     
@@ -78,7 +78,6 @@ class OverlayBlendingComponent(VisualComponent):
         """
         if not self.func_man or not self.func_man.overlay:
             return
-        overlay = self.func_man.overlay
         # this could potentially change scalar mapping properties too
         self.blender.trait_setq(
             over_cmap=self.func_man.colormap,
@@ -86,4 +85,4 @@ class OverlayBlendingComponent(VisualComponent):
             over_alpha=self.func_man.alpha(scale=self.alpha_compress)
             )
             
-        self.blender.over = overlay.raw_image
+        self.blender.over = self.func_man.overlay

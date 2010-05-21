@@ -54,7 +54,7 @@ class OrthoViewer3D(HasTraits):
     anat_scalars = Instance(Source)
     func_scalars = Instance(Source)
 
-    blender = Instance(rgba_blending.BlendedImage, (),
+    blender = Instance(rgba_blending.BlendedImages, (),
                        spline_order=0, transpose_inputs=True)
     blended_src = Instance(Source)
     blob_surf_src = Instance(Source)
@@ -90,6 +90,7 @@ class OrthoViewer3D(HasTraits):
         HasTraits.__init__(self, **traits)
         self.blender
         self.func_man
+        self.__blocking_draw = False
         # First, add self to the VisualComponent base class
         try:
             VisualComponent.add_class_trait('display', self)
@@ -218,7 +219,8 @@ class OrthoViewer3D(HasTraits):
     def _handle_end_interaction(self, widget, event):
         if self.__reposition_planes_after_interaction:
             pos_ijk = widget.GetCurrentCursorPosition()
-            pos = self.anat_image.coordmap(pos_ijk)[0]
+##             pos = self.anat_image.coordmap(pos_ijk)[0]
+            pos = self.blender.coordmap(pos_ijk)[0]
             self._snap_to_position(pos)
             self.__reposition_planes_after_interaction = False
         else:
@@ -255,8 +257,9 @@ class OrthoViewer3D(HasTraits):
 
     @on_trait_change('show_anat')
     def _show_anat(self):
-        if not self.anat_image:
+        if not len(self.blender.main_rgba):
             print 'no anat array loaded yet'
+            print self.blender.main_rgba
             self.set(show_anat=False, trait_change_notify=False)
             return
         # this will assess the status of the image source and plotting
@@ -277,29 +280,38 @@ class OrthoViewer3D(HasTraits):
             self.info.text = self.func_man.description
 
         self._func_thresh = self.func_man.threshold
-                
-    @on_trait_change('anat_image')
-    def _update_colors_from_anat_image(self):
-        """ When a new image is loaded, update the anat color bytes
-        """
+
+    @on_trait_change('blender.main')
+    def _update_blended_source(self):
         self.__blocking_draw = True
-        self.blender.main = self.anat_image.raw_image
         # hmmm there is a problem here when re-loading images..
         # the appropriate rgba array may not be available or valid yet
-        self.change_source_data(new_position=True)
+        if self.blender.main:
+            self.change_source_data(new_position=True)
         self.__blocking_draw = False
+    
+##     @on_trait_change('anat_image')
+##     def _update_colors_from_anat_image(self):
+##         """ When a new image is loaded, update the anat color bytes
+##         """
+##         self.__blocking_draw = True
+##         self.blender.main = self.anat_image.raw_image
+##         # hmmm there is a problem here when re-loading images..
+##         # the appropriate rgba array may not be available or valid yet
+##         self.change_source_data(new_position=True)
+##         self.__blocking_draw = False
 
-        # flush previous arrays
-        n_arr = self.anat_scalars.image_data.point_data.number_of_arrays
-        names = [self.anat_scalars.image_data.point_data.get_array(i).name
-                 for i in xrange(n_arr)]
-        for n in names:
-            self.anat_scalars.image_data.point_data.remove_array(n)
-        # add new array
-        image_arr = self.anat_image.image_arr.transpose().copy()
-        self.anat_scalars.scalar_data = image_arr
-        self.anat_scalars.spacing = self.blender.img_spacing
-        self.anat_scalars.origin = self.blender.img_origin
+##         # flush previous arrays
+##         n_arr = self.anat_scalars.image_data.point_data.number_of_arrays
+##         names = [self.anat_scalars.image_data.point_data.get_array(i).name
+##                  for i in xrange(n_arr)]
+##         for n in names:
+##             self.anat_scalars.image_data.point_data.remove_array(n)
+##         # add new array
+##         image_arr = self.anat_image.image_arr.transpose().copy()
+##         self.anat_scalars.scalar_data = image_arr
+##         self.anat_scalars.spacing = self.blender.img_spacing
+##         self.anat_scalars.origin = self.blender.img_origin
     
     #---------------------------------------------------------------------------
     # Scene update methods
@@ -332,8 +344,6 @@ class OrthoViewer3D(HasTraits):
         # XYZ: SAY FOR NOW THAT THE ANAT IMAGE MUST BE AVAILABLE BEFORE
         # PLOTTING THE OVERLAY... THIS WILL SIDESTEP THE ISSUE OF UPDATING
         # THE IMAGE DATA PROPERTIES, WHICH APPEARS TO CAUSE A HUGE DELAY
-        
-
 
         if self.show_func and self.show_anat:
             print 'will plot blended'
@@ -365,10 +375,6 @@ class OrthoViewer3D(HasTraits):
 
         #self.blended_src.update_image_data = True
         self.blended_src.update()
-##         cProfile.runctx('self.blended_src.update()', globals(), locals(),
-##                         'mayavi.prof')
-##         s = pstats.Stats('mayavi.prof')
-##         s.strip_dirs().sort_stats('cumulative').print_stats()
 
         if not hasattr(self, 'ipw_x'):
             t0 = time.time()
@@ -386,8 +392,6 @@ class OrthoViewer3D(HasTraits):
         t0 = time.time()
         print 'also starting scene ',
         self._start_scene()
-##         # this seems hacky, but works
-##         self.scene.render_window.render()
         t = time.time()
         print 'done, %1.3f sec'%(t-t0)
 

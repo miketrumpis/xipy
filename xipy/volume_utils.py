@@ -127,7 +127,8 @@ def maximum_world_distance(limits):
     dist = ( (diffs)**2 ).sum(axis=-1)**.5
     return dist.max()
     
-def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3):
+def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
+                           **interp_kws):
     cmap_xyz = reorder_output(img.coordmap, 'xyz')
     T = cmap_xyz.affine
     if grid_spacing is None:
@@ -152,7 +153,7 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3):
     #mapping = compose(resamp_affine, mapping1.inverse)
 
     new_img = resample.resample(img, resamp_affine, mapping.affine,
-                                tuple(new_dims), order=order)
+                                tuple(new_dims), order=order, **interp_kws)
 
     return new_img
 

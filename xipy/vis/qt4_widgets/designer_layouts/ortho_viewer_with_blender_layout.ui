@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>XIPYOrthoViewer</class>
+ <widget class="QMainWindow" name="XIPYOrthoViewer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1076</width>
+    <height>574</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>XIPY Ortho Slice View</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QFrame" name="frame">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>350</y>
+      <width>311</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>139</x>
+       <y>0</y>
+       <width>151</width>
+       <height>81</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string>image mapping</string>
+     </property>
+     <property name="whatsThis">
+      <string>image mappping</string>
+     </property>
+     <property name="title">
+      <string>Image Space</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
+     </property>
+     <widget class="QWidget" name="layoutWidget">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>20</y>
+        <width>121</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="QRadioButton" name="worldspace_button">
+         <property name="text">
+          <string>World Space</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="voxspace_button">
+         <property name="text">
+          <string>Voxel Space</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="layoutWidget">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>111</width>
+       <height>56</height>
+      </rect>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_4">
+      <item>
+       <widget class="QComboBox" name="cmap_box">
+        <property name="toolTip">
+         <string>colormap</string>
+        </property>
+        <property name="statusTip">
+         <string/>
+        </property>
+        <property name="whatsThis">
+         <string>colormap</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="interp_box">
+        <property name="toolTip">
+         <string>interpolation</string>
+        </property>
+        <property name="whatsThis">
+         <string>interpolation</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>340</y>
+      <width>226</width>
+      <height>172</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_7">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Sagittal</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Coronal</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>Axial</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout">
+           <item>
+            <widget class="QSlider" name="sag_slider">
+             <property name="minimumSize">
+              <size>
+               <width>157</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="tickPosition">
+              <enum>QSlider::TicksBelow</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="cor_slider">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="tickPosition">
+              <enum>QSlider::TicksBelow</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="axi_slider">
+             <property name="minimumSize">
+              <size>
+               <width>157</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="tickPosition">
+              <enum>QSlider::TicksBelow</enum>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0" colspan="3">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QDoubleSpinBox" name="sag_spinner">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="buttonSymbols">
+            <enum>QAbstractSpinBox::UpDownArrows</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="cor_spinner">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="axi_spinner">
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>Sagittal</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLabel" name="label_7">
+         <property name="text">
+          <string>Coronal</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QLabel" name="label_8">
+         <property name="autoFillBackground">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Axial</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_2">
+    <property name="geometry">
+     <rect>
+      <x>730</x>
+      <y>400</y>
+      <width>251</width>
+      <height>131</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Position Information</string>
+    </property>
+    <widget class="QWidget" name="layoutWidget">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>231</width>
+       <height>91</height>
+      </rect>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,1">
+      <property name="spacing">
+       <number>-1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="xyz_label">
+        <property name="text">
+         <string>mm</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>0 0 0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="vox_label">
+        <property name="text">
+         <string>vox</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>0 0 0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="over_vox_label">
+        <property name="text">
+         <string>over vox</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </widget>
+   <widget class="MplQT4OrthoSlicesWidget" name="ortho_figs_widget">
+    <property name="geometry">
+     <rect>
+      <x>1</x>
+      <y>1</y>
+      <width>1071</width>
+      <height>330</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+   </widget>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>752</x>
+      <y>329</y>
+      <width>161</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_5">
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Zoom FOV Frame</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="zoom_box">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+       <item>
+        <property name="text">
+         <string>Full FOV</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>160 x 160 x 160</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>80 x 80 x 80</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>40 x 40 x 40</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>20 x 20 x 20</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>10 x 10 x 10</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1076</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionLoad_MR_File"/>
+    <addaction name="actionUnload_Overlay"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuTools"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad_Beam_File">
+   <property name="text">
+    <string>Load Beam File</string>
+   </property>
+  </action>
+  <action name="actionLoad_MR_File">
+   <property name="text">
+    <string>Load MR File</string>
+   </property>
+  </action>
+  <action name="actionLoad_Overlay_Image">
+   <property name="text">
+    <string>Load Overlay Image</string>
+   </property>
+  </action>
+  <action name="actionUnload_Overlay">
+   <property name="text">
+    <string>Unload Overlay</string>
+   </property>
+  </action>
+  <action name="actionTime_Frequency_Plane">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Time Frequency Plane</string>
+   </property>
+  </action>
+  <action name="action3D_Views">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>3D Views</string>
+   </property>
+  </action>
+  <action name="actionAnimate_Freq_Band">
+   <property name="text">
+    <string>Animate Freq Band</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MplQT4OrthoSlicesWidget</class>
+   <extends>QWidget</extends>
+   <header>xipy.vis.qt4_widgets.ortho_slices</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>frame</tabstop>
+  <tabstop>sag_slider</tabstop>
+  <tabstop>cor_slider</tabstop>
+  <tabstop>axi_slider</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>axi_slider</sender>
+   <signal>sliderMoved(int)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>move_axi_position(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>152</x>
+     <y>479</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cor_slider</sender>
+   <signal>sliderMoved(int)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>move_cor_position(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>152</x>
+     <y>443</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sag_slider</sender>
+   <signal>sliderMoved(int)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>move_sag_position(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>152</x>
+     <y>407</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>x_state(int)</signal>
+   <receiver>sag_slider</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>152</x>
+     <y>407</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>y_state(int)</signal>
+   <receiver>cor_slider</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>152</x>
+     <y>443</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>z_state(int)</signal>
+   <receiver>axi_slider</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>152</x>
+     <y>479</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>x_state(double)</signal>
+   <receiver>sag_spinner</receiver>
+   <slot>setValue(double)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>46</x>
+     <y>521</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>y_state(double)</signal>
+   <receiver>cor_spinner</receiver>
+   <slot>setValue(double)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>122</x>
+     <y>521</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ortho_figs_widget</sender>
+   <signal>z_state(double)</signal>
+   <receiver>axi_spinner</receiver>
+   <slot>setValue(double)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>465</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>199</x>
+     <y>521</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>zoom_box</sender>
+   <signal>activated(int)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>zoom_slices(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>832</x>
+     <y>398</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>536</x>
+     <y>187</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>interp_box</sender>
+   <signal>currentIndexChanged(QString)</signal>
+   <receiver>ortho_figs_widget</receiver>
+   <slot>set_interp(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>435</x>
+     <y>434</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>536</x>
+     <y>187</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -50,7 +50,7 @@ def resample_img2img(source, target, order=3):
     return resimg
 
 
-def resample(image, target, mapping, shape, order=3):
+def resample(image, target, mapping, shape, order=3, **interp_kws):
     """
     Resample an image to a target CoordinateMap with a "world-to-world" mapping
     and spline interpolation of a given order.
@@ -70,6 +70,7 @@ def resample(image, target, mapping, shape, order=3):
                or a representation of this in homogeneous coordinates. 
     shape : shape of output array, in target.input_coords
     order : what order of interpolation to use in `scipy.ndimage`
+    interp_kws : keyword arguments for ndimage interpolator routine
 
     Returns
     -------
@@ -109,7 +110,7 @@ def resample(image, target, mapping, shape, order=3):
 ##         print 'using interpolator'
         grid = ArrayCoordMap.from_shape(TV2IW, shape)
         interp = ImageInterpolator(image, order=order)
-        idata = interp.evaluate(grid.transposed_values)
+        idata = interp.evaluate(grid.transposed_values, **interp_kws)
         del(interp)
     else:
         TV2IV = compose(image.coordmap.inverse, TV2IW)
@@ -121,12 +122,13 @@ def resample(image, target, mapping, shape, order=3):
                                      offset=b,
                                      output_shape=shape,
                                      output=data.dtype,
-                                     order=order)
+                                     order=order,
+                                     **interp_kws)
         else:
 ##             print 'using interpolator 2'
             interp = ImageInterpolator(image, order=order)
             grid = ArrayCoordMap.from_shape(TV2IV, shape)
-            idata = interp.evaluate(grid.values)
+            idata = interp.evaluate(grid.values, **interp_kws)
             del(interp)
             
     return Image(idata, target.copy())

@@ -23,7 +23,13 @@ NP_CLIP_OUT = NP_MAJOR>=1 and NP_MINOR>=2
 
 class MixedAlphaColormap(LinearSegmentedColormap):
 
-    def lut_indices(self, X):
+    N = 256
+    i_under = 256
+    i_over = 257
+    i_bad = 258
+    
+    @staticmethod
+    def lut_indices(X):
         """
         Convert the normalized scalar array X to indices into this
         colormap's LUT, including indices into i_bad, i_over, i_under.
@@ -45,16 +51,19 @@ class MixedAlphaColormap(LinearSegmentedColormap):
             # conversion of large positive values to negative integers.
 
             if NP_CLIP_OUT:
-                np.clip(xa * self.N, -1, self.N, out=xa)
+                np.clip(xa * MixedAlphaColormap.N, -1,
+                        MixedAlphaColormap.N, out=xa)
             else:
-                xa = np.clip(xa * self.N, -1, self.N)
+                xa = np.clip(xa * MixedAlphaColormap.N,
+                             -1, MixedAlphaColormap.N)
+                
             xa = xa.astype(int)
         # Set the over-range indices before the under-range;
         # otherwise the under-range values get converted to over-range.
-        np.putmask(xa, xa>self.N-1, self._i_over)
-        np.putmask(xa, xa<0, self._i_under)
+        np.putmask(xa, xa>MixedAlphaColormap.N-1, MixedAlphaColormap.i_over)
+        np.putmask(xa, xa<0, MixedAlphaColormap.i_under)
         if mask_bad is not None and mask_bad.shape == xa.shape:
-            np.putmask(xa, mask_bad, self._i_bad)
+            np.putmask(xa, mask_bad, MixedAlphaColormap.i_bad)
         return xa
 
     def fast_lookup(self, Xi, alpha=1.0, bytes=False):
@@ -107,8 +116,10 @@ class MixedAlphaColormap(LinearSegmentedColormap):
         If bytes is False, the rgba values will be floats on a
         0-1 scale; if True, they will be uint8, 0-255.
         """
-
-        xa = self.lut_indices(X)
+        if X.dtype.char not in np.typecodes['AllInteger']:
+            xa = MixedAlphaColormap.lut_indices(X)
+        else:
+            xa = X
         rgba = self.fast_lookup(xa, alpha=alpha, bytes=bytes)
         return rgba
         

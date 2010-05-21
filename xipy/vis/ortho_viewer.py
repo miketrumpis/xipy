@@ -1,15 +1,21 @@
 import os, sys
 # try loading this generated class from the uic module
 from PyQt4 import uic
-design_path = os.path.join(os.path.split(__file__)[0], 'qt4_widgets/designer_layouts/ortho_viewer_layout.ui')
+design_path = os.path.join(os.path.split(__file__)[0], 'qt4_widgets/designer_layouts/ortho_viewer_with_blender_layout.ui')
 ui_layout_class, base_class = uic.loadUiType(design_path)
 
 from PyQt4 import QtCore, QtGui
+
+# Matplotlib
 import matplotlib as mpl
-## import matplotlib.cm as cm
 import xipy.vis.color_mapping as cm
 
+# NumPy
 import numpy as np
+
+# NIPY
+from nipy.io.api import load_image
+import nipy.core.api as ni_api
 
 from xipy.slicing import SAG, COR, AXI, load_resampled_slicer, \
      load_sampled_slicer
@@ -17,6 +23,7 @@ from xipy.utils import with_attribute
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
 from xipy.vis import mayavi_widgets
+from xipy.vis.rgba_blending import BlendedImages
 from xipy.overlay import overlay_thresholding_function, \
      make_mpl_image_properties
 from xipy.overlay.plugins import all_registered_plugins
@@ -43,22 +50,27 @@ class OrthoViewer(XIPYWindowApp):
         self._image_loaded = False
         self._overlay_active = False
 
-        try:
-            self.update_image(image)
-        except ValueError:
-            print 'no image to load in __init__()'
+        self.blender = BlendedImages(transpose_inputs=True)
 
         if mayavi_viewer:
             # Creates Mayavi 3D view
             self.create_mayavi_window()
-            # do a little catch up with the informing
-            if self._image_loaded:
-                self.mayavi_widget.mr_vis.anat_image = self.image
+            self.mayavi_widget.mr_vis.blender = self.blender
+        
+        try:
+            self.update_image(image)
+        except RuntimeError:
+            print 'no image to load in __init__()'
     
     def extra_setup_ui(self):
         # set up cmap options
         self.cmap_box.insertItems(0, cmaps)
         self.cmap_box.setCurrentIndex(cmaps.index('gray'))
+
+        # connect cmap box
+        QtCore.QObject.connect(self.cmap_box,
+                               QtCore.SIGNAL('currentIndexChanged(QString)'),
+                               self.set_main_cmap)
 
         # set up interp options
         self.interp_box.insertItems(0, interpolations)
@@ -130,77 +142,95 @@ class OrthoViewer(XIPYWindowApp):
 
     ########## IMAGE DATA UPDATES ##########
     def update_image(self, image, mode='world'):
-        try:
-            s_img = load_resampled_slicer(image, fliplr=self._fliplr)
-        except ValueError:
+        if type(image) != ni_api.Image:
             try:
-                s_img = load_sampled_slicer(image, fliplr=self._fliplr)
-            except ValueError:
+                image = load_image(image)
+            except RuntimeError:
                 self.image = None
                 self._image_loaded = False
                 raise
-        self.image = s_img
+        self.blender.main = image
+        # this reference may no longer be necessary
+        self.image = self.blender.main
         self._image_loaded = True
         # need to update:
         # slider ranges
         # plugin params
-        limits = self.image.bbox
+        limits = self.blender.bbox
+        print 'new limits:', limits
         self.update_ranges(limits)
         self._update_plugin_params()
-        planes = self.image.cut_image((0,0,0))
-        interp = str(self.interp_box.currentText())
-        cmap = cm.cmap_d[str(self.cmap_box.currentText())]
-        self.ortho_figs_widget.initialize_plots(planes, (0,0,0), limits,
-                                                interpolation=interp,
-                                                cmap=cmap)
+        planes = self.blender.cut_image((0,0,0))
+##         interp = str(self.interp_box.currentText())
+##         cmap = cm.cmap_d[str(self.cmap_box.currentText())]
+
+        self.ortho_figs_widget.initialize_plots(planes, (0,0,0), limits)
+##                                                 interpolation=interp,
+##                                                 cmap=cmap)
+
         if hasattr(self, 'mayavi_widget') and self.mayavi_widget is not None:
-            self.mayavi_widget.mr_vis.anat_image = self.image
+##             self.mayavi_widget.mr_vis.anat_image = self.image
+            self.mayavi_widget.mr_vis.blender = self.blender
 
 ##     @QtCore.pyqtSlot(QtCore.QObject, float, float, float)
     def triggered_overlay_update(self, func_man):
         print 'heard overlay upate signal'
-        pdict = make_mpl_image_properties(func_man)
-        self.update_overlay_slices(func_man.overlay, **pdict)
+##         pdict = make_mpl_image_properties(func_man)
+##         self.update_overlay_slices(func_man.overlay, **pdict)
+        self.blender.over = func_man.overlay
+        self.update_fig_data()
 
     def change_overlay_props(self, func_man):
         pdict = make_mpl_image_properties(func_man)
-        self.ortho_figs_widget.set_over_props(**pdict)
+        self.blender.update_over_props(**pdict)
+        self.update_fig_data()
 
-    @with_attribute('_image_loaded')
-    def update_overlay_slices(self, overlay, **kwargs):
-        main_limits = self.image.bbox
-        try:
-            o_img = load_sampled_slicer(overlay, bbox=main_limits)
-        except ValueError:
-            try:
-                o_img = load_resampled_slicer(overlay, bbox=main_limits)
-            except ValueError:
-                self._overlay_active = False
-                self.over_img = None
-                raise
-        loc = self.ortho_figs_widget.active_voxel
-##         fx = self._overlay_thresholding
-##         planes = [np.ma.masked_where(fx(x), x, copy=False)
-##                   for x in o_img.cut_image(loc)]
-        planes = o_img.cut_image(loc)
-        self.over_img = o_img
-        self._overlay_active = True
-        limits = self.over_img.bbox
-        self.ortho_figs_widget.initialize_overlay_plots(
-            planes, limits, **kwargs
-            )
-        self.check_max_extents()
+    @QtCore.pyqtSlot(str)
+    def set_main_cmap(self, cmap):
+        cmap = cm.cmap_d[str(cmap)]
+        print 'heard cmap change', cmap
+        self.blender.main_cmap = cmap
+        self.update_fig_data()
+
+##     @with_attribute('_image_loaded')
+##     def update_overlay_slices(self, overlay, **kwargs):
+##         main_limits = self.image.bbox
+##         try:
+##             o_img = load_sampled_slicer(overlay, bbox=main_limits)
+##         except ValueError:
+##             try:
+##                 o_img = load_resampled_slicer(overlay, bbox=main_limits)
+##             except ValueError:
+##                 self._overlay_active = False
+##                 self.over_img = None
+##                 raise
+##         loc = self.ortho_figs_widget.active_voxel
+## ##         fx = self._overlay_thresholding
+## ##         planes = [np.ma.masked_where(fx(x), x, copy=False)
+## ##                   for x in o_img.cut_image(loc)]
+##         planes = o_img.cut_image(loc)
+##         self.over_img = o_img
+##         self._overlay_active = True
+##         limits = self.over_img.bbox
+##         self.ortho_figs_widget.initialize_overlay_plots(
+##             planes, limits, **kwargs
+##             )
+##         self.check_max_extents()
 
     @with_attribute('_overlay_active')
     def remove_overlay(self, bool):
         print 'unloading MR overlays'
-        self.ortho_figs_widget.unload_overlay_plots(draw=True)
+        self.blender.over = None
         del self.over_img
         self._overlay_active = False
-        if hasattr(self, 'timefreqwin'):
-            self.timefreqwin.deactivate(strip_overlay=True)
-        if hasattr(self, 'overlay_win'):
-            self.overlay_win.deactivate(strip_overlay=True)
+        self.update_fig_data()
+        for tool in self._active_tools:
+            tool.deactivate(strip_overlay=True)
+            
+##         if hasattr(self, 'timefreqwin'):
+##             self.timefreqwin.deactivate(strip_overlay=True)
+##         if hasattr(self, 'overlay_win'):
+##             self.overlay_win.deactivate(strip_overlay=True)
 
     def change_to_world(self, active):
         if active:
@@ -227,7 +257,7 @@ class OrthoViewer(XIPYWindowApp):
     ########## FIGURE/PLOTTING UPDATES ##########
     @with_attribute('_image_loaded')
     def check_max_extents(self):
-        limits = self.image.bbox
+        limits = self.blender.bbox
         self.update_ranges(limits)
         return limits
 
@@ -263,25 +293,26 @@ class OrthoViewer(XIPYWindowApp):
     def xyz_position_watcher(self, *args):
         axes = args
         xyz_loc = self.ortho_figs_widget.active_voxel
-##         if self._new_vox(xyz_loc):
-        self.update_fig_data(xyz_loc, axes=axes)
+        self.update_fig_data(xyz_loc=xyz_loc, axes=axes)
 
     @with_attribute('_image_loaded')
-    def update_fig_data(self, xyz_loc, axes=(SAG, COR, AXI)):
-        planes = self.image.cut_image(xyz_loc, axes=axes)
-        if self._overlay_active: # and self._new_overlay_vox(xyz_loc):
-##             fx = self._overlay_thresholding
-##             o_planes = [np.ma.masked_where(fx(x), x, copy=False)
-##                         for x in self.over_img.cut_image(xyz_loc, axes=axes)]
-            o_planes = self.over_img.cut_image(xyz_loc, axes=axes)
-            planes = zip(planes, o_planes)
-            self.ortho_figs_widget.update_plot_data(
-                planes, fig_labels=axes
-                )
-        else:
-            self.ortho_figs_widget.update_main_plot_data(
-                planes, fig_labels=axes
-                )
+    def update_fig_data(self, xyz_loc=None, axes=(SAG, COR, AXI)):
+        if xyz_loc is None:
+            xyz_loc = self.ortho_figs_widget.active_voxel
+        planes = self.blender.cut_image(xyz_loc, axes=axes)
+##         if self._overlay_active: # and self._new_overlay_vox(xyz_loc):
+## ##             fx = self._overlay_thresholding
+## ##             o_planes = [np.ma.masked_where(fx(x), x, copy=False)
+## ##                         for x in self.over_img.cut_image(xyz_loc, axes=axes)]
+##             o_planes = self.over_img.cut_image(xyz_loc, axes=axes)
+##             planes = zip(planes, o_planes)
+##             self.ortho_figs_widget.update_plot_data(
+##                 planes, fig_labels=axes
+##                 )
+##         else:
+        self.ortho_figs_widget.update_main_plot_data(
+            planes, fig_labels=axes
+            )
 
     @with_attribute('_image_loaded')
     def update_ranges(self, limits):

@@ -14,6 +14,13 @@ from matplotlib.figure import Figure
 ## import matplotlib.cm as cm
 import xipy.vis.color_mapping as cm
 
+class FakeMPLEvent(object):
+    def __init__(self, c, a, x, y):
+        self.canvas = c
+        self.inaxes = a
+        self.xdata = x
+        self.ydata = y
+
 class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
     """This class is a Qt4 panel displaying three SliceFigures which cut
     into the standard orthogonal planes of a volumetric medical image. The
@@ -140,7 +147,7 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
             figs = [self.figs[idx] for idx in fig_labels]
         else:
             figs = self.figs
-        print 'updating all data at figs:', fig_labels
+##         print 'updating all data at figs:', fig_labels
         for fig, data in zip(figs, data_list):
             fig.set_data(data)
 
@@ -178,7 +185,7 @@ class MplQT4OrthoSlicesWidget(TopLevelAuxiliaryWindow):
             imgs = [self.over_plots[idx] for idx in fig_labels]
         else:
             imgs = self.over_plots
-        print 'updating overlay data at figs:', fig_labels
+##         print 'updating overlay data at figs:', fig_labels
         for img, data in zip(imgs, data_list):
             img.set_data(data)
 
