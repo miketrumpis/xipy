@@ -79,7 +79,7 @@ class ImageInterpolator(object):
         Parameters
         ----------
         points : ndarray, shape (nx x ny x nz x R)
-            values in self.image.coordmap.output_coords
+            values in self.image.coordmap.function_range
 
         Returns
         -------

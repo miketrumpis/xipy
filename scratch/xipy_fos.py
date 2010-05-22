@@ -126,7 +126,6 @@ def tvtk_line(lines, colors, opacity=1.0):
         lc += lcnts[n]
 
     pts.data.from_array(flattened_pts)
-    del flattened_pts
     
     if multicolor:
         line_scalars.from_array( np.array(list_of_colors) )
@@ -138,7 +137,7 @@ def tvtk_line(lines, colors, opacity=1.0):
     pd.points = pts
     pd.point_data.scalars = line_scalars
 
-    mapper = tvtk.OpenGLPolyDataMapper()
+    mapper = tvtk.PolyDataMapper()
     mapper.input = pd
     mapper.color_mode = 'map_scalars'
     mapper.lookup_table = LUT

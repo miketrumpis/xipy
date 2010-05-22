@@ -6,7 +6,8 @@ from scipy.ndimage import affine_transform
 import numpy as np
 
 from xipy.external.interpolation import ImageInterpolator
-from nipy.core.api import Image, CoordinateMap, Affine, ArrayCoordMap, compose
+from nipy.core.api import Image, CoordinateMap, AffineTransform, \
+     ArrayCoordMap, compose
 import nipy.core.transforms.affines as affines
 
 
@@ -63,12 +64,12 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
     ----------
     image : Image instance that is to be resampled
     target :target CoordinateMap for output image
-    mapping : transformation from target.output_coords
-               to image.coordmap.output_coords, i.e. 'world-to-world mapping'
+    mapping : transformation from target.function_range
+               to image.coordmap.function_range, i.e. 'world-to-world mapping'
                Can be specified in three ways: a callable, a
                tuple (A, b) representing the mapping y=dot(A,x)+b
                or a representation of this in homogeneous coordinates. 
-    shape : shape of output array, in target.input_coords
+    shape : shape of output array, in target.function_domain
     order : what order of interpolation to use in `scipy.ndimage`
     interp_kws : keyword arguments for ndimage interpolator routine
 
@@ -90,12 +91,12 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
 
      # image world to target world mapping
 
-        TW2IW = Affine(mapping, target.output_coords, image.coordmap.output_coords)
+        TW2IW = AffineTransform(target.function_range, image.coordmap.function_range, mapping)
     else:
-        TW2IW = CoordinateMap(mapping, target.output_coords, image.coordmap.output_coords)
+        TW2IW = CoordinateMap(mapping, target.function_range, image.coordmap.function_range)
 
-    input_coords = target.input_coords
-    output_coords = image.coordmap.output_coords
+    function_domain = target.function_domain
+    function_range = image.coordmap.function_range
 
     # target voxel to image world mapping
     TV2IW = compose(TW2IW, target)
@@ -104,8 +105,8 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
     # image world coordinates
 
 ##     print TV2IW
-    if not isinstance(TV2IW, Affine):
-        # interpolator evaluates image at values image.coordmap.output_coords,
+    if not isinstance(TV2IW, AffineTransform):
+        # interpolator evaluates image at values image.coordmap.function_range,
         # i.e. physical coordinates rather than voxel coordinates
 ##         print 'using interpolator'
         grid = ArrayCoordMap.from_shape(TV2IW, shape)
@@ -113,8 +114,8 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
         idata = interp.evaluate(grid.transposed_values, **interp_kws)
         del(interp)
     else:
-        TV2IV = compose(image.coordmap.inverse, TV2IW)
-        if isinstance(TV2IV, Affine):
+        TV2IV = compose(image.coordmap.inverse(), TV2IW)
+        if isinstance(TV2IV, AffineTransform):
             A, b = affines.to_matrix_vector(TV2IV.affine)
 ##             print 'using affine_transform()', A, b
             data = np.asarray(image)
@@ -131,6 +132,6 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
             idata = interp.evaluate(grid.values, **interp_kws)
             del(interp)
             
-    return Image(idata, target.copy())
+    return Image(idata, target)
 
         

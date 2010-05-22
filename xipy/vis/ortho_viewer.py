@@ -14,7 +14,6 @@ import xipy.vis.color_mapping as cm
 import numpy as np
 
 # NIPY
-from nipy.io.api import load_image
 import nipy.core.api as ni_api
 
 from xipy.slicing import SAG, COR, AXI, load_resampled_slicer, \
@@ -27,6 +26,7 @@ from xipy.vis.rgba_blending import BlendedImages
 from xipy.overlay import overlay_thresholding_function, \
      make_mpl_image_properties
 from xipy.overlay.plugins import all_registered_plugins
+from xipy.io import load_image
 
 interpolations = ['nearest', 'bilinear', 'sinc']
 cmaps = cm.cmap_d.keys()

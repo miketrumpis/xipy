@@ -274,7 +274,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
     def _adapt_to_slicer(self):
         bad_idx = cm.MixedAlphaColormap.i_bad
         # copy some attrs to match the blended image
-        copied_attrs = ['bbox', '_natural_bbox', 'grid_spacing', 'coordmap']
+        copied_attrs = ['bbox', '_ax_lookup', 'grid_spacing', 'coordmap']
         copied_from = self._prevailing_image()
         if copied_from:
             for attr in copied_attrs:
@@ -287,12 +287,16 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             return
         # just fake numbers???
         self.bbox = [ (-10.,10.) ] * 3
-        self._natural_bbox = [ (0.,0.) ] * 3
         self.grid_spacing = np.array([1.]*3)
-        self.coordmap = ni_api.Affine.from_start_step(
+        self.coordmap = ni_api.AffineTransform.from_start_step(
             'ijk', 'xyz', np.array([-10]*3), np.ones(3)
             )
-##         self.image_arr = self.blended_rgba.reshape(0,0,0,4)
+        # THIS IS TRULY AWFUL!
+        self._ax_lookup = dict( zip(range(3), range(3)) )
+        o_coords = self.coordmap.function_range.coord_names
+        self._ax_lookup.update( dict( zip(o_coords, range(3)) ) )
+        self._ax_lookup.update( dict( zip(['SAG', 'COR', 'AXI'],
+                                          range(3)) ) )
         shape = (10,10,10)
         self.null_planes = [np.zeros((shape[0], shape[1], 4),'B'),
                             np.zeros((shape[0], shape[2], 4),'B'),
@@ -305,50 +309,6 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         elif self.over:
             return self.over
         return None
-
-    def cut_image(self, loc, axes=(SAG, COR, AXI), transpose=True, **interp_kw):
-        """
-        Return len(axes) planes, which are cut along the axes specified.
-
-        Parameters
-        ----------
-        loc : iterable, len-3
-            The coordinates of the cut location
-        axes : iterable, len-1, 2, or 3
-            The returned planes will be those normal to these axes (by default
-            all three SAG, COR, AXI axes)
-        transpose : bool
-            Whether to return the planes in transpose or not
-        interp_kw : dict
-            Keyword args for the interpolating machinery
-            (ie, ndimage.map_coordinates keyword args)
-
-        Returns
-        _______
-        len(axes) planes
-        """
-        # intercept call to cut_image and re-jigger inputs if necessary
-
-        # normally, indexing along i, j, k respectively indexes
-        # along SAG, COR, AXI
-
-        # if the indices have been transposed, then i', j', k'
-        # index into AXI, COR, SAG
-        kwargs = {}
-        kwargs.update(**interp_kw)
-        if self.transpose_inputs:
-            args = (loc[::-1],)
-##             args = (loc,)
-            ax_rev = {0:2, 1:1, 2:0}
-            kwargs['axes'] = [ax_rev[ax] for ax in axes]
-            kwargs['transpose'] = not transpose
-            return super(BlendedImages, self).cut_image(*args, **kwargs)
-        else:
-            args = (loc,)
-            kwargs['axes'] = axes
-            kwargs['transpose'] = transpose
-            return super(BlendedImages, self).cut_image(*args, **kwargs)
-            
 
     @t_ui.cached_property
     def _get_img_spacing(self):

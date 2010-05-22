@@ -2,15 +2,14 @@ import numpy as np
 from nipy.core import api as ni_api
 ## from nipy.algorithms.resample import resample
 from xipy.external import resample
-from nipy.core.reference.coordinate_map import reorder_output, reorder_input, \
-     compose #, drop_io_dim
+from nipy.core.reference.coordinate_map import drop_io_dim
 from scipy import ndimage
 from xipy.slicing import SAG, COR, AXI
 
 def fix_analyze_image(img, fliplr=False):
     cmap = img.coordmap
     if fliplr:
-        x_idx = cmap.output_coords.index('x')
+        x_idx = cmap.function_range.index('x')
         cmap.affine[x_idx] *= -1
     if (len(img.shape) < 4) or img.shape[3] != 1:
         return img
@@ -25,14 +24,43 @@ def fix_analyze_image(img, fliplr=False):
     return ni_api.Image(arr, cmap)
 
 def voxel_size(T):
-    T = T[:3,:3]
-    return (T**2).sum(axis=0)**.5
+    """
+    Return the edge lengths of the voxels along the (x,y,z) axes
 
-def is_diagonal(T):
-    T = T[:3,:3]
+    Parameters
+    ----------
+    T: affine matrix, or NIPY AffineTransform
+      If provided as an affine matrix, it is assumed the row-ordering
+      is (x,y,z)
+    """
+    if type(T) is not np.ndarray:
+        T = cmap.affine    
+    m, n = T.shape
+    T = T[:min(m,3),:min(n,3)]
+    return (T**2).sum(axis=1)**.5
+
+def is_spatially_aligned(cmap):
+    """
+    Find out whether a voxel-coordinate to world-coordinate mapping has
+    a one-to-one correspondence between spatial and voxel axes.
+    Correspondence may be positive-to-negative.
+
+    Parameters
+    ----------
+    cmap : NIPY AffineTransform    
+    """
+    i_len = len(cmap.function_domain.coord_names)
+    o_len = len(cmap.function_range.coord_names)
+    io_len = max(i_len, o_len)
+    o_ord = sorted(cmap.function_range.coord_names) # ??? 
+    i_ord = sorted(cmap.function_domain.coord_names)  # ???
+    cmap_io_ordered = cmap.reordered_range(o_ord).reordered_domain(i_ord)
+    T = cmap_io_ordered.affine[:io_len, :io_len]
     vsize = voxel_size(T)
     return vsize.sum() == np.abs(T.diagonal()).sum()
 
+    
+      
 def limits_to_extents(ax_limits):
     """Utility to convert a list of [(xmin, xmax), ... ] pairs to rectangular
     extents (in the Matplotlib AxesImage sense) in SAG, COR, AXI order
@@ -61,7 +89,8 @@ def world_limits(*args):
     Parameters
     ----------
     img : a NIPY Image ( if len(args) == 1 )
-    coordmap, shape : a NIPY Affine, and 3D grid shape ( if len(args) == 2 )
+    coordmap, shape : a NIPY AffineTransform, and 3D grid shape
+                      ( if len(args) == 2 )
 
     Returns
     -------
@@ -72,7 +101,8 @@ def world_limits(*args):
         shape = args[0].shape
     else:
         coordmap, shape = args
-    T = reorder_output(coordmap, 'xyz').affine
+##     T = reorder_output(coordmap, 'xyz').affine
+    T = coordmap.reordered_range(ni_api.ras_output_coordnames).affine
     adim, bdim, cdim = shape
     box = np.zeros((8,3), 'd')
     # form a collection of vectors for each 8 corners of the box
@@ -129,8 +159,14 @@ def maximum_world_distance(limits):
     
 def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
                            **interp_kws):
-    cmap_xyz = reorder_output(img.coordmap, 'xyz')
-    T = cmap_xyz.affine
+##     cmap_ijk_xyz = reorder_input(
+##         reorder_output(img.coordmap, 'xyz'),
+##         'ijk'
+##         )
+    cmap_ijk_xyz = img.coordmap.reordered_range(
+        ni_api.ras_output_coordnames
+        ).reordered_domain('ijk')
+    T = cmap_ijk_xyz.affine
     if grid_spacing is None:
         # find the (i,j,k) voxel sizes, which should be the norm of the columns
         grid_spacing = list((T[:3,:3]**2).sum(axis=0)**0.5)
@@ -139,18 +175,34 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
         bbox = world_limits(img)
 
     box_limits = np.diff(bbox).reshape(3)
-    new_dims = np.ceil(box_limits/grid_spacing).astype('i')
-
+    
     diag_affine = np.diag(list(grid_spacing) + [1])
     diag_affine[:3,3] = np.asarray(bbox)[:,0]
     
-    resamp_affine = ni_api.Affine.from_params('ijk', 'xyz', diag_affine)
-
+    resamp_affine = ni_api.AffineTransform.from_params(
+        'ijk',
+        ni_api.ras_output_coordnames,
+        diag_affine
+        )
+##     resamp_affine = reorder_input(resamp_affine,
+##                                   img.coordmap.function_domain.coord_names)
+    resamp_affine = resamp_affine.reordered_domain(
+        img.coordmap.function_domain.coord_names
+        )
     # Doing the mapping this way, we don't have to assume what
-    # the input space of the Image is like (although we still label it "ijk"
-    # in the final resamp_affine)
-    mapping = compose(cmap_xyz, img.coordmap.inverse)
+    # the input space of the Image is like
+    cmap_xyz = img.coordmap.reordered_range(ni_api.ras_output_coordnames)
+##     cmap_xyz = reorder_output(img.coordmap, 'xyz')
+    mapping = ni_api.compose(cmap_xyz, img.coordmap.inverse())
+##     mapping = compose(cmap_ijk_xyz, img.coordmap.inverse)
     #mapping = compose(resamp_affine, mapping1.inverse)
+
+    # this is the ijk dim ordering.. how do we permute it to match
+    # the input coordinates of the original image?
+    new_dims = np.ceil(box_limits/grid_spacing).astype('i')
+    dim_ordering = map(lambda x: ['i','j','k'].index(x),
+                       img.coordmap.function_domain.coord_names)
+    new_dims = np.take(new_dims, dim_ordering)
 
     new_img = resample.resample(img, resamp_affine, mapping.affine,
                                 tuple(new_dims), order=order, **interp_kws)

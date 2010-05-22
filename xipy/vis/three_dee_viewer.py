@@ -6,10 +6,12 @@ ui_layout_class, base_class = uic.loadUiType(design_path)
 
 from PyQt4 import QtCore, QtGui
 
+import nipy.core.api as ni_api
+
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
-
 from xipy.slicing import load_resampled_slicer, load_sampled_slicer
+from xipy.io import load_image
 
 class MayaviViewer(XIPYWindowApp):
     def __init__(self, parent=None, image=None):
@@ -44,17 +46,15 @@ class MayaviViewer(XIPYWindowApp):
 
     ########## IMAGE DATA UPDATES ##########
     def update_image(self, image, mode='world'):
-        try:
-            s_img = load_resampled_slicer(image)
-        except ValueError:
+        if type(image) != ni_api.Image:
             try:
-                s_img = load_sampled_slicer(image)
-            except ValueError:
+                image = load_image(image)
+            except RuntimeError:
                 self.image = None
                 self._image_loaded = False
                 raise
-        self.image = s_img
         self._image_loaded = True
-        self.viewer.anat_image = self.image
+        self.viewer.blender.main = image
+        self.image = self.viewer.blender.main
         self._update_plugin_args()
 

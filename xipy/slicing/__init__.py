@@ -3,6 +3,7 @@ import nipy.core.api as ni_api
 SAG, COR, AXI = 0, 1, 2
 canonical_axes = dict( zip( ('SAG', 'COR', 'AXI'), (SAG, COR, AXI) ) )
 
+
 def transverse_plane_lookup(idx):
     if idx==SAG:
         return 1, 2
@@ -10,7 +11,28 @@ def transverse_plane_lookup(idx):
         return 0, 2
     elif idx==AXI:
         return 0, 1
-    raise ValueError('invalid plane index: %d, %s'%idx, canonical_axes[idx])
+    raise ValueError('invalid plane index: %d'%idx)
+
+def enumerated_axes(axes):
+    if type(axes)==str:
+        axes = [c for c in axes]
+    if type(axes) not in (tuple, list):
+        raise ValueError('Could not parse axes argument')
+    enumerated = []
+    ras = ni_api.ras_output_coordnames
+    for ax in axes:
+        if type(ax)==str:
+            if ax in (ras[0], 'x', 'SAG'):
+                enumerated.append(0)
+            if ax in (ras[1], 'y', 'COR'):
+                enumerated.append(1)
+            if ax in (ras[2], 'z', 'AXI'):
+                enumerated.append(2)
+        if type(ax)==int:
+            # MODULO 3? might as well make it safe down the line
+            enumerated.append(ax%3)
+    return enumerated
+    
 
 def _load_image(image):
     from nipy.io.api import load_image as ni_load

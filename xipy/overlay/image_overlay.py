@@ -22,9 +22,9 @@ from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.colorbar_panel import ColorbarPanel
 from xipy.overlay import OverlayInterface, OverlayWindowInterface, ThresholdMap
 from xipy.volume_utils import signal_array_to_masked_vol
+from xipy.io import load_image
 
 from nipy.core import api as ni_api
-from nipy.io.api import load_image as ni_load_image
 from nipy.core.reference.coordinate_map import compose
 
 import matplotlib as mpl
@@ -187,7 +187,7 @@ class ImageOverlayManager( OverlayInterface ):
         if type(overlay)==ni_api.Image:
             raw_image = overlay
         else:
-            raw_image = ni_load_image(overlay)
+            raw_image = load_image(overlay)
                 
         self.orig_mask = np.ma.getmask(raw_image._data)
         if self.orig_mask is np.ma.nomask:

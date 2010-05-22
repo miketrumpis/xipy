@@ -12,15 +12,17 @@ else:
     app = QtGui.QApplication.instance()
 
 mainwin = QtGui.QMainWindow()
+from nipy.io.api import load_image
+anat = load_image(TEMPLATE_MRI_PATH)
+func = load_image('map_img.nii')
 
-anat = load_resampled_slicer(TEMPLATE_MRI_PATH)
-func = load_resampled_slicer('map_img.nii')
-
-func_man = ImageOverlayManager(anat.bbox, overlay=func)
 
 win = mayavi_widgets.MayaviWidget(parent=mainwin)
-win.mr_vis.anat_image = anat
-win.add_toolbar(func_man)
+win.mr_vis.blender.main = anat
+
+## func_man = ImageOverlayManager(win.mr_vis.blender.bbox, overlay=func)
+
+## win.add_toolbar(func_man)
 
 my_track_file = '/Users/mike/workywork/dipy-vis/brain1/brain1_scan1_fiber_track_mni.trk'
 from mini_track_control import mini_track_feature
