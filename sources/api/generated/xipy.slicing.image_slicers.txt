@@ -1,0 +1,62 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+slicing.image_slicers
+=====================
+
+Module: :mod:`slicing.image_slicers`
+------------------------------------
+Inheritance diagram for ``xipy.slicing.image_slicers``:
+
+.. inheritance-diagram:: xipy.slicing.image_slicers 
+   :parts: 3
+
+.. automodule:: xipy.slicing.image_slicers
+
+.. currentmodule:: xipy.slicing.image_slicers
+
+Classes
+-------
+
+:class:`ResampledIndexVolumeSlicer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ResampledIndexVolumeSlicer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`ResampledVolumeSlicer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ResampledVolumeSlicer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`SampledVolumeSlicer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: SampledVolumeSlicer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`VolumeSlicerInterface`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: VolumeSlicerInterface
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

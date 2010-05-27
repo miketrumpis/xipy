@@ -1,0 +1,39 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.ortho_viewer
+================
+
+Module: :mod:`vis.ortho_viewer`
+-------------------------------
+Inheritance diagram for ``xipy.vis.ortho_viewer``:
+
+.. inheritance-diagram:: xipy.vis.ortho_viewer 
+   :parts: 3
+
+.. automodule:: xipy.vis.ortho_viewer
+
+.. currentmodule:: xipy.vis.ortho_viewer
+
+Class
+-----
+
+:class:`OrthoViewer`
+--------------------
+
+
+.. autoclass:: OrthoViewer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Functions
+---------
+
+
+.. autofunction:: xipy.vis.ortho_viewer.ortho_viewer
+
+
+.. autofunction:: xipy.vis.ortho_viewer.view_mr
+

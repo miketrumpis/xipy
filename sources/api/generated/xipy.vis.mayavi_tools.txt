@@ -1,0 +1,58 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.mayavi_tools
+================
+
+Module: :mod:`vis.mayavi_tools`
+-------------------------------
+Inheritance diagram for ``xipy.vis.mayavi_tools``:
+
+.. inheritance-diagram:: xipy.vis.mayavi_tools 
+   :parts: 3
+
+.. automodule:: xipy.vis.mayavi_tools
+
+.. currentmodule:: xipy.vis.mayavi_tools
+
+Classes
+-------
+
+:class:`ArraySourceRGBA`
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ArraySourceRGBA
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`ImagePlaneWidgetFactory_RGBA`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ImagePlaneWidgetFactory_RGBA
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`ImagePlaneWidget_RGBA`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ImagePlaneWidget_RGBA
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Function
+--------
+
+
+.. autofunction:: xipy.vis.mayavi_tools.time_wrap
+

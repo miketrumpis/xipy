@@ -1,0 +1,61 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+overlay
+=======
+
+Module: :mod:`overlay`
+----------------------
+Inheritance diagram for ``xipy.overlay``:
+
+.. inheritance-diagram:: xipy.overlay 
+   :parts: 3
+
+.. automodule:: xipy.overlay
+
+.. currentmodule:: xipy.overlay
+
+Classes
+-------
+
+:class:`OverlayInterface`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: OverlayInterface
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`OverlayWindowInterface`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: OverlayWindowInterface
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`ThresholdMap`
+~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ThresholdMap
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Functions
+---------
+
+
+.. autofunction:: xipy.overlay.make_mpl_image_properties
+
+
+.. autofunction:: xipy.overlay.overlay_thresholding_function
+

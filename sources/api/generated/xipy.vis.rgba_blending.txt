@@ -1,0 +1,56 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.rgba_blending
+=================
+
+Module: :mod:`vis.rgba_blending`
+--------------------------------
+Inheritance diagram for ``xipy.vis.rgba_blending``:
+
+.. inheritance-diagram:: xipy.vis.rgba_blending 
+   :parts: 3
+
+.. automodule:: xipy.vis.rgba_blending
+
+.. currentmodule:: xipy.vis.rgba_blending
+
+Classes
+-------
+
+:class:`BlendedArrays`
+~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: BlendedArrays
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`BlendedImages`
+~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: BlendedImages
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Functions
+---------
+
+
+.. autofunction:: xipy.vis.rgba_blending.blend_helper
+
+
+.. autofunction:: xipy.vis.rgba_blending.blend_two_images
+
+
+.. autofunction:: xipy.vis.rgba_blending.normalize_and_map
+
+
+.. autofunction:: xipy.vis.rgba_blending.quick_min_max_norm
+

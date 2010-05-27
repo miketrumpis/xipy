@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets.designer_layouts.ortho_viewer_layout
+====================================================
+
+Module: :mod:`vis.qt4_widgets.designer_layouts.ortho_viewer_layout`
+-------------------------------------------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
+
+.. currentmodule:: xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
+
+:class:`Ui_XIPYOrthoViewer`
+---------------------------
+
+
+.. autoclass:: Ui_XIPYOrthoViewer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

@@ -1,0 +1,13 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+io
+==
+
+Module: :mod:`io`
+-----------------
+.. automodule:: xipy.io
+
+.. currentmodule:: xipy.io
+
+.. autofunction:: xipy.io.load_image
+

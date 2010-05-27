@@ -1,0 +1,29 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.color_mapping
+=================
+
+Module: :mod:`vis.color_mapping`
+--------------------------------
+Inheritance diagram for ``xipy.vis.color_mapping``:
+
+.. inheritance-diagram:: xipy.vis.color_mapping 
+   :parts: 3
+
+.. automodule:: xipy.vis.color_mapping
+
+.. currentmodule:: xipy.vis.color_mapping
+
+:class:`MixedAlphaColormap`
+---------------------------
+
+
+.. autoclass:: MixedAlphaColormap
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+.. autofunction:: xipy.vis.color_mapping.revcmap
+

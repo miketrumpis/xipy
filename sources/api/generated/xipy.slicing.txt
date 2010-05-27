@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+slicing
+=======
+
+Module: :mod:`slicing`
+----------------------
+.. automodule:: xipy.slicing
+
+.. currentmodule:: xipy.slicing
+
+Functions
+---------
+
+
+.. autofunction:: xipy.slicing.enumerated_axes
+
+
+.. autofunction:: xipy.slicing.load_resampled_slicer
+
+
+.. autofunction:: xipy.slicing.load_sampled_slicer
+
+
+.. autofunction:: xipy.slicing.transverse_plane_lookup
+

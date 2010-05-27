@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>volume_utils &mdash; XIPY Documentation</title>
+    <link rel="stylesheet" href="../../static/xipy.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1.0-devel',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="top" title="XIPY Documentation" href="../../index.html" />
+    <link rel="up" title="API" href="../index.html" />
+    <link rel="next" title="Publications" href="../../publications.html" />
+    <link rel="prev" title="vis.three_dee_viewer" href="xipy.vis.three_dee_viewer.html" />
+  <meta name="keywords" content="xipy, DTI, functional imaging,
+  diffusion imaging, nutmeg, meg, magnetic source imaging, python, neuroscience">
+
+  </head>
+  <body>
+  <div id="header">
+  <table width="100%">
+  <tr>
+   <td style="text-align:right;vertical-align:bottom">Nutmeg in Python
+    </td>
+  </tr>
+  </table>
+  </div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="../../publications.html" title="Publications"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="xipy.vis.three_dee_viewer.html" title="vis.three_dee_viewer"
+             accesskey="P">previous</a> |</li>
+  <li><a href="../../index.html">Home</a> |&nbsp;</li>
+  <li><a href="../../contents.html">Documentation</a> |&nbsp;</li>
+
+          <li><a href="../index.html" accesskey="U">API</a> &raquo;</li> 
+      </ul>
+    </div>
+
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../../contents.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">volume_utils</a><ul>
+<li><a class="reference external" href="#module-xipy.volume_utils">Module: <tt class="docutils literal"><span class="pre">volume_utils</span></tt></a></li>
+<li><a class="reference external" href="#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="xipy.vis.three_dee_viewer.html"
+                                  title="previous chapter">vis.three_dee_viewer</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="../../publications.html"
+                                  title="next chapter">Publications</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../../sources/api/generated/xipy.volume_utils.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="volume-utils">
+<h1>volume_utils<a class="headerlink" href="#volume-utils" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-xipy.volume_utils">
+<h2>Module: <tt class="xref docutils literal"><span class="pre">volume_utils</span></tt><a class="headerlink" href="#module-xipy.volume_utils" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="xipy.volume_utils.auto_brain_mask">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">auto_brain_mask</tt><big>(</big><em>image_arr</em>, <em>negative=False</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.auto_brain_mask" title="Permalink to this definition">¶</a></dt>
+<dd>Build a mask function that attempts to segment the brain image
+from the background image.</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.find_image_threshold">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">find_image_threshold</tt><big>(</big><em>arr</em>, <em>percentile=90.0</em>, <em>debug=False</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.find_image_threshold" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.fix_analyze_image">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">fix_analyze_image</tt><big>(</big><em>img</em>, <em>fliplr=False</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.fix_analyze_image" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.is_spatially_aligned">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">is_spatially_aligned</tt><big>(</big><em>cmap</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.is_spatially_aligned" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find out whether a voxel-coordinate to world-coordinate mapping has
+a one-to-one correspondence between spatial and voxel axes.
+Correspondence may be positive-to-negative.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cmap</strong> : NIPY AffineTransform</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.limits_to_extents">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">limits_to_extents</tt><big>(</big><em>ax_limits</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.limits_to_extents" title="Permalink to this definition">¶</a></dt>
+<dd><p>Utility to convert a list of [(xmin, xmax), ... ] pairs to rectangular
+extents (in the Matplotlib AxesImage sense) in SAG, COR, AXI order</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>ax_limits</strong> : iterable of pairs</p>
+<blockquote>
+<p>3 pairs of (min, max) limits for the SAG, COR, AXI axes</p>
+</blockquote>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>fig_extents</strong> : iterable of box extents</p>
+<blockquote class="last">
+<p>[ [ umin, umax, vmin, vmax], ... ] for figure coordinates</p>
+</blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.maximum_world_distance">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">maximum_world_distance</tt><big>(</big><em>limits</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.maximum_world_distance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the largest distance between corners in the world volume box.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><strong>the distance</strong> :</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.resample_to_world_grid">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">resample_to_world_grid</tt><big>(</big><em>img</em>, <em>bbox=None</em>, <em>grid_spacing=None</em>, <em>order=3</em>, <em>**interp_kws</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.resample_to_world_grid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.signal_array_to_masked_vol">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">signal_array_to_masked_vol</tt><big>(</big><em>sig</em>, <em>vox_indices</em>, <em>grid_shape=</em><span class="optional">[</span><span class="optional">]</span>, <em>prior_mask=None</em>, <em>**ma_kw</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.signal_array_to_masked_vol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a 3D array representing a mask for valid voxels locations,
+given an array of voxel indices.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>sig</strong> : ndarray</p>
+<blockquote>
+<p>nvox x [num_measures] array of signal measurements, whose spatial
+order is given by the corresponding (following) voxel array</p>
+</blockquote>
+<p><strong>vox_indices</strong> : ndarray</p>
+<blockquote>
+<p>nvox x 3 array of voxel indices (NOT voxel locations in MNI space)</p>
+</blockquote>
+<p><strong>grid_shape</strong> : list (optional)</p>
+<blockquote>
+<p>an list of dimension extents, eg [imax, jmax, kmax]</p>
+</blockquote>
+<p><strong>prior_mask</strong> : array-like (optional)</p>
+<blockquote>
+<p>an nvox length array indicating points to mask in the final volume
+(True = unmasked, opposite of MaskedArray convention)</p>
+</blockquote>
+<p><strong>ma_kw</strong> : dict</p>
+<blockquote>
+<p>Keyword arguments for np.ma.masked_array</p>
+</blockquote>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>s_masked</strong> : a numpy MaskedArray, with non-map voxels masked out</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.vox_limits">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">vox_limits</tt><big>(</big><em>img</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.vox_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the limits of an image volume&#8217;s box in its own voxel space&#8211;likely
+defined by the axes of the original scan.</p>
+<p>BUT RETURN IN IJK ORDER OR INPUT COORDINATES ORDER???</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.voxel_size">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">voxel_size</tt><big>(</big><em>T</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.voxel_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the edge lengths of the voxels along the (x,y,z) axes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>T: affine matrix, or NIPY AffineTransform</strong> :</p>
+<blockquote class="last">
+<p>If provided as an affine matrix, it is assumed the row-ordering
+is (x,y,z)</p>
+</blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.volume_utils.world_limits">
+<tt class="descclassname">xipy.volume_utils.</tt><tt class="descname">world_limits</tt><big>(</big><em>*args</em><big>)</big><a class="headerlink" href="#xipy.volume_utils.world_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the limits of an image volume&#8217;s box in world space, given the voxel
+to world mapping of the CoordinateMap. The shape of the array is assumed to
+be given in the same order as the input coordinates of the CoordinateMap,
+but the returned limits are in xyz order.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>img</strong> : a NIPY Image ( if len(args) == 1 )</p>
+<p><strong>coordmap, shape</strong> : a NIPY AffineTransform, and 3D grid shape</p>
+<blockquote>
+<p>( if len(args) == 2 )</p>
+</blockquote>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><strong>a list of 3 2-tuples of the minima/maxima on the x, y, and z axes</strong> :</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../publications.html" title="Publications"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="xipy.vis.three_dee_viewer.html" title="vis.three_dee_viewer"
+             >previous</a> |</li>
+  <li><a href="../../index.html">Home</a> |&nbsp;</li>
+  <li><a href="../../contents.html">Documentation</a> |&nbsp;</li>
+
+          <li><a href="../index.html" >API</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2009-2010, UCSF Biomagnetic Imaging Laboratory.
+      Last updated on May 27, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.2.
+    </div>
+  </body>
+</html>

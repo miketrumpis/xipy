@@ -1,0 +1,40 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+overlay.image_overlay
+=====================
+
+Module: :mod:`overlay.image_overlay`
+------------------------------------
+Inheritance diagram for ``xipy.overlay.image_overlay``:
+
+.. inheritance-diagram:: xipy.overlay.image_overlay 
+   :parts: 3
+
+.. automodule:: xipy.overlay.image_overlay
+
+.. currentmodule:: xipy.overlay.image_overlay
+
+Classes
+-------
+
+:class:`ImageOverlayManager`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ImageOverlayManager
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`ImageOverlayWindow`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: ImageOverlayWindow
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

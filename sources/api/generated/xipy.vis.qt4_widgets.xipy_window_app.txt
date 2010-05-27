@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets.xipy_window_app
+===============================
+
+Module: :mod:`vis.qt4_widgets.xipy_window_app`
+----------------------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets.xipy_window_app``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets.xipy_window_app 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets.xipy_window_app
+
+.. currentmodule:: xipy.vis.qt4_widgets.xipy_window_app
+
+:class:`XIPYWindowApp`
+----------------------
+
+
+.. autoclass:: XIPYWindowApp
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

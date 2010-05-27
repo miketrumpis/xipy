@@ -1,0 +1,20 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+io.vtk_polydata_reader
+======================
+
+Module: :mod:`io.vtk_polydata_reader`
+-------------------------------------
+.. automodule:: xipy.io.vtk_polydata_reader
+
+.. currentmodule:: xipy.io.vtk_polydata_reader
+
+Functions
+---------
+
+
+.. autofunction:: xipy.io.vtk_polydata_reader.list_indices
+
+
+.. autofunction:: xipy.io.vtk_polydata_reader.load_vtk_polydata
+

@@ -1,0 +1,29 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.mayavi_widgets.ortho_viewer_3d
+==================================
+
+Module: :mod:`vis.mayavi_widgets.ortho_viewer_3d`
+-------------------------------------------------
+Inheritance diagram for ``xipy.vis.mayavi_widgets.ortho_viewer_3d``:
+
+.. inheritance-diagram:: xipy.vis.mayavi_widgets.ortho_viewer_3d 
+   :parts: 3
+
+.. automodule:: xipy.vis.mayavi_widgets.ortho_viewer_3d
+
+.. currentmodule:: xipy.vis.mayavi_widgets.ortho_viewer_3d
+
+:class:`OrthoViewer3D`
+----------------------
+
+
+.. autoclass:: OrthoViewer3D
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+.. autofunction:: xipy.vis.mayavi_widgets.ortho_viewer_3d.three_plane_pt
+

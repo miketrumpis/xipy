@@ -1,0 +1,47 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+volume_utils
+============
+
+Module: :mod:`volume_utils`
+---------------------------
+.. automodule:: xipy.volume_utils
+
+.. currentmodule:: xipy.volume_utils
+
+Functions
+---------
+
+
+.. autofunction:: xipy.volume_utils.auto_brain_mask
+
+
+.. autofunction:: xipy.volume_utils.find_image_threshold
+
+
+.. autofunction:: xipy.volume_utils.fix_analyze_image
+
+
+.. autofunction:: xipy.volume_utils.is_spatially_aligned
+
+
+.. autofunction:: xipy.volume_utils.limits_to_extents
+
+
+.. autofunction:: xipy.volume_utils.maximum_world_distance
+
+
+.. autofunction:: xipy.volume_utils.resample_to_world_grid
+
+
+.. autofunction:: xipy.volume_utils.signal_array_to_masked_vol
+
+
+.. autofunction:: xipy.volume_utils.vox_limits
+
+
+.. autofunction:: xipy.volume_utils.voxel_size
+
+
+.. autofunction:: xipy.volume_utils.world_limits
+

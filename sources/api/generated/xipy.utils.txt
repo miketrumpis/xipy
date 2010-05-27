@@ -1,0 +1,13 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+utils
+=====
+
+Module: :mod:`utils`
+--------------------
+.. automodule:: xipy.utils
+
+.. currentmodule:: xipy.utils
+
+.. autofunction:: xipy.utils.with_attribute
+

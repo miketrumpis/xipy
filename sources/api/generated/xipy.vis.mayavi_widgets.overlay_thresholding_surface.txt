@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.mayavi_widgets.overlay_thresholding_surface
+===============================================
+
+Module: :mod:`vis.mayavi_widgets.overlay_thresholding_surface`
+--------------------------------------------------------------
+Inheritance diagram for ``xipy.vis.mayavi_widgets.overlay_thresholding_surface``:
+
+.. inheritance-diagram:: xipy.vis.mayavi_widgets.overlay_thresholding_surface 
+   :parts: 3
+
+.. automodule:: xipy.vis.mayavi_widgets.overlay_thresholding_surface
+
+.. currentmodule:: xipy.vis.mayavi_widgets.overlay_thresholding_surface
+
+:class:`OverlayThresholdingSurfaceComponent`
+--------------------------------------------
+
+
+.. autoclass:: OverlayThresholdingSurfaceComponent
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

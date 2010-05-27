@@ -1,0 +1,40 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets.ortho_slices
+============================
+
+Module: :mod:`vis.qt4_widgets.ortho_slices`
+-------------------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets.ortho_slices``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets.ortho_slices 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets.ortho_slices
+
+.. currentmodule:: xipy.vis.qt4_widgets.ortho_slices
+
+Classes
+-------
+
+:class:`FakeMPLEvent`
+~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: FakeMPLEvent
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`MplQT4OrthoSlicesWidget`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: MplQT4OrthoSlicesWidget
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

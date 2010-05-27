@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets.colorbar_panel
+==============================
+
+Module: :mod:`vis.qt4_widgets.colorbar_panel`
+---------------------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets.colorbar_panel``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets.colorbar_panel 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets.colorbar_panel
+
+.. currentmodule:: xipy.vis.qt4_widgets.colorbar_panel
+
+:class:`ColorbarPanel`
+----------------------
+
+
+.. autoclass:: ColorbarPanel
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

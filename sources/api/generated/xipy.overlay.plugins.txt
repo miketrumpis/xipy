@@ -1,0 +1,20 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+overlay.plugins
+===============
+
+Module: :mod:`overlay.plugins`
+------------------------------
+.. automodule:: xipy.overlay.plugins
+
+.. currentmodule:: xipy.overlay.plugins
+
+Functions
+---------
+
+
+.. autofunction:: xipy.overlay.plugins.all_registered_plugins
+
+
+.. autofunction:: xipy.overlay.plugins.register_overlay_plugin
+

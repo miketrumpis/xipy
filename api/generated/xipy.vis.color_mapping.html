@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>vis.color_mapping &mdash; XIPY Documentation</title>
+    <link rel="stylesheet" href="../../static/xipy.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1.0-devel',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="top" title="XIPY Documentation" href="../../index.html" />
+    <link rel="up" title="API" href="../index.html" />
+    <link rel="next" title="vis.mayavi_tools" href="xipy.vis.mayavi_tools.html" />
+    <link rel="prev" title="utils" href="xipy.utils.html" />
+  <meta name="keywords" content="xipy, DTI, functional imaging,
+  diffusion imaging, nutmeg, meg, magnetic source imaging, python, neuroscience">
+
+  </head>
+  <body>
+  <div id="header">
+  <table width="100%">
+  <tr>
+   <td style="text-align:right;vertical-align:bottom">Nutmeg in Python
+    </td>
+  </tr>
+  </table>
+  </div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="xipy.vis.mayavi_tools.html" title="vis.mayavi_tools"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="xipy.utils.html" title="utils"
+             accesskey="P">previous</a> |</li>
+  <li><a href="../../index.html">Home</a> |&nbsp;</li>
+  <li><a href="../../contents.html">Documentation</a> |&nbsp;</li>
+
+          <li><a href="../index.html" accesskey="U">API</a> &raquo;</li> 
+      </ul>
+    </div>
+
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../../contents.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">vis.color_mapping</a><ul>
+<li><a class="reference external" href="#module-xipy.vis.color_mapping">Module: <tt class="docutils literal"><span class="pre">vis.color_mapping</span></tt></a></li>
+<li><a class="reference external" href="#mixedalphacolormap"><tt class="docutils literal"><span class="pre">MixedAlphaColormap</span></tt></a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="xipy.utils.html"
+                                  title="previous chapter">utils</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="xipy.vis.mayavi_tools.html"
+                                  title="next chapter">vis.mayavi_tools</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../../sources/api/generated/xipy.vis.color_mapping.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="vis-color-mapping">
+<h1>vis.color_mapping<a class="headerlink" href="#vis-color-mapping" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-xipy.vis.color_mapping">
+<h2>Module: <tt class="xref docutils literal"><span class="pre">vis.color_mapping</span></tt><a class="headerlink" href="#module-xipy.vis.color_mapping" title="Permalink to this headline">¶</a></h2>
+<p>Inheritance diagram for <tt class="docutils literal"><span class="pre">xipy.vis.color_mapping</span></tt>:</p>
+<p>This module contains some modifications of Matplotlib colormapping code.
+see:
+<a class="reference external" href="http://matplotlib.sourceforge.net/">http://matplotlib.sourceforge.net/</a></p>
+<p>MPL LICENSE:
+<a class="reference external" href="http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE?view=markup">http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE?view=markup</a></p>
+<p>COLOR SCHEMES LICENSE:
+<a class="reference external" href="http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE_COLORBREWER?view=markup">http://matplotlib.svn.sourceforge.net/viewvc/matplotlib/trunk/matplotlib/license/LICENSE_COLORBREWER?view=markup</a></p>
+</div>
+<div class="section" id="mixedalphacolormap">
+<h2><a title="xipy.vis.color_mapping.MixedAlphaColormap" class="reference internal" href="#xipy.vis.color_mapping.MixedAlphaColormap"><tt class="xref docutils literal"><span class="pre">MixedAlphaColormap</span></tt></a><a class="headerlink" href="#mixedalphacolormap" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="xipy.vis.color_mapping.MixedAlphaColormap">
+<em class="property">
+class </em><tt class="descclassname">xipy.vis.color_mapping.</tt><tt class="descname">MixedAlphaColormap</tt><big>(</big><em>name</em>, <em>segmentdata</em>, <em>N=256</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.MixedAlphaColormap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref docutils literal"><span class="pre">matplotlib.colors.LinearSegmentedColormap</span></tt></p>
+<dl class="method">
+<dt id="xipy.vis.color_mapping.MixedAlphaColormap.__init__">
+<tt class="descname">__init__</tt><big>(</big><em>name</em>, <em>segmentdata</em>, <em>N=256</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.MixedAlphaColormap.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create color map from linear mapping segments</p>
+<p>segmentdata argument is a dictionary with a red, green and blue
+entries. Each entry should be a list of <em>x</em>, <em>y0</em>, <em>y1</em> tuples,
+forming rows in a table.</p>
+<p>Example: suppose you want red to increase from 0 to 1 over
+the bottom half, green to do the same over the middle half,
+and blue over the top half.  Then you would use:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">cdict</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;red&#39;</span><span class="p">:</span>   <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span>  <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span>  <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)],</span>
+
+         <span class="s">&#39;green&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span>  <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)],</span>
+
+         <span class="s">&#39;blue&#39;</span><span class="p">:</span>  <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                   <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span>  <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)]}</span>
+</pre></div>
+</div>
+<p>Each row in the table for a given color is a sequence of
+<em>x</em>, <em>y0</em>, <em>y1</em> tuples.  In each sequence, <em>x</em> must increase
+monotonically from 0 to 1.  For any input value <em>z</em> falling
+between <em>x[i]</em> and <em>x[i+1]</em>, the output value of a given color
+will be linearly interpolated between <em>y1[i]</em> and <em>y0[i+1]</em>:</p>
+<div class="highlight-python"><pre>row i:   x  y0  y1
+               /
+              /
+row i+1: x  y0  y1</pre>
+</div>
+<p>Hence y0 in the first row and y1 in the last row are never used.</p>
+<div class="admonition-see-also admonition seealso">
+<p class="first admonition-title">See also</p>
+<dl class="last docutils">
+<dt><tt class="xref docutils literal"><span class="pre">makeMappingArray()</span></tt></dt>
+<dd>For information about making a mapping array.</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="xipy.vis.color_mapping.MixedAlphaColormap.fast_lookup">
+<tt class="descname">fast_lookup</tt><big>(</big><em>Xi</em>, <em>alpha=1.0</em>, <em>bytes=False</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.MixedAlphaColormap.fast_lookup" title="Permalink to this definition">¶</a></dt>
+<dd><em>X</em> is already in the form of LUT indices, simply perform
+an indexing into the LUT and return</dd></dl>
+
+<dl class="staticmethod">
+<dt id="xipy.vis.color_mapping.MixedAlphaColormap.from_list">
+<em class="property">
+static </em><tt class="descname">from_list</tt><big>(</big><em>name</em>, <em>colors</em>, <em>N=256</em>, <em>gamma=1.0</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.MixedAlphaColormap.from_list" title="Permalink to this definition">¶</a></dt>
+<dd>Make a linear segmented colormap with <em>name</em> from a sequence
+of <em>colors</em> which evenly transitions from colors[0] at val=0
+to colors[-1] at val=1.  <em>N</em> is the number of rgb quantization
+levels.
+Alternatively, a list of (value, color) tuples can be given
+to divide the range unevenly.</dd></dl>
+
+<dl class="staticmethod">
+<dt id="xipy.vis.color_mapping.MixedAlphaColormap.lut_indices">
+<em class="property">
+static </em><tt class="descname">lut_indices</tt><big>(</big><em>X</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.MixedAlphaColormap.lut_indices" title="Permalink to this definition">¶</a></dt>
+<dd>Convert the normalized scalar array X to indices into this
+colormap&#8217;s LUT, including indices into i_bad, i_over, i_under.</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="xipy.vis.color_mapping.revcmap">
+<tt class="descclassname">xipy.vis.color_mapping.</tt><tt class="descname">revcmap</tt><big>(</big><em>data</em><big>)</big><a class="headerlink" href="#xipy.vis.color_mapping.revcmap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="xipy.vis.mayavi_tools.html" title="vis.mayavi_tools"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="xipy.utils.html" title="utils"
+             >previous</a> |</li>
+  <li><a href="../../index.html">Home</a> |&nbsp;</li>
+  <li><a href="../../contents.html">Documentation</a> |&nbsp;</li>
+
+          <li><a href="../index.html" >API</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2009-2010, UCSF Biomagnetic Imaging Laboratory.
+      Last updated on May 27, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.2.
+    </div>
+  </body>
+</html>

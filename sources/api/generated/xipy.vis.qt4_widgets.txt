@@ -1,0 +1,39 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets
+===============
+
+Module: :mod:`vis.qt4_widgets`
+------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets
+
+.. currentmodule:: xipy.vis.qt4_widgets
+
+Class
+-----
+
+:class:`FakeMPLEvent`
+---------------------
+
+
+.. autoclass:: FakeMPLEvent
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Functions
+---------
+
+
+.. autofunction:: xipy.vis.qt4_widgets.browse_files
+
+
+.. autofunction:: xipy.vis.qt4_widgets.browse_multiple_files
+

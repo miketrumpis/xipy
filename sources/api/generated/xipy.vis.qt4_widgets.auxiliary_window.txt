@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.qt4_widgets.auxiliary_window
+================================
+
+Module: :mod:`vis.qt4_widgets.auxiliary_window`
+-----------------------------------------------
+Inheritance diagram for ``xipy.vis.qt4_widgets.auxiliary_window``:
+
+.. inheritance-diagram:: xipy.vis.qt4_widgets.auxiliary_window 
+   :parts: 3
+
+.. automodule:: xipy.vis.qt4_widgets.auxiliary_window
+
+.. currentmodule:: xipy.vis.qt4_widgets.auxiliary_window
+
+:class:`TopLevelAuxiliaryWindow`
+--------------------------------
+
+
+.. autoclass:: TopLevelAuxiliaryWindow
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

@@ -1,0 +1,26 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.three_dee_viewer
+====================
+
+Module: :mod:`vis.three_dee_viewer`
+-----------------------------------
+Inheritance diagram for ``xipy.vis.three_dee_viewer``:
+
+.. inheritance-diagram:: xipy.vis.three_dee_viewer 
+   :parts: 3
+
+.. automodule:: xipy.vis.three_dee_viewer
+
+.. currentmodule:: xipy.vis.three_dee_viewer
+
+:class:`MayaviViewer`
+---------------------
+
+
+.. autoclass:: MayaviViewer
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

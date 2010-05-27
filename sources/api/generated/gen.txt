@@ -1,0 +1,33 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+.. toctree::
+
+   generated/xipy.io
+   generated/xipy.io.vtk_polydata_reader
+   generated/xipy.overlay
+   generated/xipy.overlay.image_overlay
+   generated/xipy.overlay.plugins
+   generated/xipy.slicing
+   generated/xipy.slicing.image_slicers
+   generated/xipy.utils
+   generated/xipy.vis.color_mapping
+   generated/xipy.vis.mayavi_tools
+   generated/xipy.vis.mayavi_widgets
+   generated/xipy.vis.mayavi_widgets.cortical_surface
+   generated/xipy.vis.mayavi_widgets.ortho_viewer_3d
+   generated/xipy.vis.mayavi_widgets.overlay_blending
+   generated/xipy.vis.mayavi_widgets.overlay_thresholding_surface
+   generated/xipy.vis.ortho_viewer
+   generated/xipy.vis.qt4_widgets
+   generated/xipy.vis.qt4_widgets.auxiliary_window
+   generated/xipy.vis.qt4_widgets.colorbar_panel
+   generated/xipy.vis.qt4_widgets.designer_layouts.mayavi_viewer_layout
+   generated/xipy.vis.qt4_widgets.designer_layouts.mayavi_viewer_layout
+   generated/xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
+   generated/xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
+   generated/xipy.vis.qt4_widgets.ortho_slices
+   generated/xipy.vis.qt4_widgets.xipy_window_app
+   generated/xipy.vis.rgba_blending
+   generated/xipy.vis.single_slice_plot
+   generated/xipy.vis.three_dee_viewer
+   generated/xipy.volume_utils

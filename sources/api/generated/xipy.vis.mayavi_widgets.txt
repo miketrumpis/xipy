@@ -1,0 +1,40 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.mayavi_widgets
+==================
+
+Module: :mod:`vis.mayavi_widgets`
+---------------------------------
+Inheritance diagram for ``xipy.vis.mayavi_widgets``:
+
+.. inheritance-diagram:: xipy.vis.mayavi_widgets 
+   :parts: 3
+
+.. automodule:: xipy.vis.mayavi_widgets
+
+.. currentmodule:: xipy.vis.mayavi_widgets
+
+Classes
+-------
+
+:class:`MayaviWidget`
+~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: MayaviWidget
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`VisualComponent`
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: VisualComponent
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__

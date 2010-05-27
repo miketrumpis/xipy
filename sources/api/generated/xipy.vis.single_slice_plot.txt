@@ -1,0 +1,47 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+vis.single_slice_plot
+=====================
+
+Module: :mod:`vis.single_slice_plot`
+------------------------------------
+Inheritance diagram for ``xipy.vis.single_slice_plot``:
+
+.. inheritance-diagram:: xipy.vis.single_slice_plot 
+   :parts: 3
+
+.. automodule:: xipy.vis.single_slice_plot
+
+.. currentmodule:: xipy.vis.single_slice_plot
+
+Classes
+-------
+
+:class:`SliceFigure`
+~~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: SliceFigure
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+:class:`SliceImage`
+~~~~~~~~~~~~~~~~~~~
+
+
+.. autoclass:: SliceImage
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+Function
+--------
+
+
+.. autofunction:: xipy.vis.single_slice_plot.try_or_pass
+
