@@ -10,7 +10,7 @@
 
 .. _nutmeg: http://nutmeg.berkeley.edu
 .. _nipy: http://neuroimaging.scipy.org
-.. _nutmeg_py: http://miketrumpis.github.com/nutmeg-py
+.. _nutmeg-py: http://miketrumpis.github.com/nutmeg-py
 .. _xipy: http://miketrumpis.github.com/xipy
 
 .. Documentation tools
