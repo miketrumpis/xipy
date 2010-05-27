@@ -20,3 +20,5 @@ Configured as an app using just a 3D viewer, with a TFBeamanager
 plugin
 
 .. image:: screenshot2.png
+
+.. include:: ../links.txt
