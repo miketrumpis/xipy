@@ -271,6 +271,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         BlendedArrays.__init__(self, **traits)
         self._adapt_to_slicer()
 
+    # XYZ: THIS HAS GOTTEN WAY TOO HACKY.. MUST FIX!
     def _adapt_to_slicer(self):
         bad_idx = cm.MixedAlphaColormap.i_bad
         # copy some attrs to match the blended image
@@ -279,11 +280,22 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         if copied_from:
             for attr in copied_attrs:
                 setattr(self, attr, getattr(copied_from, attr))
-##             self.image_arr = self.blended_rgba
             shape = self.image_arr.shape
             self.null_planes = [np.zeros((shape[0], shape[1], 4),'B'),
                                 np.zeros((shape[0], shape[2], 4),'B'),
                                 np.zeros((shape[1], shape[2], 4),'B')]
+            if self.transpose_inputs:
+                cmap = self.coordmap
+                self.coordmap = cmap.reordered_domain(
+                    cmap.function_domain.coord_names[::-1]
+                    )
+                arr_idx = [self._ax_lookup[ax] for ax in (SAG, COR, AXI)]
+                self._ax_lookup = dict( zip((SAG, COR, AXI), arr_idx[::-1]) )
+                self._ax_lookup.update( zip(ni_api.ras_output_coordnames,
+                                            arr_idx[::-1]) )
+                self._ax_lookup.update( zip(('SAG', 'COR', 'AXI'),
+                                            arr_idx[::-1]) )
+            
             return
         # just fake numbers???
         self.bbox = [ (-10.,10.) ] * 3
@@ -324,7 +336,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         if image is None:
             return None
         origin = np.array(image.bbox)[:,0]
-        return origin[::-1] if self.transpose_inputs else origin
+        return origin #[::-1] if self.transpose_inputs else origin
 
     def _get_image_arr(self):
         if not len(self.blended_rgba):
@@ -341,7 +353,14 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self.over = self.over
             return
         if type(self.main)==ni_api.Image:
-            main = ResampledIndexVolumeSlicer(self.main, norm=self.main_norm)
+            img = self.main
+##             aff = img.coordmap
+##             if self.transpose_inputs:
+##                 img = ni_api.Image(
+##                     np.asarray(img).transpose().copy(),
+##                     aff.reordered_domain(aff.function_domain.coord_names[::-1])
+##                     )
+            main = ResampledIndexVolumeSlicer(img, norm=self.main_norm)
             # go ahead and be re-entrant
             self.main = main
             return

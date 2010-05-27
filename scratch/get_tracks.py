@@ -37,9 +37,9 @@ def load_reduce_translate(fname, reduction=1):
         t = -np.dot(ras[:3,:3], md_vox)
         ras[:3,-1] = t
 
-    tracks = [l[0] for l in lines]
+    tracks = [l[0] for l in lines[::reduction]]
     del lines
-    ras_cmap = ni_api.Affine.from_params('ijk', 'xyz', ras)
+    ras_cmap = ni_api.AffineTransform.from_params('ijk', 'xyz', ras)
     flat_tracks, breaks = flatten_tracks(tracks)
     del tracks
     flat_tracks_xyz = ras_cmap(flat_tracks)

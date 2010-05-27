@@ -70,7 +70,8 @@ def tvtk_line(lines, colors, opacity=1.0):
     ----------
     lines :  list of arrays representing lines as 3d points  for example            
             lines=[np.random.rand(10,3),np.random.rand(20,3)]   
-            represents 2 lines the first with 10 points and the second with 20 points in x,y,z coordinates.
+            represents 2 lines the first with 10 points and the second with
+            20 points in x,y,z coordinates.
     colors : array, shape (N,3)
             Colormap where every triplet is encoding red, green and blue e.g. 
             r1,g1,b1
@@ -136,15 +137,17 @@ def tvtk_line(lines, colors, opacity=1.0):
     pd.lines = cell_lines
     pd.points = pts
     pd.point_data.scalars = line_scalars
+    pd.point_data.scalars.name = 'lines'
+    return pd, LUT
 
-    mapper = tvtk.PolyDataMapper()
-    mapper.input = pd
-    mapper.color_mode = 'map_scalars'
-    mapper.lookup_table = LUT
-    mapper.scalar_range = ( 0, color_level )
+##     mapper = tvtk.PolyDataMapper()
+##     mapper.input = pd
+##     mapper.color_mode = 'map_scalars'
+##     mapper.lookup_table = LUT
+##     mapper.scalar_range = ( 0, color_level )
 
-    actor = tvtk.Actor()
-    actor.mapper = mapper
-    actor.property.opacity = opacity
+##     actor = tvtk.Actor()
+##     actor.mapper = mapper
+##     actor.property.opacity = opacity
 
-    return actor
+##     return actor

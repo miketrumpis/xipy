@@ -505,7 +505,9 @@ class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
             slices planes in the natural box of the image. This argument
             is useful for overlaying an image onto another image's volume box
         norm : (black-pt, white-pt) pair or mpl.colors.Normalize instance
-            Limits for normalizing the scalar values. If image contains
+            Limits for normalizing the scalar values. If image already
+            contains index values, then norm can be set to False to
+            bypass the normalization
         grid_spacing : iterable (optional)
             New grid spacing for the sliced planes. If None, then the
             natural voxel spacing is used.

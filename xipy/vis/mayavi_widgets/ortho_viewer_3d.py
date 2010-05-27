@@ -130,6 +130,7 @@ class OrthoViewer3D(HasTraits):
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _blended_src_default(self):
         s = ArraySourceRGBA(transpose_input_array=False)
+        s.scalar_name = 'image_colors'
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _blob_surf_src_default(self):
         return mlab.pipeline.scalar_field(np.zeros((2,2,2)),
@@ -219,8 +220,7 @@ class OrthoViewer3D(HasTraits):
     def _handle_end_interaction(self, widget, event):
         if self.__reposition_planes_after_interaction:
             pos_ijk = widget.GetCurrentCursorPosition()
-##             pos = self.anat_image.coordmap(pos_ijk)[0]
-            pos = self.blender.coordmap(pos_ijk)[0]
+            pos = self.blender.coordmap(pos_ijk)
             self._snap_to_position(pos)
             self.__reposition_planes_after_interaction = False
         else:
@@ -250,7 +250,7 @@ class OrthoViewer3D(HasTraits):
         if self.func_man:
             self.func_man.world_position = pos
         if self.show_cortex:
-            self.anat_scalars.update()        
+            self.blended_src.update()        
     #---------------------------------------------------------------------------
     # Traits callbacks
     #---------------------------------------------------------------------------
@@ -447,7 +447,7 @@ class OrthoViewer3D(HasTraits):
                                  tvtk.InteractorStyleTerrain()
         self.scene.picker.pointpicker.add_observer('EndPickEvent',
                                                    self.pick_callback)
-        self.scene.picker.show_gui = False
+##         self.scene.picker.show_gui = False
 
 
     def pick_callback(self, picker_obj, evt):
