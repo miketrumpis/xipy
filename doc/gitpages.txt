@@ -1,0 +1,19 @@
+==========
+ Workflow
+==========
+
+This is the current workflow for rebuilding docs using gitpages
+
+* Make changes in master doc tree
+* Rebuild html (make html)
+* Use sphinxtogithub tool to clean up _static, etc directory and references
+* Do something like this:
+``cd build/html && tar cvf ../../../html.tar * && cd ../../..``
+* View pages, make edits, repeat
+* When ready to check in new html, first commit to the master branch, then switch branches to gh-pages
+``<git commit ... >``
+``git checkout gh-pages``
+* Add/commit/push new content
+``<git add/commit>``
+``git push origin gh-pages``
+
