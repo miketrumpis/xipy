@@ -112,7 +112,7 @@ Now is a good point to get the NIPY code and install it. Make a directory for co
 
 You will need to build and install NIPY ... (don't have good recommendation yet)
 
-``cd nipy && make dev``
+``cd nipy && python setup.py install``
 
 XIPY
 ````
@@ -120,6 +120,6 @@ XIPY
 Finally check out the XIPY code, and set it up::
 
   git clone git://github.com/miketrumpis/xipy.git
-  cd xipy && make ext
+  cd xipy && python setup.py install
 
 .. include:: ../links.txt
