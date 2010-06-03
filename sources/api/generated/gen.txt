@@ -21,10 +21,6 @@
    generated/xipy.vis.qt4_widgets
    generated/xipy.vis.qt4_widgets.auxiliary_window
    generated/xipy.vis.qt4_widgets.colorbar_panel
-   generated/xipy.vis.qt4_widgets.designer_layouts.mayavi_viewer_layout
-   generated/xipy.vis.qt4_widgets.designer_layouts.mayavi_viewer_layout
-   generated/xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
-   generated/xipy.vis.qt4_widgets.designer_layouts.ortho_viewer_layout
    generated/xipy.vis.qt4_widgets.ortho_slices
    generated/xipy.vis.qt4_widgets.xipy_window_app
    generated/xipy.vis.rgba_blending

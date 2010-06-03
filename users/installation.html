@@ -71,8 +71,14 @@
 </ul>
 </li>
 <li><a class="reference external" href="#building-from-mac-os-x-10-4">Building from Mac OS X &gt;= 10.4</a><ul>
-<li><a class="reference external" href="#binary-installs">Binary Installs</a></li>
+<li><a class="reference external" href="#binary-installs">Binary Installs</a><ul>
+<li><a class="reference external" href="#needed">Needed</a></li>
+<li><a class="reference external" href="#strongly-recommended">Strongly Recommended</a></li>
+</ul>
+</li>
 <li><a class="reference external" href="#source-installs">Source Installs</a></li>
+<li><a class="reference external" href="#nipy-and-friends">NIPY And Friends</a></li>
+<li><a class="reference external" href="#xipy">XIPY</a></li>
 </ul>
 </li>
 </ul>
@@ -123,40 +129,38 @@
 <dt><a class="reference external" href="http://qt.nokia.com/">Qt4</a></dt>
 <dd>The UI widget library used for much of XIPY&#8217;s visualization</dd>
 <dt><a class="reference external" href="http://gcc.gnu.org/">gcc</a></dt>
-<dd>XIPY currently builds a threaded wrapper for the FFTW3 complex DFT
-routines, and may take advantage of other C-extension code in the future.
-Therefore, you must have a compiler to build from
-source.  XCode (OSX) and MinGW (Windows) both include gcc.
+<dd>XIPY currently builds some <a class="reference external" href="http://www.cython.org/">Cython</a>-produced C code.
+Therefore, you must have a compiler to build from source.
+XCode (OSX) and MinGW (Windows) both include gcc.
 Furthermore, MinGW is included in the Enthought Python Distribution for Windows.</dd>
+<dt><a class="reference external" href="http://vtk.org/">VTK</a></dt>
+<dd>VTK (Visual Toolkit) is the underlying graphics technology of Mayavi, which in turn
+is the Python package that powers much of the XIPY visualization. As with many
+other libraries, the Enthought Python Distribution ships with compiled VTK binaries.</dd>
 </dl>
 </blockquote>
 </div>
 <div class="section" id="python-level-packages">
 <h3>Python Level Packages<a class="headerlink" href="#python-level-packages" title="Permalink to this headline">¶</a></h3>
 <blockquote>
-<blockquote>
 <p><a class="reference external" href="http://www.python.org">Python</a> 2.4 or later</p>
 <dl class="docutils">
 <dt><a class="reference external" href="http://www.scipy.org/NumPy">NumPy</a> 1.2 or later</dt>
 <dd>Numpy equips Python with N-dimensional data/numerical data objects</dd>
 <dt><a class="reference external" href="http://www.scipy.org">SciPy</a> 0.7 or later</dt>
-<dd>Scipy is a collection of high-level, optimized scientific computing libraries, many of which are Python wrappers for widely used numerical libraries originally written in C and Fortran</dd>
+<dd>Scipy is a collection of high-level, optimized scientific computing libraries, many
+of which are Python wrappers for widely used numerical libraries originally written
+in C and Fortran</dd>
 <dt><a class="reference external" href="https://svn.enthought.com/enthought">ETS</a></dt>
-<dd>Enthought Tool Suite is a collection of tools intended for scientific computing. Nutmeg-py uses Traits, TraitsUI, and Mayavi/TVTK.</dd>
+<dd>Enthought Tool Suite is a collection of tools intended for scientific computing.
+XIPY uses Traits, TraitsUI, and Mayavi/TVTK.</dd>
 <dt><a class="reference external" href="http://neuroimaging.scipy.org">NIPY</a> (Neuroimaging in Python)</dt>
-<dd>XIPY uses many image data types and spatial mapping tools from the
-NIPY project codebase.</dd>
-</dl>
-</blockquote>
-<dl class="docutils">
+<dd>XIPY uses many image data types and spatial mapping tools from the NIPY
+project codebase.</dd>
 <dt><a class="reference external" href="http://matplotlib.sourceforge.net">Matplotlib</a></dt>
-<dd><blockquote class="first">
-2D python plotting library.</blockquote>
-<dl class="last docutils">
+<dd>2D python plotting library.</dd>
 <dt><a class="reference external" href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">PyQt4</a></dt>
 <dd>Python bindings for the C++ Qt4 libraries.</dd>
-</dl>
-</dd>
 </dl>
 </blockquote>
 </div>
@@ -176,17 +180,31 @@ NIPY project codebase.</dd>
 <span id="building-mac"></span><h2>Building from Mac OS X &gt;= 10.4<a class="headerlink" href="#building-from-mac-os-x-10-4" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="binary-installs">
 <h3>Binary Installs<a class="headerlink" href="#binary-installs" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="needed">
+<h4>Needed<a class="headerlink" href="#needed" title="Permalink to this headline">¶</a></h4>
 <blockquote>
 <ul class="simple">
 <li>Apple Xcode Dev Tools (on OS X DVD)</li>
 <li>Qt4 (LGPL version)
 <a class="reference external" href="http://qt.nokia.com/downloads">http://qt.nokia.com/downloads</a></li>
-<li>Enthought Python Distribution (EPD, Academic version)
-<a class="reference external" href="http://enthought.com/products/getepd.php">http://enthought.com/products/getepd.php</a></li>
 <li>Git distributed version control
 <a class="reference external" href="http://git-scm.com/download">http://git-scm.com/download</a></li>
 </ul>
 </blockquote>
+</div>
+<div class="section" id="strongly-recommended">
+<h4>Strongly Recommended<a class="headerlink" href="#strongly-recommended" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<ul class="simple">
+<li>Enthought Python Distribution (EPD, Academic version)
+<a class="reference external" href="http://enthought.com/products/getepd.php">http://enthought.com/products/getepd.php</a>
+If you are newly installing Python, this is an extremely convenient package
+providing a full suite of Scientific Python tools, including Enthought&#8217;s own
+tool suite (<a class="reference external" href="https://svn.enthought.com/enthought">ETS</a>), and various
+pre-compiled libraries from Fortran and C/C++.</li>
+</ul>
+</blockquote>
+</div>
 </div>
 <div class="section" id="source-installs">
 <h3>Source Installs<a class="headerlink" href="#source-installs" title="Permalink to this headline">¶</a></h3>
@@ -204,13 +222,20 @@ cd &lt;xyz&gt;
 python configure.py
 make &amp;&amp; make install</pre>
 </div>
+</div>
+<div class="section" id="nipy-and-friends">
+<h3>NIPY And Friends<a class="headerlink" href="#nipy-and-friends" title="Permalink to this headline">¶</a></h3>
 <p>Now is a good point to get the NIPY code and install it. Make a directory for code (eg &#8220;~/trunks&#8221;), and do:</p>
 <p><tt class="docutils literal"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">git://github.com/nipy/nipy.git</span></tt></p>
 <p>You will need to build and install NIPY ... (don&#8217;t have good recommendation yet)</p>
-<p><tt class="docutils literal"><span class="pre">cd</span> <span class="pre">nipy</span> <span class="pre">&amp;&amp;</span> <span class="pre">make</span> <span class="pre">dev</span></tt></p>
-<p>Finally check out the XIPY code, and set it up</p>
-<p><tt class="docutils literal"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">git://github.com/miketrumpis/xipy.git</span></tt>
-<tt class="docutils literal"><span class="pre">cd</span> <span class="pre">xipy</span> <span class="pre">&amp;&amp;</span> <span class="pre">make</span> <span class="pre">ext</span></tt></p>
+<p><tt class="docutils literal"><span class="pre">cd</span> <span class="pre">nipy</span> <span class="pre">&amp;&amp;</span> <span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></tt></p>
+</div>
+<div class="section" id="xipy">
+<h3>XIPY<a class="headerlink" href="#xipy" title="Permalink to this headline">¶</a></h3>
+<p>Finally check out the XIPY code, and set it up:</p>
+<div class="highlight-python"><pre>git clone git://github.com/miketrumpis/xipy.git
+cd xipy &amp;&amp; python setup.py install</pre>
+</div>
 </div>
 </div>
 </div>
@@ -244,7 +269,7 @@ make &amp;&amp; make install</pre>
     </div>
     <div class="footer">
       &copy; Copyright 2009-2010, UCSF Biomagnetic Imaging Laboratory.
-      Last updated on May 27, 2010.
+      Last updated on Jun 03, 2010.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.2.
     </div>
   </body>
