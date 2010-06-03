@@ -7,9 +7,10 @@ def configuration(parent_package='', top_path=None):
 
     # should add tests directory when there is one!
     qt4_dir = 'designer_layouts'
-    qt4_files = [path.join(qt4_dir, 'pyqt4_viewer.ui')]
+    qt4_files = [path.join(qt4_dir, 'ortho_viewer_with_blender.ui'),
+                 path.join(qt4_dir, 'ortho_viewer_layout.ui'),
+                 path.join(qt4_dir, 'mayavi_viewer_layout.ui')]
     plugin_files = glob(path.join(qt4_dir, 'plugin/python/*.py'))
-    print qt4_files+plugin_files
     config.add_data_files('designer_layouts/*.ui')
     
     return config

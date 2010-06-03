@@ -282,8 +282,8 @@ class ImageOverlayManager( OverlayInterface ):
         vol_idx = np.array(np.lib.index_tricks.unravel_index(
             pk_flat_idx, self.raw_image.shape))
         
-        xyz_a = self.raw_image.coordmap(vol_idx)[0]
-        xyz_b = self.raw_image.coordmap(vol_idx+1)[0]
+        xyz_a = self.raw_image.coordmap(vol_idx)
+        xyz_b = self.raw_image.coordmap(vol_idx+1)
         pk_val_arr = np.asarray(self.raw_image)[tuple(vol_idx)]
         print xyz_a, xyz_b
         print 'vox coords:', vol_idx, 'should cut to coords', (xyz_a+xyz_b)/2

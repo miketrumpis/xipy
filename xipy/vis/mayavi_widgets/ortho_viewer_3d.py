@@ -320,9 +320,9 @@ class OrthoViewer3D(HasTraits):
         self._render_mode = self.scene.disable_render
         self.scene.disable_render = True
     def _start_scene(self):
-        mode = getattr(self, '_render_mode', True)
+        mode = getattr(self, '_render_mode', False)
         self.scene.disable_render = mode
-        if mode:
+        if not mode:
             self.scene.render_window.render()
 
     @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')

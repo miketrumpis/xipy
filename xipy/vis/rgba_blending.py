@@ -135,14 +135,14 @@ class BlendedArrays(t_ui.HasTraits):
         if self.over_alpha is None:
             self.set(over_alpha=1.0, trait_change_notify=False)
 
-    def update_main_props(self, cmap=None, alpha=None, norm=None):
+    def update_main_props(self, **props):
         self._update_props(
-            'main', cmap=cmap, alpha=alpha, norm=norm
+            'main', **props
             )
 
-    def update_over_props(self, cmap=None, alpha=None, norm=None):
+    def update_over_props(self, **props):
         self._update_props(
-            'over', cmap=cmap, alpha=alpha, norm=norm
+            'over', **props
             )
 
     def _update_props(self, array, **props):

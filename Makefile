@@ -6,7 +6,7 @@
 # convenience/reminder while doing development.
 
 PKGDIR=xipy
-DOCDIR=${PKGDIR}/doc
+DOCDIR=${PWD}/doc
 TESTDIR=${PKGDIR}/tests
 
 
@@ -37,6 +37,8 @@ clean:
 	- find ${PKGDIR} -name "*.so" -print0 | xargs -0 rm
 	- find ${PKGDIR} -name "*.c" -print0 | xargs -0 rm
 	- find ${PKGDIR} -name "*.html" -print0 | xargs -0 rm
+	- find . -name "*.pyc" -print0 | xargs -0 rm
+	- cd doc && make clean
 	rm -rf build
 
 # Suffix rules

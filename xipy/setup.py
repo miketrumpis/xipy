@@ -9,6 +9,7 @@ def configuration(parent_package='', top_path=None):
     config.add_subpackage('external')
     config.add_subpackage('slicing')
     config.add_subpackage('vis')
+    config.add_subpackage('io')
 
     config.add_data_dir('resources')
     
