@@ -15,6 +15,36 @@ import xipy.volume_utils as vu
 import xipy.vis.color_mapping as cm
 
 
+def timedim(img):
+    """Utility to return the index coordinate for time"""
+    try:
+        t_ax = list(img.coordmap.function_domain.coord_names).index('t')
+    except ValueError:
+        raise ValueError('Cannot determine the time axis for this image')
+    return t_ax
+
+def slice_timewise(img, t):
+    """Utility function to slice a 4D image timewise. Naturally, the
+    image is assumed to be 4 dimensional, with a 5x5 affine.
+    
+    Parameters
+    ----------
+    img : NIPY Image
+    t : int
+      time index
+
+    Returns
+    -------
+    a 3D image, whose affine has only spatial coordinates in its range
+    """
+    if len(img.shape) != 4 or img.affine.shape != (5,5):
+        raise ValueError('This is not a 4D image')
+    t_ax = timedim(img)
+    slicing = [ slice(None) ] * 4
+    slicing[t_ax] = t
+    cm_3d = ni_api.drop_io_dim(img.coordmap, 't')
+    return ni_api.Image(np.asarray(img)[slicing], cm_3d)
+
 class VolumeSlicerInterface(object):
     """
     Interface only class!
@@ -359,8 +389,8 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
             image.coordmap.reordered_range(ni_api.ras_output_coordnames)
             )
 
-        if bbox is None:
-            bbox = vu.world_limits(xyz_image)
+##         if bbox is None:
+##             bbox = vu.world_limits(xyz_image)
         self.grid_spacing = vu.voxel_size(xyz_image.affine) \
                             if grid_spacing is None else grid_spacing
 
@@ -381,11 +411,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
 
         # take down the final bounding box; this will define the
         # field of the overlay plot
-        bb_min = world_image.affine[:3,-1]
-        bb_max = [b0 + l*dv for b0, l, dv in zip(bb_min,
-                                                 world_image.shape,
-                                                 self.grid_spacing)]
-        self.bbox = zip(bb_min, bb_max)
+        self.bbox = vu.world_limits(world_image)
         
 ##         if type(mask) is np.ndarray:
 ##             # sets self.raw_mask and self._mask and self._masking=True,

@@ -1,9 +1,10 @@
-import xipy.vis.rgba_blending as blending
 import xipy.volume_utils as vu
 import numpy as np
 from nose.tools import assert_true, assert_equal, assert_false
-from matplotlib import cm
 import nipy.core.api as ni_api
+
+# the code to test
+from xipy.vis.rgba_blending import *
 
 def simple_test():
     arr1 = np.random.randint(0,high=255, size=(10,10,10,4)).astype('B')
@@ -15,14 +16,14 @@ def simple_test():
     a1 = arr1.copy()
     a2 = arr2.copy()
     a2[...,3] = 0
-    blending.resample_and_blend(a1, dr, r0, a2, dr, r0)
+    resample_and_blend(a1, dr, r0, a2, dr, r0)
     yield assert_true, (a1==arr1).all()
 
     # test blending arr2 into arr1 with alpha2 = 128
     a1 = arr1.copy()
     a2 = arr2.copy()
     a2[...,3] = 128
-    blending.resample_and_blend(a1, dr, r0, a2, dr, r0)
+    resample_and_blend(a1, dr, r0, a2, dr, r0)
     yield assert_true, (a1[...,:3]==((arr1[...,:3].astype('i') + \
                                       arr2[...,:3].astype('i'))/2)).all()
 
@@ -34,7 +35,7 @@ def simple_test():
     a1 = arr1.copy()
     a2 = arr2.copy()
     a2[...,3] = 255
-    blending.resample_and_blend(a1, dr, r0, a2, dr, r0)
+    resample_and_blend(a1, dr, r0, a2, dr, r0)
     yield assert_true, np.abs(a1[...,:3].astype('i')-\
                               arr2[...,:3].astype('i')).max() == 1
 
@@ -46,8 +47,8 @@ def simple_resample_test():
     over_block[-1:,-1:,-1:] = 0
     main_dr = np.ones(3); main_r0 = np.array([-5.]*3)
     over_dr = np.ones(3)*2; over_r0 = np.array([-4.]*3)
-    blending.resample_and_blend(blended_block, main_dr, main_r0,
-                                over_block, over_dr, over_r0)
+    resample_and_blend(blended_block, main_dr, main_r0,
+                       over_block, over_dr, over_r0)
     nz_r = blended_block[...,0].nonzero()
     nz_g = blended_block[...,1].nonzero()
     nz_b = blended_block[...,2].nonzero()
@@ -103,8 +104,8 @@ def test_corner_cases():
     # the over bbox is [ (2,6) x 3], so only the (2,5) will blend
     over_dr = np.ones(3); over_r0 = np.array( [2.]*3 )
 
-    blending.resample_and_blend(blended_block, main_dr, main_r0,
-                                over_block, over_dr, over_r0)
+    resample_and_blend(blended_block, main_dr, main_r0,
+                       over_block, over_dr, over_r0)
     
     yield assert_true, are_blended_voxels_aligned(blended_block, main_dr,
                                                   main_r0, over_block,
@@ -112,8 +113,8 @@ def test_corner_cases():
 
     over_block[:] = 0
     blended_block[:] = 255
-    blending.resample_and_blend(over_block, over_dr, over_r0,
-                                blended_block, main_dr, main_r0)
+    resample_and_blend(over_block, over_dr, over_r0,
+                       blended_block, main_dr, main_r0)
     
     yield assert_true, are_blended_voxels_aligned(over_block, over_dr,
                                                   over_r0, blended_block,
@@ -128,8 +129,8 @@ def test_2d_blending():
     # over_ij=(0,5) --> xy=(0,0)
     over_dr = np.ones(2); over_r0 = np.array([0, -5])
     # blended image should be zero everywhere except base[5:7]
-    blending.resample_and_blend(base, base_dr, base_r0,
-                                over, over_dr, over_r0)
+    resample_and_blend(base, base_dr, base_r0,
+                       over, over_dr, over_r0)
     yield assert_false, base[:5].any()
     yield assert_false, base[7:].any()
     yield assert_true, base[5:7,:,:3].all()

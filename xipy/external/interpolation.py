@@ -78,7 +78,7 @@ class ImageInterpolator(object):
         """
         Parameters
         ----------
-        points : ndarray, shape (nx x ny x nz x R)
+        points : ndarray, shape ( npts x nD )
             values in self.image.coordmap.function_range
 
         Returns
@@ -89,7 +89,7 @@ class ImageInterpolator(object):
 ##         points = np.array(points, np.float64)
 ##         output_shape = points.shape[:-1]
 ##         points.shape = (np.product(output_shape), points.shape[-1])
-        voxels = self.image.coordmap.inverse(points).T
+        voxels = self.image.coordmap.inverse()(points).T
         V = ndimage.map_coordinates(self.data,
                                     voxels,
                                     order=self.order,

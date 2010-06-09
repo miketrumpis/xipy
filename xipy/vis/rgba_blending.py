@@ -90,7 +90,7 @@ def quick_min_max_norm(arr):
     return an
 
 def blend_helper(a1, a2):
-    xyz_shape = a1.shape[:3]
+    xyz_shape = a1.shape[:-1]
     npts = np.prod(xyz_shape)
     a1.shape = (npts, 4)
     a2.shape = (npts, 4)
@@ -102,7 +102,10 @@ def blend_helper(a1, a2):
 class BlendedArrays(t_ui.HasTraits):
     """
     This class can color map and blend two like-sized arrays
-    of luminance values transformed into LUT indices
+    of luminance values transformed into LUT indices.
+
+    This is intended as a parent class, whose subclasses will
+    provide and manager their own LUT index arrays (_main_idx and _over_idx)
     """
 
     # The LUT index images

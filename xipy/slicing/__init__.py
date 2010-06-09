@@ -1,5 +1,7 @@
 import nipy.core.api as ni_api
 
+from xipy.io import load_spatial_image
+
 SAG, COR, AXI = 0, 1, 2
 canonical_axes = dict( zip( ('SAG', 'COR', 'AXI'), (SAG, COR, AXI) ) )
 
@@ -33,16 +35,10 @@ def enumerated_axes(axes):
             enumerated.append(ax%3)
     return enumerated
     
-
-def _load_image(image):
-    from nipy.io.api import load_image as ni_load
-    img = ni_load(image)
-    return img
-
 def load_resampled_slicer(image, bbox=None, fliplr=False, mask=False):
     from xipy.slicing.image_slicers import ResampledVolumeSlicer
     if type(image) in (str, unicode):
-        return ResampledVolumeSlicer(_load_image(image),
+        return ResampledVolumeSlicer(load_spatial_image(image),
                                      bbox=bbox,
                                      mask=mask,
                                      fliplr=fliplr)
@@ -60,7 +56,7 @@ def load_sampled_slicer(overlay, bbox=None, grid_spacing=None,
                         mask=False, fliplr=False):
     from xipy.slicing.image_slicers import SampledVolumeSlicer
     if type(overlay) in (str, unicode):
-        return SampledVolumeSlicer(_load_image(overlay), bbox=bbox,
+        return SampledVolumeSlicer(load_spatial_image(overlay), bbox=bbox,
                                    mask=mask,
                                    grid_spacing=grid_spacing,
                                    fliplr=fliplr)

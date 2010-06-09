@@ -104,11 +104,9 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
     # CoordinateMap describing mapping from target voxel to
     # image world coordinates
 
-##     print TV2IW
     if not isinstance(TV2IW, AffineTransform):
         # interpolator evaluates image at values image.coordmap.function_range,
         # i.e. physical coordinates rather than voxel coordinates
-##         print 'using interpolator'
         grid = ArrayCoordMap.from_shape(TV2IW, shape)
         interp = ImageInterpolator(image, order=order)
         idata = interp.evaluate(grid.transposed_values, **interp_kws)
@@ -117,7 +115,6 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
         TV2IV = compose(image.coordmap.inverse(), TV2IW)
         if isinstance(TV2IV, AffineTransform):
             A, b = affines.to_matrix_vector(TV2IV.affine)
-##             print 'using affine_transform()', A, b
             data = np.asarray(image)
             idata = affine_transform(data, A,
                                      offset=b,
@@ -126,7 +123,6 @@ def resample(image, target, mapping, shape, order=3, **interp_kws):
                                      order=order,
                                      **interp_kws)
         else:
-##             print 'using interpolator 2'
             interp = ImageInterpolator(image, order=order)
             grid = ArrayCoordMap.from_shape(TV2IV, shape)
             idata = interp.evaluate(grid.values, **interp_kws)

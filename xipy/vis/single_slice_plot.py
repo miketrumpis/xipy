@@ -42,7 +42,7 @@ class SliceFigure(object):
             self.ax = self.fig.add_subplot(111, aspect='equal',
                                            adjustable='box')
         else:
-            self.ax = self.fig.axes[0]
+            self.ax = self.fig.axes[-1]
         self.set_limits(limits)
         self._init_crosshairs(px,py)
         self._saved_size = self.ax.bbox.size

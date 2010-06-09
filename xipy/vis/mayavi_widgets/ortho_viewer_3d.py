@@ -317,12 +317,13 @@ class OrthoViewer3D(HasTraits):
     # Scene update methods
     #---------------------------------------------------------------------------
     def _stop_scene(self):
-        self._render_mode = self.scene.disable_render
+        self._restore_render_mode = self.scene.disable_render
         self.scene.disable_render = True
     def _start_scene(self):
-        mode = getattr(self, '_render_mode', False)
-        self.scene.disable_render = mode
-        if not mode:
+        # by default, restore disable_render mode to False
+        prev_mode = getattr(self, '_restore_render_mode', False)
+        self.scene.disable_render = prev_mode
+        if not prev_mode:
             self.scene.render_window.render()
 
     @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')
@@ -367,7 +368,7 @@ class OrthoViewer3D(HasTraits):
             self.toggle_planes_visible(False)
             return
 
-        self._stop_scene()
+##         self._stop_scene()
 
         if not new_position:
             print 'changing data in-place'
@@ -389,11 +390,11 @@ class OrthoViewer3D(HasTraits):
             t = time.time()
             print 'done, %1.3f sec'%(t-t0)
 
-        t0 = time.time()
-        print 'also starting scene ',
-        self._start_scene()
-        t = time.time()
-        print 'done, %1.3f sec'%(t-t0)
+##         t0 = time.time()
+##         print 'also starting scene ',
+##         self._start_scene()
+##         t = time.time()
+##         print 'done, %1.3f sec'%(t-t0)
 
     def toggle_planes_visible(self, value):
         self._toggle_poly_extractor_mode(cut_mode=value)

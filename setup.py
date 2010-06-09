@@ -2,7 +2,6 @@
 import sys
 from glob import glob
 from distutils.cmd import Command
-import numpy as np
 
 ## Apply the matthew-monkey patch
 from build_helpers import generate_a_pyrex_source

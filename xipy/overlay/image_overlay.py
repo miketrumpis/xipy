@@ -17,7 +17,8 @@ from enthought.traits.ui.file_dialog import open_file
 
 from xipy.slicing import load_sampled_slicer, load_resampled_slicer
 from xipy.slicing.image_slicers import SampledVolumeSlicer, \
-     ResampledVolumeSlicer, ResampledIndexVolumeSlicer
+     ResampledVolumeSlicer, ResampledIndexVolumeSlicer, VolumeSlicerInterface, \
+     slice_timewise, timedim
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.colorbar_panel import ColorbarPanel
 from xipy.overlay import OverlayInterface, OverlayWindowInterface, ThresholdMap
@@ -90,24 +91,29 @@ class ImageOverlayWindow( OverlayWindowInterface ):
 class ImageOverlayManager( OverlayInterface ):
     """ A data management class to interact with an image
     """
-    lbutton = Button('Load Overlay Image')
 
-    raw_image = Instance(ni_api.Image)
+    # misc Traits needed
+    _one = Int(1)
+    _zero = Int(0)
+    _len_tdim = Int(0)
+
+    lbutton = Button('Load Overlay Image')
+    _image = Instance(ni_api.Image)
+    raw_image = Property(depends_on='time_idx, _image')
+    time_idx = Range(low='_zero', high='_len_tdim')
+                     
 
     # Peak finding
     ana_xform = Enum(['max', 'min', 'absmax'])
     loc_button = Button('Find Extremum')
     # this number controls searching for the Nth highest/lowest value
     _numfeatures = Int(150)
-    _one = Int(1)
     order = Range('_one', '_numfeatures')
 
     _recompute_props = Event
 
     tval = Range(low='_min_t', high='_max_t',
                  editor=RangeEditor(low_name='_min_t', high_name='_max_t',
-                                    #low_label='min_t_label',
-                                    #high_label='max_t_label',
                                     format='%1.2f'))
     comp = Enum('greater than', 'less than')
 
@@ -124,7 +130,7 @@ class ImageOverlayManager( OverlayInterface ):
     mask_button = Button('Apply Mask')
     clear_button = Button('Clear Mask')
 
-    grid_size = Range(1,150)
+    grid_size = Range(0,150)
 
     peak_color = Color
 
@@ -133,9 +139,12 @@ class ImageOverlayManager( OverlayInterface ):
     # these are just to satisfy the informal "overlay manager" interface
     fill_value = np.nan
 
-    _base_alpha = 2*np.ones((256,), dtype='B')
+    alpha_scale = Range(low=0.0, high=4.0, value=1.0)
+    _base_alpha = np.ones((256,), dtype='B')
 
-    def alpha(self, scale=1.0, threshold=True):
+    def alpha(self, scale=None, threshold=True):
+        if scale is None:
+            scale = self.alpha_scale
         # scale may go between 0 and 4.. just map this from (0,1)
         a = (scale/4.0)*self._base_alpha
 ##         if threshold and self.threshold[1] != 'inactive':
@@ -183,34 +192,66 @@ class ImageOverlayManager( OverlayInterface ):
         else:
             self.overlay is None
 
-    def update_overlay(self, overlay, silently=False):
-        if type(overlay)==ni_api.Image:
-            raw_image = overlay
-        else:
-            raw_image = load_image(overlay)
-                
-        self.orig_mask = np.ma.getmask(raw_image._data)
+    @on_trait_change('time_idx')
+    def _slice_functional_data(self):
+        if not self._image:
+            return
+        self._new_overlay_from_raw()
+
+    def set_image_data(self, image):
+        if isinstance(image, str):
+            image = load_image(image)
+        if not isinstance(image, ni_api.Image):
+            raise ValueError("argument provided was not a NIPY Image")
+        self._image = image
+        self._new_overlay_from_raw()
+
+    def _new_overlay_from_raw(self):
+        # API FUDGE
+        raw_image = self.raw_image
+        idata = raw_image._data
+
+        self.orig_mask = np.ma.getmask(idata)
         if self.orig_mask is np.ma.nomask:
             self.orig_mask = np.zeros(raw_image.shape, np.bool)
-        self._min_t = float(np.ma.min(raw_image._data))
-        self._max_t = float(np.ma.max(raw_image._data))
-
-        self.overlay = ResampledIndexVolumeSlicer(
-            raw_image, bbox=self.bbox,
-            norm=(self._min_t, self._max_t)
-            )
+        self._min_t = float(np.ma.min(idata))
+        self._max_t = float(np.ma.max(idata))
 
         # Trigger some properties to clear their caches
         self._recompute_props = True
-
+        
         # Updating...
         #   scalar norm parameters
-        print 'normalizing from', self._min_t, 'to', self._max_t
         self.norm = (self._min_t, self._max_t)
-        print self.norm
+        print 'New norm:', self.norm
         #   threshold scalars (just use same array, nothing fancy yet)
         self.threshold.map_scalars = np.asarray(raw_image)
-        self.raw_image = raw_image
+        overlay = ResampledIndexVolumeSlicer(
+            self.raw_image, bbox=self.bbox,
+            norm=(self._min_t, self._max_t)
+            )
+        self.update_overlay(overlay)
+    
+    def update_overlay(self, overlay, silently=False):
+
+        # Here's the path ..
+        # If overlay spec is a string -- load the image
+        # If the overlay spec is an image --
+        #   If the image is 4D, set the functional data slicing on,
+        #    and slice the correct raw_image out of it
+        #   If the image is 3D, it is the new raw_image
+        #   <construct the VolumeSlicer>
+        # If the overlay spec is a VolumeSlicer, continue
+        # ...
+        # 
+        if isinstance(overlay, (ni_api.Image, str)):
+            self.set_image_data(overlay)
+            return
+        if not isinstance(overlay, VolumeSlicerInterface):
+            raise ValueError('Provided overlay is not a VolumeSlicer type')
+
+        self.overlay = overlay
+
         if not silently:
             self.send_image_signal()
 
@@ -227,12 +268,19 @@ class ImageOverlayManager( OverlayInterface ):
         if self.loc_signal:
             self.loc_signal.emit(*loc)
 
-    @on_trait_change('norm, cmap_option, interpolation')
+    @on_trait_change('norm, cmap_option, interpolation, alpha_scale')
     def send_props_signal(self):
         if self.props_signal:
             self.props_signal.emit(self)
     
     ### CALLBACKS
+    @on_trait_change('_image')
+    def _set_len_tdim(self):
+        if not self._image or len(self._image.shape) < 4:
+            self._len_tdim = 0
+        else:
+            self._len_tdim = self._image.shape[timedim(self._image)]
+    
     def _lbutton_fired(self):
         f = browse_files(None, dialog='Select File',
                          wildcard='*.nii *.nii.gz *.hdr *.img')
@@ -266,7 +314,7 @@ class ImageOverlayManager( OverlayInterface ):
 
     def _clear_button_fired(self):
         self.threshold.thresh_map_name = ''
-        self._recompute_props = True        
+        self._recompute_props = True
         self.send_image_signal()
 ##         self.send_props_signal()
 
@@ -328,12 +376,26 @@ class ImageOverlayManager( OverlayInterface ):
 ##         mask = self.mask
 ##         new_slicer = SampledVolumeSlicer(img, bbox=self.bbox,
 ##                                          grid_spacing=[float(self.grid_size)]*3)
-        new_slicer = ResampledVolumeSlicer(
-            img, bbox=self.bbox, grid_spacing=[float(self.grid_size)]*3
+        norm = self.norm
+        if self.grid_size > 0:
+            grid_spacing = [float(self.grid_size)]*3
+        else:
+            grid_spacing = None
+        overlay = ResampledIndexVolumeSlicer(
+            self.raw_image, bbox=self.bbox,
+            norm=(self._min_t, self._max_t),
+            grid_spacing=grid_spacing
             )
+            
         self.update_overlay(new_slicer)
 
     # Property Getters
+    @cached_property
+    def _get_raw_image(self):
+        if len(self._image.shape) > 3:
+            return slice_timewise(self._image, self.time_idx)
+        return self._image
+
     @cached_property
     def _get_description(self):
         um_pts = np.logical_not(self.mask).sum()
@@ -365,6 +427,7 @@ unmasked points: %d
             return None
         data = np.asarray(self.raw_image)
         return np.ma.masked_array(data, mask=self.mask, copy=False)
+    
     @cached_property
     def _get_ordered_idx(self):
         """ Create a list of sorted map indices
@@ -374,7 +437,10 @@ unmasked points: %d
         m_arr = np.abs(self.work_arr) if self.ana_xform=='absmax' \
                 else self.work_arr
         sidx = m_arr.flatten().argsort()
-        last_good = m_arr.mask.flat[sidx].nonzero()[0][0]
+        if m_arr.mask.any():
+            last_good = m_arr.mask.flat[sidx].nonzero()[0][0]
+        else:
+            last_good = len(m_arr.mask.flat)
         self._numfeatures = last_good
         return sidx[:last_good]
 
@@ -385,10 +451,13 @@ unmasked points: %d
                     Item('lbutton', show_label=False),
                     Item('grid_size', label='Grid Size')
                     ),
-                Item('_'),
+                HGroup(
+                    Item('time_idx', label='Time Slice')
+                    ),
                 HGroup(
                     Item('cmap_option', label='Colormap'),
-                    Item('interpolation', label='Interpolation'),
+##                     Item('interpolation', label='Interpolation'),
+                    Item('alpha_scale', label='Blending')
                     ),
                 Item('_'),
                 Item('comp', label='Mask values'),

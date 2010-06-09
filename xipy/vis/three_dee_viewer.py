@@ -11,7 +11,7 @@ import nipy.core.api as ni_api
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
 from xipy.slicing import load_resampled_slicer, load_sampled_slicer
-from xipy.io import load_image
+from xipy.io import load_spatial_image
 
 class MayaviViewer(XIPYWindowApp):
     def __init__(self, parent=None, image=None):
@@ -48,7 +48,7 @@ class MayaviViewer(XIPYWindowApp):
     def update_image(self, image, mode='world'):
         if type(image) != ni_api.Image:
             try:
-                image = load_image(image)
+                image = load_spatial_image(image)
             except RuntimeError:
                 self.image = None
                 self._image_loaded = False
