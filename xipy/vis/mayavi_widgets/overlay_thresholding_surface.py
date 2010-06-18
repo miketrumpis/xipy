@@ -98,8 +98,8 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
 ##         self.func_scalars.update_image_data = True
 ##         self.display._start_scene()
 
-##     @on_trait_change('func_man.overlay_updated')
-    @on_trait_change('blender.over')
+##     @on_trait_change('blender.over')
+    @on_trait_change('func_man.overlay_updated')
     def _update_overlay_scalars(self):
         print 'blender over changed'
 ##         overlay = self.func_man.overlay
@@ -116,7 +116,7 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         # this will be a negative mask, so threshold everything > 0.5
 ##         t_arr = np.ma.getmask(overlay.image_arr)
         i_bad = cm.MixedAlphaColormap.i_bad
-        t_arr = np.where(s_arr==i_bad,1,0).astype(sctype).transpose().flatten()
+        t_arr = np.where(s_arr==i_bad,1,0).astype(sctype).flatten()
         
 ##         if t_arr is np.ma.nomask:
 ##             t_arr = np.zeros(overlay.image_arr.shape, sctype).transpose().flatten()

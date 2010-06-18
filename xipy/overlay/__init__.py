@@ -266,35 +266,35 @@ class OverlayInterface(t_api.HasTraits):
         ui = self.edit_traits(parent=parent, kind='subpanel').control
         return ui
 
-    def map_stats_like_overlay(self, map_mask=False, mask_type='negative'):
-        """Return a VolumeSlicer type for the current threshold scalar map.
-        It is assumed that the map has the same voxel to world mapping
-        as the current overlay.
+##     def map_stats_like_overlay(self, map_mask=False, mask_type='negative'):
+##         """Return a VolumeSlicer type for the current threshold scalar map.
+##         It is assumed that the map has the same voxel to world mapping
+##         as the current overlay.
 
-        Returns
-        -------
-        a VolumeSlicerInterface subclass (of the same type as the
-        current overlay)
-        """
-        if self.overlay is None:
-            print 'Overlay not yet loaded'
-            return None
-        if self.threshold.thresh_map_name == '':
-            print 'No active threshold'
-            return None
-        oclass = type(self.overlay)
-        if map_mask:
-            if mask_type=='negative':
-                data = self.threshold.binary_mask.astype('d')
-            else:
-                data = (~self.threshold.binary_mask).astype('d')
-        else:
-            data = self.threshold.scalar_map
-        cmap = self.overlay.coordmap
-        bbox = self.overlay.bbox # ???
-        grid_spacing = self.overlay.grid_spacing
-        return oclass(ni_api.Image(data, cmap),
-                      bbox=bbox, grid_spacing=grid_spacing)
+##         Returns
+##         -------
+##         a VolumeSlicerInterface subclass (of the same type as the
+##         current overlay)
+##         """
+##         if self.overlay is None:
+##             print 'Overlay not yet loaded'
+##             return None
+##         if self.threshold.thresh_map_name == '':
+##             print 'No active threshold'
+##             return None
+##         oclass = type(self.overlay)
+##         if map_mask:
+##             if mask_type=='negative':
+##                 data = self.threshold.binary_mask.astype('d')
+##             else:
+##                 data = (~self.threshold.binary_mask).astype('d')
+##         else:
+##             data = self.threshold.scalar_map
+##         cmap = self.overlay.coordmap
+##         bbox = self.overlay.bbox # ???
+##         grid_spacing = self.overlay.grid_spacing
+##         return oclass(ni_api.Image(data, cmap),
+##                       bbox=bbox, grid_spacing=grid_spacing)
 
 def overlay_thresholding_function(threshold, positive=True):
     """ Take the OverlayInterface threshold parameters and create a
