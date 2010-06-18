@@ -1,5 +1,6 @@
 # NumPy
 import numpy as np
+from scipy import ndimage
 
 # Matplotlib
 import matplotlib as mpl
@@ -179,7 +180,8 @@ class BlendedArrays(t_ui.HasTraits):
         print 'update to blended image triggered'
         has_over = len(self.over_rgba)
         has_main = len(self.main_rgba)
-        if has_main and not has_over:
+        if not has_over:
+            # even return this if main_rgba is empty
             return self.main_rgba
         if has_over and not has_main:
             return self.over_rgba
@@ -247,11 +249,22 @@ class BlendedArrays(t_ui.HasTraits):
     # handle norm later.. I'm thinking this can be accomplished with a
     # sort of transfer function from integer indices to indices
 
+vtk_ax_order = [2,1,0] #[0,1,2]
 
 class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
     """
     This class is a BlendedArrays object, whose main and over arrays
     are the index images from two ResampledIndexVolumeSlicers.
+
+    It is also meant to expose a certain Mayavi ArraySource-like
+    interface. Might think about making it a proper subclass.
+
+    Notably...
+    * It (possibly) enforces a strict array-to-spatial correspondence,
+      to conform with the VTK ImageData layout
+    * It provides image spacing/origin information, a la VTK ImageData
+    * The RGBA arrays are intended to plug in nicely as 4 component
+      point_data arrays
 
     """
 
@@ -261,7 +274,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
 
     main_spline_order = t_ui.Range(low=0,high=5,value=0)
     over_spline_order = t_ui.Range(low=0,high=5,value=0)
-    transpose_inputs = t_ui.Bool(True)
+    vtk_order = t_ui.Bool(True)
 
     # Image properties of the blended image array
     img_spacing = t_ui.Property(depends_on='main')
@@ -271,7 +284,13 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
     image_arr = t_ui.Property #(depends_on='main_rgba, over_rgba')
 
     def __init__(self, **traits):
+        # trap main and over traits here, since their setup depends
+        # on other traits
+        main = traits.pop('main', None)
+        over = traits.pop('over', None)
         BlendedArrays.__init__(self, **traits)
+        self.main = main
+        self.over = over
         self._adapt_to_slicer()
 
     # XYZ: THIS HAS GOTTEN WAY TOO HACKY.. MUST FIX!
@@ -287,17 +306,13 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self.null_planes = [np.zeros((shape[0], shape[1], 4),'B'),
                                 np.zeros((shape[0], shape[2], 4),'B'),
                                 np.zeros((shape[1], shape[2], 4),'B')]
-            if self.transpose_inputs:
-                cmap = self.coordmap
-                self.coordmap = cmap.reordered_domain(
-                    cmap.function_domain.coord_names[::-1]
-                    )
-                arr_idx = [self._ax_lookup[ax] for ax in (SAG, COR, AXI)]
-                self._ax_lookup = dict( zip((SAG, COR, AXI), arr_idx[::-1]) )
-                self._ax_lookup.update( zip(ni_api.ras_output_coordnames,
-                                            arr_idx[::-1]) )
-                self._ax_lookup.update( zip(('SAG', 'COR', 'AXI'),
-                                            arr_idx[::-1]) )
+            
+##             if self.vtk_order:
+##                 cmap = self.coordmap
+##                 self.coordmap = cmap.reordered_domain(
+##                     cmap.function_domain.coord_names[::-1]
+##                     )
+##                 self._ax_lookup = vu.find_spatial_correspondence(self.coordmap)
             
             return
         # just fake numbers???
@@ -331,7 +346,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         if image is None:
             return None
         spacing = image.grid_spacing
-        return spacing[::-1] if self.transpose_inputs else spacing
+        return spacing
     @t_ui.cached_property
     def _get_img_origin(self):
         # not sure what to do here
@@ -339,7 +354,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         if image is None:
             return None
         origin = np.array(image.bbox)[:,0]
-        return origin #[::-1] if self.transpose_inputs else origin
+        return origin #[::-1] if self.vtk_order else origin
 
     def _get_image_arr(self):
         if not len(self.blended_rgba):
@@ -349,36 +364,48 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
 
     @t_ui.on_trait_change('main')
     def _update_mbytes(self):
+        """Makes a ResampledIndexVolumeSlicer out of the argument, and
+        enforces the spatial-to-array correspondence set up in the
+        transpose mode.
+        """
         if self.main==None:
             # "unload" main image
             self._main_idx = np.array([], np.int32)
             # trigger remapping of over index
             self.over = self.over
             return
-        if type(self.main)==ni_api.Image:
+        if isinstance(self.main, ni_api.Image):
             img = self.main
-##             aff = img.coordmap
-##             if self.transpose_inputs:
-##                 img = ni_api.Image(
-##                     np.asarray(img).transpose().copy(),
-##                     aff.reordered_domain(aff.function_domain.coord_names[::-1])
-##                     )
-            main = ResampledIndexVolumeSlicer(img, norm=self.main_norm)
+            spatial_axes = vtk_ax_order if self.vtk_order else None
+            main = ResampledIndexVolumeSlicer(
+                img, norm=self.main_norm,
+                spatial_axes=spatial_axes,
+                order=self.main_spline_order
+                )
             # go ahead and be re-entrant
             self.main = main
             return
-        if type(self.main) != ResampledIndexVolumeSlicer:
+        if not isinstance(self.main, ResampledIndexVolumeSlicer):
             raise ValueError('main image should be a NIPY Image, or '\
                              'a ResampledIndexVolumeSlicer')
-
-        if self.transpose_inputs:
-            self.trait_setq(_main_idx  = self.main.image_arr.transpose().copy())
-        else:
-            self.trait_setq(_main_idx = self.main.image_arr)
+        # self.main is definitely the right type, but is it aligned?
+        if self.vtk_order:
+            # with VTK order, x,y,z must be aligned with k, j, i
+            axes = vu.find_spatial_correspondence(self.main.coordmap)
+            if axes != vtk_ax_order:
+                # re-make a NIPY Image, and send it back!
+                ni_image = ni_api.Image(
+                    self.main.image_arr, self.main.coordmap
+                    )
+                self.main = ni_image
+                return
+            
+        self.trait_setq(_main_idx = self.main.image_arr)
 
         if len(self._over_idx) and \
                self.main.image_arr.shape != self._over_idx.shape:
-            self._resample_over_into_main()
+            self.over = self.over
+##             self._resample_over_into_main()
         self._main_idx = self._main_idx
         self._adapt_to_slicer()
 
@@ -388,8 +415,19 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self._over_idx = np.array([], np.int32)
             self._adapt_to_slicer()
             return
+        # define the axes order to resample onto
+        if self.vtk_order:
+            ax_order = vtk_ax_order
+        elif self.main:
+            ax_order = vu.find_spatial_correspondence(self.main.coordmap)
+        else:
+            ax_order = None
         if type(self.over)==ni_api.Image:
-            over = ResampledIndexVolumeSlicer(self.over, norm=self.over_norm)
+            over = ResampledIndexVolumeSlicer(
+                self.over, norm=self.over_norm,
+                spatial_axes=ax_order,
+                order=self.over_spline_order
+                )
             # go ahead and be re-entrant
             self.over = over
             return
@@ -397,10 +435,23 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             raise ValueError('over image should be a NIPY Image, or '\
                              'a ResampledIndexVolumeSlicer')
         
-        if self.transpose_inputs:
-            temp_idx = self.over.image_arr.transpose().copy()
-        else:
-            temp_idx = self.over.image_arr
+        # self.over is definitely the right type, but is it aligned?
+        if ax_order:
+            axes = vu.find_spatial_correspondence(self.over.coordmap)
+            if axes != ax_order:
+                print 'Re-mapping because original mapping is not aligned '\
+                'to the main image'
+                # re-make a NIPY Image, and send it back!
+                ni_image = ni_api.Image(
+                    self.over.image_arr, self.over.coordmap
+                    )
+                self.over = ResampledIndexVolumeSlicer(
+                    ni_image, norm=False, spatial_axes=ax_order,
+                    order=self.over_spline_order
+                    )
+                return
+            
+        temp_idx = self.over.image_arr
 
         if not self.main:
             self._over_idx = temp_idx
@@ -410,27 +461,57 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self._resample_over_into_main()
 
     def _resample_over_into_main(self):
-##         over_r0 = np.array(self.over.bbox)[:,0] if self.transpose_inputs \
+##         over_r0 = np.array(self.over.bbox)[:,0] if self.vtk_order \
 ##                   else np.array(self.over.bbox)[::-1,0]
-##         over_dr = self.over.grid_spacing[:] if self.transpose_inputs \
+##         over_dr = self.over.grid_spacing[:] if self.vtk_order \
 ##                   else self.over.grid_spacing[::-1]
 ##         main_r0 = self.img_origin[::-1]
 ##         main_dr = self.img_spacing[::-1]
-        over_r0 = np.array(self.over.bbox)[::-1,0] if self.transpose_inputs \
-                  else np.array(self.over.bbox)[:,0]
-        main_r0 = np.array(self.main.bbox)[::-1,0] if self.transpose_inputs \
-                  else np.array(self.main.bbox)[:,0]
-
-        over_dr = self.over.grid_spacing[::-1] if self.transpose_inputs \
-                  else self.over.grid_spacing
-        main_dr = self.main.grid_spacing[::-1] if self.transpose_inputs \
-                  else self.main.grid_spacing
-        
-        
         i_bad = self.over_cmap.i_bad
-        self._over_idx = resize_lookup_array(
-            self._main_idx.shape, i_bad,
-            self._over_idx,
-            over_dr, over_r0,
-            main_dr, main_r0
+        vox_to_vox = ni_api.compose(
+            self.over.coordmap.inverse(), self.main.coordmap
             )
+        # this is supposed to be diagonal!!
+        mat = vox_to_vox.affine.diagonal()[:3]
+        offset = vox_to_vox.affine[:3,-1]
+##         self._over_idx = ndimage.affine_transform(
+##             self._over_idx, mat, offset,
+##             output_shape=self._main_idx.shape,
+##             output=self._over_idx.dtype,
+##             order=0, cval=i_bad)
+        self._over_idx = resize_lookup_array(
+            self._main_idx.shape, i_bad, self._over_idx, mat, offset
+            )
+                                             
+
+##         axes = [self._ax_lookup[k] for k in (SAG, COR, AXI)]
+##         back_map = dict(zip(axes, range(3)))
+##         axes = [back_map[k] for k in range(3)]
+##         over_r0 = np.take(self.over.bbox, axes, axis=0)[:,0]
+##         over_dr = np.take(self.over.grid_spacing, axes, axis=0)
+##         main_r0 = np.take(self.main.bbox, axes, axis=0)[:,0]
+##         main_dr = np.take(self.main.grid_spacing, axes, axis=0)
+##         print back_map, axes
+##         print over_r0
+##         print over_dr
+##         print main_r0
+##         print main_dr
+
+## ##         over_r0 = np.array(self.over.bbox)[::-1,0] if self.vtk_order \
+## ##                   else np.array(self.over.bbox)[:,0]
+## ##         main_r0 = np.array(self.main.bbox)[::-1,0] if self.vtk_order \
+## ##                   else np.array(self.main.bbox)[:,0]
+
+## ##         over_dr = self.over.grid_spacing[::-1] if self.vtk_order \
+## ##                   else self.over.grid_spacing
+## ##         main_dr = self.main.grid_spacing[::-1] if self.vtk_order \
+## ##                   else self.main.grid_spacing
+        
+        
+##         i_bad = self.over_cmap.i_bad
+##         self._over_idx = resize_lookup_array(
+##             self._main_idx.shape, i_bad,
+##             self._over_idx,
+##             over_dr, over_r0,
+##             main_dr, main_r0
+##             )

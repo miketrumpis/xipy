@@ -6,7 +6,9 @@ from copy import copy
 
 def load_image(filename):
     img = ni_load_image(filename)
-
+    # wtf?
+    if np.asarray(img).dtype.char == 'h':
+        img = ni_api.Image(np.asarray(img).astype('h'), img.coordmap)
     input_coords = dict( zip(range(3), 'ijk') )
     output_coords = dict( zip(ni_api.lps_output_coordnames,
                               ni_api.ras_output_coordnames) )

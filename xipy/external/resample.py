@@ -41,8 +41,8 @@ def resample_img2img(source, target, order=3):
     >>> resimg = resample_img2img(aimg_source, aimg_target)
     >>> 
     """
-    sip, sop = source.coordmap.ndim
-    tip, top = target.coordmap.ndim
+    sip, sop = source.coordmap.ndims
+    tip, top = target.coordmap.ndims
     #print sip, sop, tip, top
     if sop != top:
         raise ValueError("source coordmap output dimension not equal to target coordmap output dimension")

@@ -54,7 +54,7 @@ class VolumeSlicerInterface(object):
     specifically the cut_image() usage.
     """
     def __init__(self, image, bbox=None, mask=False,
-                 grid_spacing=None, fliplr=False):
+                 grid_spacing=None):
         """
         Creates a new VolumeSlicerInterface
         
@@ -72,9 +72,6 @@ class VolumeSlicerInterface(object):
         grid_spacing : iterable (optional)
             New grid spacing for the sliced planes. If None, then the
             natural voxel spacing is used.
-        fliplr : bool (optional)
-            Set True if the transform from voxel indices to world coordinates
-            maps to a left-handed space, (Radiological convention)
         """
         raise NotImplementedError('This interface class is not for real use')
 
@@ -171,7 +168,7 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
     """
 
     def __init__(self, image, bbox=None, mask=False,
-                 grid_spacing=None, fliplr=False, interpolation_order=3):
+                 grid_spacing=None, interpolation_order=3):
         """
         Creates a new SampledVolumeSlicer
         
@@ -189,12 +186,8 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         grid_spacing : iterable (optional)
             New grid spacing for the sliced planes. If None, then the
             natural voxel spacing is used.
-        fliplr : bool (optional)
-            Set True if the transform from voxel indices to world coordinates
-            maps to a left-handed space, (Radiological convention)
         """
         
-        image = vu.fix_analyze_image(image, fliplr=fliplr)
         xyz_image = ni_api.Image(
             np.asarray(image),
             image.coordmap.reordered_range(ni_api.ras_output_coordnames)
@@ -351,84 +344,83 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
     """
     
     def __init__(self, image, bbox=None, mask=False,
-                 grid_spacing=None, fliplr=False, **interp_kws):
+                 grid_spacing=None, spatial_axes=None,
+                 **interp_kws):
         """
         Creates a new ResampledVolumeSlicer
         
         Parameters
         ----------
         image : a NIPY Image
-            The image to slice
+          The image to slice
         bbox : iterable (optional)
-            The {x,y,z} limits of the enrounding volume box. If None, then
-            slices planes in the natural box of the image. This argument
-            is useful for overlaying an image onto another image's volume box
+          The {x,y,z} limits of the enrounding volume box. If None, then
+          slices planes in the natural box of the image. This argument
+          is useful for overlaying an image onto another image's volume box
         mask : bool or ndarray (optional)
-            A binary mask, with same shape as image, with unmasked points
-            marked as True (opposite of MaskedArray convention)
-        grid_spacing : iterable (optional)
-            New grid spacing for the sliced planes. If None, then the
-            natural voxel spacing is used.
-        fliplr : bool (optional)
-            Set True if the transform from voxel indices to world coordinates
-            maps to a left-handed space, (Radiological convention)
+          A binary mask, with same shape as image, with unmasked points
+          marked as True (opposite of MaskedArray convention)
+        grid_spacing : sequence (optional)
+          New grid spacing for the sliced planes. If None, then the
+          natural voxel spacing is used.
+        spatial_axes : sequence (optional)
+          Normally the image will not be resampled as long as there is a
+          one-to-one correspondence from array axes to spatial axes. However,
+          a desired correspondence can be specified here. List in 'x, y, z'
+          order.
         interp_kws : dict
-            Keyword args for the interpolating machinery.. eg:
-            order -- spline order
-            mode --  Points outside the boundaries of the input are filled
+          Keyword args for the interpolating machinery.. eg:
+          * order -- spline order
+          * mode --  Points outside the boundaries of the input are filled
                      according to the given mode ('constant', 'nearest',
                      'reflect' or 'wrap'). Default is 'constant'.
-            cval -- fill value if mode is 'constant'
+          * cval -- fill value if mode is 'constant'
             
         """
 
-        image = vu.fix_analyze_image(image, fliplr=fliplr)
         # XYZ: NEED TO BREAK API HERE FOR MASKED ARRAY
         xyz_image = ni_api.Image(
             image._data,
             image.coordmap.reordered_range(ni_api.ras_output_coordnames)
             )
 
-##         if bbox is None:
-##             bbox = vu.world_limits(xyz_image)
-        self.grid_spacing = vu.voxel_size(xyz_image.affine) \
-                            if grid_spacing is None else grid_spacing
 
-        # only resample if the image actually need a warping/rotation..
-        # if the requested bounding box is different than the natural
-        # bounding box, then don't resample but be smart when indexing
-        if not vu.is_spatially_aligned(image.coordmap):
+        native_spacing = vu.voxel_size(xyz_image.affine)
+        zoom_grid = grid_spacing is not None and \
+                    (np.array(grid_spacing) != native_spacing).any()
+        
+        # if no special instructions and image is somewhat aligned,
+        # don't bother with rotations
+        aligned = vu.is_spatially_aligned(image.coordmap) and not zoom_grid
+        if aligned:
+            if not spatial_axes:
+                world_image = xyz_image
+            else:
+                axes = vu.find_spatial_correspondence(image.coordmap)
+                if axes != spatial_axes:
+                    # XYZ: MIGHT THINK ABOUT MAKING SIMPLER TRANSFORM
+                    # HERE--POSSIBLY WITH CYTHON CODE
+                    aligned = False
+                    interp_kws['order'] = 0
+        if not aligned:
             print 'resampling entire Image volume'
             world_image = vu.resample_to_world_grid(
-                image, grid_spacing=self.grid_spacing,
+                image, grid_spacing=grid_spacing,
+                axis_permutation=spatial_axes,
                 **interp_kws
                 )
-        else:
-            world_image = xyz_image
 
         self.coordmap = world_image.coordmap
         self.image_arr = np.asarray(world_image)
+        self.grid_spacing = vu.voxel_size(world_image.affine)
 
         # take down the final bounding box; this will define the
         # field of the overlay plot
         self.bbox = vu.world_limits(world_image)
         
-##         if type(mask) is np.ndarray:
-##             # sets self.raw_mask and self._mask and self._masking=True,
-##             # also converts self.image_arr to a MaskedArray
-##             self.update_mask(mask)
-##         else:
-##             self._masking = False
-##             self.raw_mask = None
 
         # now find the logical axis to array axis mapping
-        T = np.abs(self.coordmap.affine[:3,:3])
-        logical_to_array = [r.argmax() for r in T]
-        self._ax_lookup = dict( zip(range(3), logical_to_array) )
-        o_coords = self.coordmap.function_range.coord_names
-        self._ax_lookup.update( dict( zip(o_coords, logical_to_array) ) )
-        self._ax_lookup.update( dict( zip(['SAG', 'COR', 'AXI'],
-                                          logical_to_array) ) )
+        self._ax_lookup = vu.spatial_axes_lookup(self.coordmap)
     
         w_shape = world_image.shape
         # these planes are shaped as if the image_arr were
@@ -501,6 +493,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
                 ras[2] : (ras[1], ras[0])
                 }[ax]
             aff=vu.drop_io_dim(self.coordmap, ax).reordered_range(output_order)
+            rot = aff.affine[:2,:2]
             # if the little aff is diagonal, let it go
             # otherwise transpose the plane
             if np.abs(aff.affine[0,0]) < np.abs(aff.affine[0,1]):
@@ -508,7 +501,13 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
                 # case this plane has vector information in the last dimension
                 axes = np.arange(len(pln.shape))
                 axes[0] = 1; axes[1] = 0
-                return pln.transpose(*axes)
+                pln = pln.transpose(*axes)
+                rot = np.take(rot, [1,0], axis=1)
+            # now check to see if the dims should be reversed
+            if rot[0,0] < 0:
+                pln = pln[::-1]
+            if rot[1,1] < 0:
+                pln = pln[:,::-1]
         return pln
 
 class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
@@ -518,7 +517,7 @@ class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
     """
 
     def __init__(self, image, bbox=None, norm=None,
-                 grid_spacing=None, fliplr=False):
+                 grid_spacing=None, spatial_axes=None, order=0):
         """
         Creates a new ResampledVolumeSlicer
         
@@ -537,12 +536,15 @@ class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
         grid_spacing : iterable (optional)
             New grid spacing for the sliced planes. If None, then the
             natural voxel spacing is used.
-        fliplr : bool (optional)
-            Set True if the transform from voxel indices to world coordinates
-            maps to a left-handed space, (Radiological convention)
+        spatial_axes : sequence (optional)
+          Normally the image will not be resampled as long as there is a
+          one-to-one correspondence from array axes to spatial axes. However,
+          a desired correspondence can be specified here. List in 'x, y, z'
+          order.
+        order : int (optional)
+          Resample the image using this spline order. Otherwise nearest-
+          neighbor resampling is used
         """
-        image = vu.fix_analyze_image(image, fliplr=fliplr)
-        
         # XYZ: NEED TO BREAK API HERE FOR MASKED ARRAY
         vol_data = np.ma.masked_array(image._data)
         if norm is not False:
@@ -566,7 +568,66 @@ class ResampledIndexVolumeSlicer(ResampledVolumeSlicer):
         bad_idx = cm.MixedAlphaColormap.i_bad
         ResampledVolumeSlicer.__init__(self, idx_image, bbox=bbox,
                                        grid_spacing=grid_spacing,
-                                       order=0, cval=bad_idx)
+                                       spatial_axes=spatial_axes,
+                                       order=order, cval=bad_idx)
+
+##     def __init__(self, image, bbox=None, norm=None,
+##                  grid_spacing=None, spatial_axes=None, order=0):
+##         """
+##         Creates a new ResampledVolumeSlicer
+        
+##         Parameters
+##         ----------
+##         image : a NIPY Image
+##             The image to slice
+##         bbox : iterable (optional)
+##             The {x,y,z} limits of the enrounding volume box. If None, then
+##             slices planes in the natural box of the image. This argument
+##             is useful for overlaying an image onto another image's volume box
+##         norm : (black-pt, white-pt) pair or mpl.colors.Normalize instance
+##             Limits for normalizing the scalar values. If image already
+##             contains index values, then norm can be set to False to
+##             bypass the normalization
+##         grid_spacing : iterable (optional)
+##             New grid spacing for the sliced planes. If None, then the
+##             natural voxel spacing is used.
+##         spatial_axes : sequence (optional)
+##           Normally the image will not be resampled as long as there is a
+##           one-to-one correspondence from array axes to spatial axes. However,
+##           a desired correspondence can be specified here. List in 'x, y, z'
+##           order.
+##         order : int (optional)
+##           Resample the image using this spline order. Otherwise nearest-
+##           neighbor resampling is used
+##         """
+
+##         if norm is False:
+##             fill_value = cm.MixedAlphaColormap.i_bad
+##             idata = np.asarray(image)
+##             # ensure image_arr.dtype is a valid index type
+##             if idata.dtype not in np.sctypes['int']+np.sctypes['uint']:
+##                 image = ni_api.Image(idata.astype('i'), image.coordmap)
+##         else:
+##             fill_value = np.nan
+##         ResampledVolumeSlicer.__init__(self, image, bbox=bbox,
+##                                        grid_spacing=grid_spacing,
+##                                        spatial_axes=spatial_axes,
+##                                        order=order, cval=fill_value)
+
+##         if norm is not False:
+##             self.image_arr = np.ma.masked_where(np.isnan(self.image_arr),
+##                                                 self.image_arr, copy=False)
+##             # normalize the image data to the range [0,1]
+##             if norm is None or norm==(0, 0):
+##                 norm = colors.Normalize()
+##             elif type(norm) in (list, tuple):
+##                 norm = colors.Normalize(*norm)
+##             elif type(norm) is not colors.Normalize:
+##                 raise ValueError('Could not parse normalization parameter')
+##             compressed = norm(self.image_arr)
+##             # map to indices
+##             self.image_arr = cm.MixedAlphaColormap.lut_indices(compressed)
+        
         
     def update_mask(self, mask, positive_mask=True):
         raise NotImplementedError('no updating masks in index mapped images')

@@ -47,28 +47,40 @@ class ArraySourceRGBA(src_api.ArraySource):
     scalar_data = Trait(None, _check_scalar_array, rich_compare=True)
 
     def _scalar_data_changed(self, data):
-        print 'data changed'
+        import numpy
         img_data = self.image_data
         if data is None:
             img_data.point_data.scalars = None
             self.data_changed = True
             return
-        dims = list(data.shape[:-1])
-        if len(dims)==2:
+        is_rgba_bytes = (data.dtype.char=='B' and data.shape[-1]==4)
+        dims = list(data.shape[:-1]) if is_rgba_bytes else list(data.shape)
+        if len(dims) == 2:
             dims.append(1)
       
         img_data.origin = tuple(self.origin)
-        img_data.dimensions = tuple(dims)
-        img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
-        img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
+
+        flat_shape = ( numpy.prod(dims), )
+        if is_rgba_bytes:
+            flat_shape += (4,)
         if self.transpose_input_array:
-            d = data.transpose(2,1,0,3).copy()
-            d.shape = ( np.prod(d.shape[:3]), 4 )
-            img_data.point_data.scalars = d
+            if is_rgba_bytes:
+                # keep the color components in the last dimension
+                d = data.transpose(2,1,0,3).copy()
+                d.shape = flat_shape
+                img_data.point_data.scalars = d
+            else:
+                img_data.point_data.scalars = numpy.ravel(numpy.transpose(data))
+            img_data.dimensions = tuple(dims)
+            img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
+            img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
         else:
-            d = data.reshape( np.prod(data.shape[:3]), 4 )
-            img_data.point_data.scalars = d
-        img_data.number_of_scalar_components = 4
+            img_data.point_data.scalars = data.reshape(flat_shape)
+            img_data.dimensions = tuple(dims[::-1])
+            img_data.extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
+            img_data.update_extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
+
+        img_data.number_of_scalar_components = 4 if is_rgba_bytes else 1
         img_data.point_data.scalars.name = self.scalar_name
         # This is very important and if not done can lead to a segfault!
         typecode = data.dtype
@@ -79,6 +91,7 @@ class ArraySourceRGBA(src_api.ArraySource):
 
         # Now flush the mayavi pipeline.
         self.data_changed = True
+
 
     def update(self):
         """Call this function when you change the array data

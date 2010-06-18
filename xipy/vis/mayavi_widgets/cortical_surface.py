@@ -59,9 +59,10 @@ class CorticalSurfaceComponent(VisualComponent):
         # this is fairly brittle-- don't know what will result if
         # the brain is not skull-stripped
         brain_image = self.blender.main.image_arr
-        enn = ENN(brain_image[brain_image>0])
+        
+        enn = ENN(brain_image[(brain_image>0) & (brain_image<256)])
         enn.learn()
-        if enn.sigma == np.nan:
+        if np.isnan([enn.mu, enn.sigma]).any():
             thresh = 128
         else:
             thresh = enn.mu-2*enn.sigma
@@ -72,12 +73,18 @@ class CorticalSurfaceComponent(VisualComponent):
                 ).astype('d'),
             2
             )
-        
         arr_blurred *= 255
         arr_blurred = arr_blurred.astype(np.uint8)
+        print thresh
+        print arr_blurred.any(), arr_blurred.shape
         
+##         n = self.blended_src.image_data.point_data.add_array(
+##             arr_blurred.T.ravel()
+##             )
+        # the data from blender should be guaranteed to be in the correct
+        # order.....
         n = self.blended_src.image_data.point_data.add_array(
-            arr_blurred.T.ravel()
+            arr_blurred.ravel()
             )
         self.blended_src.image_data.point_data.get_array(n).name = 'blurred'
         

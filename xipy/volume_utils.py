@@ -34,7 +34,7 @@ def voxel_size(T):
       is (x,y,z)
     """
     if type(T) is not np.ndarray:
-        T = cmap.affine    
+        T = T.reordered_range(ni_api.ras_output_coordnames).affine
     m, n = T.shape
     T = T[:min(m,3),:min(n,3)]
     return (T**2).sum(axis=1)**.5
@@ -56,9 +56,71 @@ def is_spatially_aligned(cmap):
     i_ord = sorted(cmap.function_domain.coord_names)  # ???
     cmap_io_ordered = cmap.reordered_range(o_ord).reordered_domain(i_ord)
     T = cmap_io_ordered.affine[:io_len, :io_len]
-    vsize = voxel_size(T)
-    return vsize.sum() == np.abs(T.diagonal()).sum()
+    # I think the test here is just column orthogonality!
+    b = True
+    cols1 = np.take(T, range(-1, io_len-1), axis=1)
+    cols2 = np.take(T, range(io_len), axis=1)
+    for c1, c2 in zip(cols1, cols2):
+        b = b and (np.dot(c1,c2) < 1e-9) # some small tolerance
+    return b
 
+    
+##     vsize = voxel_size(T)
+##     return vsize.sum() == np.abs(T.diagonal()).sum()
+
+def find_spatial_correspondence(cmap):
+    """
+    Given a coordinate mapping (cmap) from array indices to spatial
+    coordinates, return the list of array axes that correspond to spatial
+    axes.
+
+    Parameters
+    ----------
+    cmap : NIPY AffineTransform
+      assumed to map from index coordinates to spatial coordinates, such
+      that the spatial axes correspond to 'sagittal, coronal, axial'
+      slicing.
+
+    Returns
+    -------
+    list of axis indices
+    """
+    if not is_spatially_aligned(cmap):
+        raise ValueError(
+            'Array axes are supposed to be spatially aligned with spatial axes'
+            )
+    T = np.abs(cmap.affine[:3,:3])
+    return [r.argmax() for r in T]
+
+def spatial_axes_lookup(cmap):
+    """
+    Given a coordinate mapping (cmap) from array indices to spatial
+    coordinates, return a dictionary mapping which
+    array axis corresponds to which spatial axis.
+
+    Parameters
+    ----------
+    cmap : NIPY AffineTransform
+      assumed to map from index coordinates to spatial coordinates, such
+      that the spatial axes correspond to 'sagittal, coronal, axial'
+      slicing.
+
+    Returns
+    -------
+    correspondence : dict
+      a spatial-axis-key to array axis lookup, keyed by:
+      * the enum {SAG, COR, AXI} (defined in xipy.slicing)
+      * the strings 'SAG', 'COR', 'AXI'
+      * the cmap.function_range.coord_names sequence
+
+    """
+    logical_to_array = find_spatial_correspondence(cmap)
+    ax_lookup = dict( zip((SAG, COR, AXI), logical_to_array) )
+    o_coords = cmap.function_range.coord_names
+    ax_lookup.update( dict( zip(o_coords, logical_to_array) ) )
+    ax_lookup.update( dict( zip(['SAG', 'COR', 'AXI'],
+                                logical_to_array) ) )
+    return ax_lookup
     
       
 def limits_to_extents(ax_limits):
@@ -158,18 +220,15 @@ def maximum_world_distance(limits):
     return dist.max()
     
 def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
+                           axis_permutation=None,
                            **interp_kws):
-##     cmap_ijk_xyz = reorder_input(
-##         reorder_output(img.coordmap, 'xyz'),
-##         'ijk'
-##         )
     cmap_ijk_xyz = img.coordmap.reordered_range(
         ni_api.ras_output_coordnames
         ).reordered_domain('ijk')
     T = cmap_ijk_xyz.affine
     if grid_spacing is None:
         # find the (i,j,k) voxel sizes, which should be the norm of the columns
-        grid_spacing = list((T[:3,:3]**2).sum(axis=0)**0.5)
+        grid_spacing = voxel_size(T)
     if bbox is None:
         # the extent of the rotated image may cover a larger box
         bbox = world_limits(img)
@@ -178,32 +237,29 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
     
     diag_affine = np.diag(list(grid_spacing) + [1])
     diag_affine[:3,3] = np.asarray(bbox)[:,0]
-    
+    if not axis_permutation:
+        target_domain = 'ijk'
+    else:
+        target_domain = [ 'ijk'[ax] for ax in axis_permutation ]
     resamp_affine = ni_api.AffineTransform.from_params(
-        'ijk',
+        target_domain,
         ni_api.ras_output_coordnames,
         diag_affine
         )
-##     resamp_affine = reorder_input(resamp_affine,
-##                                   img.coordmap.function_domain.coord_names)
     resamp_affine = resamp_affine.reordered_domain(
         img.coordmap.function_domain.coord_names
         )
     # Doing the mapping this way, we don't have to assume what
     # the input space of the Image is like
     cmap_xyz = img.coordmap.reordered_range(ni_api.ras_output_coordnames)
-##     cmap_xyz = reorder_output(img.coordmap, 'xyz')
     mapping = ni_api.compose(cmap_xyz, img.coordmap.inverse())
-##     mapping = compose(cmap_ijk_xyz, img.coordmap.inverse)
-    #mapping = compose(resamp_affine, mapping1.inverse)
 
     # this is the ijk dim ordering.. how do we permute it to match
     # the input coordinates of the original image?
     new_dims = np.ceil(box_limits/grid_spacing).astype('i')
-    dim_ordering = map(lambda x: ['i','j','k'].index(x),
+    dim_ordering = map(lambda x: target_domain.index(x),
                        img.coordmap.function_domain.coord_names)
     new_dims = np.take(new_dims, dim_ordering)
-
     new_img = resample.resample(img, resamp_affine, mapping.affine,
                                 tuple(new_dims), order=order, **interp_kws)
 

@@ -75,6 +75,7 @@ class OrthoViewer(XIPYWindowApp):
         # set up interp options
         self.interp_box.insertItems(0, interpolations)
         self.interp_box.setCurrentIndex(interpolations.index('nearest'))
+        self.ortho_figs_widget.set_interp('nearest')
 
         # connect menu items
         self.actionLoad_MR_File.triggered.connect(self.on_load_mr)
@@ -174,7 +175,7 @@ class OrthoViewer(XIPYWindowApp):
 
     def change_overlay_props(self, func_man):
         pdict = make_mpl_image_properties(func_man)
-        if norm in pdict:
+        if 'norm' in pdict:
             n = pdict['norm']
             pdict['norm'] = (n.vmin, n.vmax)
         self.blender.update_over_props(**pdict)

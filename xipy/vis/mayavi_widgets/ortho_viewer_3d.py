@@ -55,7 +55,8 @@ class OrthoViewer3D(HasTraits):
     func_scalars = Instance(Source)
 
     blender = Instance(rgba_blending.BlendedImages, (),
-                       spline_order=0, transpose_inputs=True)
+                       main_spline_order=0, over_spline_order=1,
+                       vtk_order=True)
     blended_src = Instance(Source)
     blob_surf_src = Instance(Source)
 
@@ -259,7 +260,6 @@ class OrthoViewer3D(HasTraits):
     def _show_anat(self):
         if not len(self.blender.main_rgba):
             print 'no anat array loaded yet'
-            print self.blender.main_rgba
             self.set(show_anat=False, trait_change_notify=False)
             return
         # this will assess the status of the image source and plotting
