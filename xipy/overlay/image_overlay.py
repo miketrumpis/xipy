@@ -92,54 +92,75 @@ class ImageOverlayManager( OverlayInterface ):
     """ A data management class to interact with an image
     """
 
+    #---------------------------------------------------------------------------
     # misc Traits needed
+    #---------------------------------------------------------------------------
     _one = Int(1)
     _zero = Int(0)
     _len_tdim = Int(0)
-
-    lbutton = Button('Load Overlay Image')
-    _image = Instance(ni_api.Image)
-    raw_image = Property(depends_on='time_idx, _image')
-    time_idx = Range(low='_zero', high='_len_tdim')
-                     
-
-    # Peak finding
-    ana_xform = Enum(['max', 'min', 'absmax'])
-    loc_button = Button('Find Extremum')
     # this number controls searching for the Nth highest/lowest value
     _numfeatures = Int(150)
-    order = Range('_one', '_numfeatures')
+    _min_t = Float
+    _max_t = Float
 
-    _recompute_props = Event
+    #---------------------------------------------------------------------------
+    # Various Events
+    #---------------------------------------------------------------------------
+    lbutton = Button('Load Overlay Image')
+    _recompute_work = Event
+    mask_button = Button('Apply Mask')
+    clear_button = Button('Clear Mask')
+    loc_button = Button('Find Extremum')
+
+    #---------------------------------------------------------------------------
+    # Image Data
+    #---------------------------------------------------------------------------
+    _ndimage = Instance(ni_api.Image)
+
+    # raw image is a read-only property that changes with the underlying
+    # data, and with the time slice. Whenever raw_data is recomputed,
+    # the "orig_mask" attribute is reset also.
+    raw_image = Property(depends_on='time_idx, _ndimage')
+
+    # work_arr is the computed masked-array given the current conditions
+    work_arr = Property(depends_on='_recompute_work')
+    # overlay is simply ni_api.Image(work_arr, raw_image.coordmap)
+    overlay = Property(depends_on='_recompute_work')
+
+    mask = Property(Array, depends_on='_recompute_work')
+    # XYZ: RETHINK WHEN ordered_idx SHOULD BE RECALCULATED.. MAYBE ONLY
+    # WHEN THE THE MASK IS "DIRTY" (IE RECENTLY APPLIED, BUT NOT USED)
+    ordered_idx = Property(Array,
+                           depends_on='_recompute_work')
+
+    #---------------------------------------------------------------------------
+    # (G)UI controls
+    #---------------------------------------------------------------------------
+    time_idx = Range(low='_zero', high='_len_tdim')
+
+    alpha_scale = Range(low=0.0, high=4.0, value=1.0)
+
+    # Peak finding transforms
+    ana_xform = Enum(['max', 'min', 'absmax'])
+    order = Range('_one', '_numfeatures')
 
     tval = Range(low='_min_t', high='_max_t',
                  editor=RangeEditor(low_name='_min_t', high_name='_max_t',
                                     format='%1.2f'))
     comp = Enum('greater than', 'less than')
 
-    mask = Property(Array, depends_on='tval, comp, _recompute_props')
-    # XYZ: RETHINK WHEN ordered_idx SHOULD BE RECALCULATED.. MAYBE ONLY
-    # WHEN THE THE MASK IS "DIRTY" (IE RECENTLY APPLIED, BUT NOT USED)
-    work_arr = Property(Array, depends_on='tval, _recompute_props')
-    ordered_idx = Property(Array,
-                           depends_on='_recompute_props, tval, ana_xform')
-
-    _min_t = Float
-    _max_t = Float
-
-    mask_button = Button('Apply Mask')
-    clear_button = Button('Clear Mask')
-
     grid_size = Range(0,150)
 
     peak_color = Color
 
-    description = Property(depends_on='overlay_updated, tval, mask_button, clear_button')
+    #---------------------------------------------------------------------------
+    # Other OverlayInterface data
+    #---------------------------------------------------------------------------
+    description = Property(depends_on='overlay_updated')
 
-    # these are just to satisfy the informal "overlay manager" interface
     fill_value = np.nan
-
-    alpha_scale = Range(low=0.0, high=4.0, value=1.0)
+    # In the future, this can be a function that changes with the data
+    # interpretation
     _base_alpha = np.ones((256,), dtype='B')
 
     def alpha(self, scale=None, threshold=True):
@@ -176,7 +197,7 @@ class ImageOverlayManager( OverlayInterface ):
         props_signal : QtCore.pyqtSignal (optional)
             optional PyQt4 callback signal to emit when only updating
             image mapping properties
-        overlay : str, NIPY Image, VolumeSlicer type (optional)
+        overlay : str, NIPY Image (optional)
             some version of the data to be overlaid
         """
         OverlayInterface.__init__(self,
@@ -188,73 +209,36 @@ class ImageOverlayManager( OverlayInterface ):
         self.threshold = ThresholdMap()
         self.connect_colorbar(colorbar)
         if overlay:
-            self.update_overlay(overlay)
-        else:
-            self.overlay is None
+            self.set_ndimage_data(overlay)
 
-    @on_trait_change('time_idx')
-    def _slice_functional_data(self):
-        if not self._image:
-            return
-        self._new_overlay_from_raw()
-
-    def set_image_data(self, image):
+    def set_ndimage_data(self, image):
         if isinstance(image, str):
             image = load_image(image)
         if not isinstance(image, ni_api.Image):
             raise ValueError("argument provided was not a NIPY Image")
-        self._image = image
-        self._new_overlay_from_raw()
-
-    def _new_overlay_from_raw(self):
-        # API FUDGE
-        raw_image = self.raw_image
-        idata = raw_image._data
-
-        self.orig_mask = np.ma.getmask(idata)
-        if self.orig_mask is np.ma.nomask:
-            self.orig_mask = np.zeros(raw_image.shape, np.bool)
+        self._ndimage = image
+        
+        idata = image._data
         self._min_t = float(np.ma.min(idata))
         self._max_t = float(np.ma.max(idata))
-
-        # Trigger some properties to clear their caches
-        self._recompute_props = True
-        
-        # Updating...
-        #   scalar norm parameters
         self.norm = (self._min_t, self._max_t)
-        print 'New norm:', self.norm
-        #   threshold scalars (just use same array, nothing fancy yet)
-        self.threshold.map_scalars = np.asarray(raw_image)
-        overlay = ResampledIndexVolumeSlicer(
-            self.raw_image, bbox=self.bbox,
-            norm=(self._min_t, self._max_t)
-            )
-        self.update_overlay(overlay)
-    
-    def update_overlay(self, overlay, silently=False):
 
-        # Here's the path ..
-        # If overlay spec is a string -- load the image
-        # If the overlay spec is an image --
-        #   If the image is 4D, set the functional data slicing on,
-        #    and slice the correct raw_image out of it
-        #   If the image is 3D, it is the new raw_image
-        #   <construct the VolumeSlicer>
-        # If the overlay spec is a VolumeSlicer, continue
-        # ...
-        # 
-        if isinstance(overlay, (ni_api.Image, str)):
-            self.set_image_data(overlay)
+        self._new_slice_from_ndimage()
+
+    @on_trait_change('time_idx')
+    def _new_slice_from_ndimage(self):
+        if not self.raw_image:
             return
-        if not isinstance(overlay, VolumeSlicerInterface):
-            raise ValueError('Provided overlay is not a VolumeSlicer type')
+        #   threshold scalars (just use same array, nothing fancy yet)
+        self.threshold.map_scalars = np.asarray(self.raw_image)
+        self.update_overlay()
+    
+    def update_overlay(self, recompute=True):
+        if recompute:
+            self._recompute_work = True
+        self.send_image_signal()
 
-        self.overlay = overlay
-
-        if not silently:
-            self.send_image_signal()
-
+    # -- Signaling -----------------------------------------------------------
     def send_image_signal(self):
         print 'sending overlay updated'
         self.overlay_updated = True
@@ -273,19 +257,19 @@ class ImageOverlayManager( OverlayInterface ):
         if self.props_signal:
             self.props_signal.emit(self)
     
-    ### CALLBACKS
-    @on_trait_change('_image')
+    # -- Event Callbacks -----------------------------------------------------
+    @on_trait_change('_ndimage')
     def _set_len_tdim(self):
-        if not self._image or len(self._image.shape) < 4:
+        if not self._ndimage or len(self._ndimage.shape) < 4:
             self._len_tdim = 0
         else:
-            self._len_tdim = self._image.shape[timedim(self._image)]
+            self._len_tdim = self._ndimage.shape[timedim(self._ndimage)]-1
     
     def _lbutton_fired(self):
         f = browse_files(None, dialog='Select File',
                          wildcard='*.nii *.nii.gz *.hdr *.img')
         if f:
-            self.update_overlay(f)
+            self.set_ndimage_data(f)
 
     def _loc_button_fired(self):
         # XYZ: DON'T THINK THIS WILL EXECUTE IN A NEW THREAD: FIX
@@ -299,24 +283,11 @@ class ImageOverlayManager( OverlayInterface ):
         else:
             self.threshold.thresh_mode = 'mask lower'
             self.threshold.thresh_limits = (self.tval, self._max_t)
-        self._recompute_props = True
-        m_arr = np.ma.masked_array(
-            np.asarray(self.raw_image),
-            self.mask
-            )
-        img = ni_api.Image(m_arr, self.raw_image.coordmap)
-        self.overlay = ResampledIndexVolumeSlicer(
-            img, bbox=self.bbox,
-            grid_spacing=self.overlay.grid_spacing,
-            norm=self.norm
-            )
-        self.send_image_signal()
+        self.update_overlay()
 
     def _clear_button_fired(self):
         self.threshold.thresh_map_name = ''
-        self._recompute_props = True
-        self.send_image_signal()
-##         self.send_props_signal()
+        self.update_overlay()
 
     @on_trait_change('order') #, dispatch='new')
     def find_peak(self):
@@ -344,7 +315,7 @@ class ImageOverlayManager( OverlayInterface ):
             self.peak_color = hx
         self.send_location_signal((xyz_a + xyz_b)/2)
 
-    # -- Some ColorbarPanel interaction --
+    # -- Some ColorbarPanel interaction --------------------------------------
     def connect_colorbar(self, colorbar):
         self.cbar = colorbar
         self._set_cbar_norm()
@@ -369,37 +340,36 @@ class ImageOverlayManager( OverlayInterface ):
         print 'image cmap changed'
         self.cbar.change_cmap(self.colormap)
 
-    @on_trait_change('grid_size')
-    def new_grid_size(self):
-        # could also use the overlay.update_grid_spacing function
-        img = self.raw_image
-##         mask = self.mask
-##         new_slicer = SampledVolumeSlicer(img, bbox=self.bbox,
-##                                          grid_spacing=[float(self.grid_size)]*3)
-        norm = self.norm
-        if self.grid_size > 0:
-            grid_spacing = [float(self.grid_size)]*3
-        else:
-            grid_spacing = None
-        overlay = ResampledIndexVolumeSlicer(
-            self.raw_image, bbox=self.bbox,
-            norm=(self._min_t, self._max_t),
-            grid_spacing=grid_spacing
-            )
-            
-        self.update_overlay(new_slicer)
+    # -- Property Getters ----------------------------------------------------
+    @cached_property
+    def _get_overlay(self):
+        data = self.work_arr
+        if data is None:
+            return None
+        return ni_api.Image(self.work_arr, self.raw_image.coordmap)
 
-    # Property Getters
     @cached_property
     def _get_raw_image(self):
-        if len(self._image.shape) > 3:
-            return slice_timewise(self._image, self.time_idx)
-        return self._image
+        """
+        Return the raw_image for the given time slice. Also sets up
+        the raw mask for this slice
+        """
+        if not self._ndimage:
+            return None
+
+        if len(self._ndimage.shape) > 3:
+            img = slice_timewise(self._ndimage, self.time_idx)
+        else:
+            img = self._ndimage
+        self.orig_mask = np.ma.getmask(img._data)        
+        return img
 
     @cached_property
     def _get_description(self):
-        um_pts = np.logical_not(self.mask).sum()
-        d_range = self.norm
+        um_pts = self.overlay.size
+        if self.mask is not np.ma.nomask:
+            um_pts -= self.mask.sum()
+        d_range = (np.ma.min(self.work_arr), np.ma.max(self.work_arr))
         dstr = \
 """
 Overlay image
@@ -413,17 +383,20 @@ unmasked points: %d
         """ Create a negative mask of the overlay map, where points
         masked are marked as True
         """
-        if self.overlay is None:
-            return None
+        if self._ndimage is None:
+            return np.ma.nomask
         m = self.orig_mask.copy() # neg mask
         nm = self.threshold.binary_mask
-        if nm is not None:
-            m |= nm
+        if nm is None:
+            return m
+        if m is np.ma.nomask:
+            return nm
+        m |= nm
         return m
 
     @cached_property
     def _get_work_arr(self):
-        if self.overlay is None:
+        if self.raw_image is None:
             return None
         data = np.asarray(self.raw_image)
         return np.ma.masked_array(data, mask=self.mask, copy=False)
@@ -437,10 +410,11 @@ unmasked points: %d
         m_arr = np.abs(self.work_arr) if self.ana_xform=='absmax' \
                 else self.work_arr
         sidx = m_arr.flatten().argsort()
-        if m_arr.mask.any():
-            last_good = m_arr.mask.flat[sidx].nonzero()[0][0]
+        if m_arr.mask is np.ma.nomask:
+            last_good = len(sidx)
         else:
-            last_good = len(m_arr.mask.flat)
+            last_good = m_arr.mask.flat[sidx].nonzero()[0][0]
+##             last_good = len(m_arr.mask.flat)
         self._numfeatures = last_good
         return sidx[:last_good]
 
@@ -449,7 +423,7 @@ unmasked points: %d
             VGroup(
                 HGroup(
                     Item('lbutton', show_label=False),
-                    Item('grid_size', label='Grid Size')
+##                     Item('grid_size', label='Grid Size')
                     ),
                 HGroup(
                     Item('time_idx', label='Time Slice')

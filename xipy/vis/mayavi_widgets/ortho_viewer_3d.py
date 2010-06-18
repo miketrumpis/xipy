@@ -75,9 +75,6 @@ class OrthoViewer3D(HasTraits):
     show_anat = Bool(False)
     show_func = Bool(False)
     show_cortex = Bool(False)
-    alpha_compress = Range(low=0.0, high=4.0, value=1.0,
-                           editor=RangeEditor(low=0.0, high=4.0,
-                                              format='%1.2f', mode='slider'))
 
     #---------------------------------------------------------------------------
     # Other Traits
@@ -474,7 +471,6 @@ class OrthoViewer3D(HasTraits):
                 Item('show_func', label='Show functional'),
                 Item('show_tsurfs', label='Show unmasked surfaces'),
                 Item('show_cortex', label='Show cortex'),
-                Item('alpha_compress',style='custom',label='Alpha compression')
                 ),
 ##             HGroup(
 ##                 Item('pscore_map', label='P Score Map'),

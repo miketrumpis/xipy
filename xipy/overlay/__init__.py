@@ -187,8 +187,8 @@ class OverlayInterface(t_api.HasTraits):
         return np.zeros(3)
 
     # VolumeSlicer for the voxel data
-    overlay = t_api.Instance(VolumeSlicerInterface)
-##     overlay = t_api.Instance(ni_api.Image)
+##     overlay = t_api.Instance(VolumeSlicerInterface)
+    overlay = t_api.Instance(ni_api.Image)
 
     # Event to say the overlay is updated
     # XYZ: CAN'T TRAITS SIMPLY WATCH FOR "overlay" TO CHANGE?

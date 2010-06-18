@@ -38,7 +38,6 @@ class OverlayBlendingComponent(VisualComponent):
 
     # ----- This will eventually become this VisualComponent's UI widget -----
     show_func = DelegatesTo('display')
-    alpha_compress = DelegatesTo('display')
     # ------------------------------------------------------------------------
     @on_trait_change('show_func')
     def _show_func(self):
@@ -48,26 +47,17 @@ class OverlayBlendingComponent(VisualComponent):
             return
         self.display.change_source_data()
     
-    @on_trait_change('alpha_compress')
+    @on_trait_change('func_man.alpha_scale')
     def _alpha_scale(self):
         if not self.func_man:
             return
-        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
+        self.blender.over_alpha = self.func_man.alpha()
 
     @on_trait_change('func_man.norm')
     def _set_blender_norm(self):
         print 'resetting scalar normalization from func_man.norm'
         self.blender.over_norm = self.func_man.norm
-        
-    @on_trait_change('func_man.threshold')
-    def _set_threshold(self):
-        print 'remapping alpha because of func_man.threshold',
-        if not self.func_man.overlay:
-            print 'but no func_man'
-            return
-        print ''
-        self.blender.over_alpha = self.func_man.alpha(scale=self.alpha_compress)
-
+    
     @on_trait_change('func_man.cmap_option')
     def _set_over_cmap(self):
         self.blender.over_cmap = self.func_man.colormap
@@ -82,7 +72,7 @@ class OverlayBlendingComponent(VisualComponent):
         self.blender.trait_setq(
             over_cmap=self.func_man.colormap,
             over_norm=self.func_man.norm,
-            over_alpha=self.func_man.alpha(scale=self.alpha_compress)
+            over_alpha=self.func_man.alpha()
             )
             
         self.blender.over = self.func_man.overlay

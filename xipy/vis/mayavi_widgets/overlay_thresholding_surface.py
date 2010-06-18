@@ -39,6 +39,7 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
     func_scalars = DelegatesTo('display')
     notch_mode = Property
     thresh = Instance('enthought.mayavi.filters.threshold.Threshold')
+    blender = DelegatesTo('display')
 
     # ----- This will eventually become this VisualComponent's UI widget -----
     show_tsurfs = DelegatesTo('display')
@@ -97,9 +98,12 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
 ##         self.func_scalars.update_image_data = True
 ##         self.display._start_scene()
 
-    @on_trait_change('func_man.overlay')
+##     @on_trait_change('func_man.overlay_updated')
+    @on_trait_change('blender.over')
     def _update_overlay_scalars(self):
-        overlay = self.func_man.overlay
+        print 'blender over changed'
+##         overlay = self.func_man.overlay
+        overlay = self.blender.over
         scalars = self.func_scalars
         if not overlay:
             return
