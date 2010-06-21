@@ -1,13 +1,16 @@
 # PyQt4 library
 from PyQt4 import QtGui, QtCore
 
+# NumPy
+import numpy as np
+
 # Enthought library
-from enthought.traits.api import HasTraits
+import enthought.traits.api as t
 
 # XIPY imports
 from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
 
-class VisualComponent(HasTraits):
+class VisualComponent(t.HasTraits):
     # NOTE! IT IS VERY IMPORTANT TO SET THIS UP AS A CONCRETE
     # INSTANCE BEFORE CREATING ANY SUBCLASSES
 ##     display = Instance('xipy.vis.mayavi_widgets.OrthoView3D')
@@ -46,3 +49,137 @@ class MayaviWidget(TopLevelAuxiliaryWindow):
 ##         self.func_widget = functional_manager.make_panel(parent=self)
 ##         self.layout_box.addWidget(self.func_widget)
 ##         self.update()
+
+
+from xipy.vis.mayavi_tools import ArraySourceRGBA
+from xipy.vis.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
+class MasterSource(ArraySourceRGBA):
+    """
+    This class monitors a BlendedImages object and sets up image
+    channels for the main image, over image, and blended image.
+
+    It may have additional channels
+    """
+
+    blender = t.Instance(BlendedImages)
+    over_channel = 'over_colors'
+    main_channel = 'main_colors'
+    blended_channel = 'blended_colors'
+
+    transpose_input_array = False
+
+    @t.on_trait_change('transpose_input_array')
+    def _ignore_transpose(self):
+        self.trait_setq(transpose_input_array=False)
+
+    @t.on_trait_change('blender')
+    def _check_vtk_order(self):
+        if not self.blender.vtk_order:
+            raise ValueError('BlendedImages instance must be in VTK order')
+
+    ## The convention will be to have main_rgba be the primary array
+    ## in scalar_data. If main_rgba isn't present, then set it to
+    ## over_rgba (if present)
+
+    def _set_primary_scalars(self, arr, name):
+        if self.scalar_data is not None \
+               and self.scalar_data.size != arr.size:
+            self.flush_arrays()
+        rgba = quick_convert_rgba_to_vtk(arr)
+        self.scalar_data = rgba
+        self.scalar_name = name
+
+    @t.on_trait_change('blender.main_rgba')
+    def _set_main_array(self):
+        # Set main_rgba into scalar_data.
+
+        # changes
+        # 1) from size 1 to size 1
+        # 2) from size 1 to size 2
+        # 3) from size 1 to 0 (with over_rgba)
+        # 4) from size 1 to 0 (without over_rgba)
+        # 5) from 0 to size 1
+
+
+        print 'main rgba update', self.blender.main_rgba.size, self.blender.over_rgba.size
+        # cases 1, 2, 5
+        if self.blender.main_rgba.size:
+            self._set_primary_scalars(self.blender.main_rgba, self.main_channel)
+
+        # cases 3, 4 will be triggered if and when over_rgba changes
+
+    @t.on_trait_change('blender.over_rgba')
+    def _set_over_array(self):
+        # Set over_rgba (and possibly blended_rgba) into appropriate arrays
+
+        # cases
+        # 1) main_rgba.size > 0
+        # 2) main_rgba.size == 0
+        print 'over rgba update', self.blender.over_rgba.size, self.blender.main_rgba.size
+        if not self.blender.main_rgba.size and self.blender.over_rgba.size:
+            self._set_primary_scalars(
+                self.blender.over_rgba, self.over_channel
+                )
+            return
+        if not self.blender.over_rgba.size:
+            self.flush_arrays(names=[self.over_channel, self.blended_channel])
+            return
+        elif self.blender.over_rgba.size != self.blender.main_rgba.size:
+            # this should always be prevented in the BlendedImages class
+            raise RuntimeError('Color channel sizes do not match')
+
+        # otherwise, append/set a new array with over_channel tag
+        self.set_new_array(
+            self.blender.over_rgba, self.over_channel, update=False
+            )        
+        # this obviously also changes the blended array
+        self.set_new_array(
+            self.blender.blended_rgba, self.blended_channel, update=True)
+
+    def flush_arrays(self, names=[], update=True):
+        pdata = self.image_data.point_data
+        if not names:
+            names = [pdata.get_array_name(n)
+                     for n in xrange(pdata.number_of_arrays)]
+        for n in names:
+            pdata.remove_array(n)
+        if update:
+            self.image_data.update()
+            self.image_data.update_traits()
+            self.data_changed = True
+
+    def set_new_array(self, arr, name, update=True):
+        """
+
+        Parameters
+        ----------
+        arr : 4-component ndarray with dtype = uint8
+          The `arr` parameter must be shaped (npts x 4), or shaped
+          (nz, ny, nx, 4) in C-order (like BlendedImage RGBA arrays when
+          vtk_order is True)
+
+        name : str
+          name of the array
+        
+        """
+        pdata = self.image_data.point_data
+        if len(arr.shape) > 2:
+            rgba = arr.reshape(np.prod(arr.shape[:3]), 4)
+        else:
+            rgba = arr
+        colors = pdata.get_array(name)
+        if colors:
+            colors.from_array(rgba)
+        else:
+            n = pdata.add_array(rgba)
+            pdata.get_array(n).name = name
+        if update:
+            self.image_data.update()
+            self.image_data.update_traits()
+            self.data_changed = True
+
+    
+        
+        
+        
+        

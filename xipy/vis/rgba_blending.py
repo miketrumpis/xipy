@@ -249,7 +249,12 @@ class BlendedArrays(t_ui.HasTraits):
     # handle norm later.. I'm thinking this can be accomplished with a
     # sort of transfer function from integer indices to indices
 
-vtk_ax_order = [2,1,0] #[0,1,2]
+vtk_ax_order = [2,1,0]
+
+def quick_convert_rgba_to_vtk(arr):
+    new_shape = arr.shape[:3][::-1] + (4,)
+    arr_t = np.ravel(arr.transpose(), order='F').reshape(new_shape)
+    return arr_t
 
 class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
     """
@@ -400,13 +405,19 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
                 self.main = ni_image
                 return
             
-        self.trait_setq(_main_idx = self.main.image_arr)
 
         if len(self._over_idx) and \
                self.main.image_arr.shape != self._over_idx.shape:
-            self.over = self.over
-##             self._resample_over_into_main()
-        self._main_idx = self._main_idx
+            # in case anything is watching main_rgba, (which will change with
+            # this update), temporarily set over_idx to an empty array so that
+            # the blending is valid
+            over_img = self.over
+            self.over = None
+            self._main_idx = self.main.image_arr
+            # send the over image back through its vetting process
+            self.over = over_img
+        else:
+            self._main_idx = self.main.image_arr
         self._adapt_to_slicer()
 
     @t_ui.on_trait_change('over')
@@ -461,16 +472,13 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self._resample_over_into_main()
 
     def _resample_over_into_main(self):
-##         over_r0 = np.array(self.over.bbox)[:,0] if self.vtk_order \
-##                   else np.array(self.over.bbox)[::-1,0]
-##         over_dr = self.over.grid_spacing[:] if self.vtk_order \
-##                   else self.over.grid_spacing[::-1]
-##         main_r0 = self.img_origin[::-1]
-##         main_dr = self.img_spacing[::-1]
         i_bad = self.over_cmap.i_bad
         vox_to_vox = ni_api.compose(
             self.over.coordmap.inverse(), self.main.coordmap
             )
+        print vox_to_vox.affine
+        print self._main_idx.shape
+        print self._over_idx.shape
         # this is supposed to be diagonal!!
         mat = vox_to_vox.affine.diagonal()[:3]
         offset = vox_to_vox.affine[:3,-1]
@@ -484,34 +492,3 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             )
                                              
 
-##         axes = [self._ax_lookup[k] for k in (SAG, COR, AXI)]
-##         back_map = dict(zip(axes, range(3)))
-##         axes = [back_map[k] for k in range(3)]
-##         over_r0 = np.take(self.over.bbox, axes, axis=0)[:,0]
-##         over_dr = np.take(self.over.grid_spacing, axes, axis=0)
-##         main_r0 = np.take(self.main.bbox, axes, axis=0)[:,0]
-##         main_dr = np.take(self.main.grid_spacing, axes, axis=0)
-##         print back_map, axes
-##         print over_r0
-##         print over_dr
-##         print main_r0
-##         print main_dr
-
-## ##         over_r0 = np.array(self.over.bbox)[::-1,0] if self.vtk_order \
-## ##                   else np.array(self.over.bbox)[:,0]
-## ##         main_r0 = np.array(self.main.bbox)[::-1,0] if self.vtk_order \
-## ##                   else np.array(self.main.bbox)[:,0]
-
-## ##         over_dr = self.over.grid_spacing[::-1] if self.vtk_order \
-## ##                   else self.over.grid_spacing
-## ##         main_dr = self.main.grid_spacing[::-1] if self.vtk_order \
-## ##                   else self.main.grid_spacing
-        
-        
-##         i_bad = self.over_cmap.i_bad
-##         self._over_idx = resize_lookup_array(
-##             self._main_idx.shape, i_bad,
-##             self._over_idx,
-##             over_dr, over_r0,
-##             main_dr, main_r0
-##             )

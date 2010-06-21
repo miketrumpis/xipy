@@ -31,6 +31,14 @@ from xipy.vis.mayavi_widgets import VisualComponent
 from xipy.vis import rgba_blending
 import xipy.volume_utils as vu
 
+surf_to_component = {
+    'Anatomical' : 'main_colors',
+    'Overlay' : 'over_colors',
+    'Blended' : 'blended_colors'
+    }
+
+component_to_surf = dict( ( (v,u) for u,v in surf_to_component.iteritems() ) )
+
 class CorticalSurfaceComponent(VisualComponent):
 
     anat_scalars = DelegatesTo('display')
@@ -39,9 +47,18 @@ class CorticalSurfaceComponent(VisualComponent):
     blender = DelegatesTo('display')
     blended_src = DelegatesTo('display')
 
+
+    _available_surfaces = Property
     # ----- This will eventually become this VisualComponent's UI widget -----
     show_cortex = DelegatesTo('display')
+    surface_component = Enum(values='_available_surfaces')
     # ------------------------------------------------------------------------
+
+    def _get__available_surfaces(self):
+        pdata = self.blended_src.image_data.point_data
+        anames = [pdata.get_array(n).name
+                  for n in xrange(pdata.number_of_arrays)]
+        return filter(None, [component_to_surf.get(n, '') for n in names])
 
     @on_trait_change('show_cortex')
     def _show_cortex(self):
@@ -51,10 +68,16 @@ class CorticalSurfaceComponent(VisualComponent):
         elif not hasattr(self, 'cortical_surf') or not self.cortical_surf:
             self.add_cortical_surf()
         self.cortical_surf.visible = self.show_cortex
+
+    @on_trait_change('surface_component')
+    def _change_surf_color(self):
+        if not hasattr(self, 'surf_color'):
+            return
+        point_scalars = surf_to_component[self.surface_component]
+        self.surf_color.point_scalars_name = point_scalars
     
     def add_cortical_surf(self):
         # lifted from Gael Varoquax
-        self.display._stop_scene()
 
         # this is fairly brittle-- don't know what will result if
         # the brain is not skull-stripped
@@ -95,16 +118,13 @@ class CorticalSurfaceComponent(VisualComponent):
         
 ##         anat_blurred.update_pipeline()
         contour = mlab.pipeline.contour(anat_blurred)
-        
-        csurf = mlab.pipeline.set_active_attribute(
+        point_scalars = surf_to_component[self.surface_component]
+        self.surf_colors = mlab.pipeline.set_active_attribute(
             mlab.pipeline.user_defined(contour,
                                        filter=self.poly_extractor),
-            point_scalars='image_colors'
+            point_scalars=point_scalars
             )
-        pnorm = mlab.pipeline.poly_data_normals(csurf)
-##         csurf = mlab.pipeline.set_active_attribute(
-##             contour, point_scalars='image_colors'
-##             )
+        pnorm = mlab.pipeline.poly_data_normals(self.surf_colors)
         self.cortical_surf = mlab.pipeline.surface(
             pnorm,
             opacity=.95,
@@ -124,5 +144,4 @@ class CorticalSurfaceComponent(VisualComponent):
 ##         cmap[128:, -1] = 0.7*255
 ##         cmap[:128, -1] = 0.9*255
 ##         self.cortical_surf.module_manager.scalar_lut_manager.lut.table = cmap
-        self.display._start_scene()
 

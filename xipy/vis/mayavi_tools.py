@@ -59,6 +59,9 @@ class ArraySourceRGBA(src_api.ArraySource):
             dims.append(1)
       
         img_data.origin = tuple(self.origin)
+        img_data.dimensions = tuple(dims)
+        img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
+        img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
 
         flat_shape = ( numpy.prod(dims), )
         if is_rgba_bytes:
@@ -71,14 +74,8 @@ class ArraySourceRGBA(src_api.ArraySource):
                 img_data.point_data.scalars = d
             else:
                 img_data.point_data.scalars = numpy.ravel(numpy.transpose(data))
-            img_data.dimensions = tuple(dims)
-            img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
-            img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
         else:
             img_data.point_data.scalars = data.reshape(flat_shape)
-            img_data.dimensions = tuple(dims[::-1])
-            img_data.extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
-            img_data.update_extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
 
         img_data.number_of_scalar_components = 4 if is_rgba_bytes else 1
         img_data.point_data.scalars.name = self.scalar_name
@@ -156,65 +153,4 @@ class ImagePlaneWidgetFactory_RGBA(DataModuleFactory):
 
 image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
-
-if __name__ == '__main__':
-    from xipy.vis import rgba_blending
-##     from matplotlib import cm
-    import xipy.vis.color_mapping as cm
-    from enthought.mayavi import mlab
-
-    #### Some synthetic data
-    fx = 30.0; fy = 74.0; fz = 20.0
-    sw_3d = np.sin(2*np.pi*( np.arange(128)[:,None,None]/fx + \
-                             np.arange(128)[None,:,None]/fy + \
-                             np.arange(128)[None,None,:]/fz ))
-    win = np.zeros(128)
-    win[32:96] = np.hanning(64)
-    win_3d = np.power(win[:,None,None] * win[None,:,None] * win[None,None,:], 1/3.)
-    sw_3d *= win_3d
-    main_dr = np.array([1.0]*3)
-    main_r0 = np.array([-64.]*3)
-    
-    rn_3d = np.random.randn(37,49,80)
-    over_dr = (np.array(sw_3d.shape,'i')/np.array(rn_3d.shape,'i')).astype('d')
-    over_r0 = -(over_dr*rn_3d.shape)/2
-
-    #### Colormap the scalar data
-    main_bytes1 = rgba_blending.normalize_and_map(sw_3d, cm.gray)
-    main_bytes2 = main_bytes1.copy()
-    
-    over_bytes1 = rgba_blending.normalize_and_map(rn_3d, cm.hot, alpha=.25)
-    # also with an alpha function, rather than a constant alpha--
-    # emphasizes larger + and - numbers
-    mn = rn_3d.min(); mx = rn_3d.max()
-    lx = np.linspace(mn, mx, 256)
-    lx *= 2*np.pi/max(abs(mn), abs(mx))
-    afunc = np.abs(np.arctan(lx)) * (255*2/np.pi)
-    over_bytes2 = rgba_blending.normalize_and_map(rn_3d, cm.jet, alpha=afunc)
-    
-    rgba_blending.resample_and_blend(main_bytes1, main_dr, main_r0,
-                                     over_bytes1, over_dr, over_r0)
-    rgba_blending.resample_and_blend(main_bytes2, main_dr, main_r0,
-                                     over_bytes2, over_dr, over_r0)
-
-    #### Make the Mayavi sources
-##     src1 = ArraySourceRGBA(transpose_input_array=False)
-    src1 = src_api.ArraySource(transpose_input_array=False)
-    src1.scalar_data = main_bytes1[60]
-##     src2 = ArraySourceRGBA(transpose_input_array=False)
-    src2 = src_api.ArraySource(transpose_input_array=False)
-    src2.scalar_data = main_bytes2[60]
-
-    src1 = mlab.pipeline.add_dataset(src1)
-    src2 = mlab.pipeline.add_dataset(src2)
-
-##     ipw1 = image_plane_widget_rgba(src1)
-    ipw1 = mlab.pipeline.image_plane_widget(src1); ipw1.use_lookup_table = False
-    ipw1.ipw.plane_orientation = 'z_axes'
-    ipw1.ipw.slice_index = 30
-##     ipw2 = image_plane_widget_rgba(src2)
-    ipw2 = mlab.pipeline.image_plane_widget(src2); ipw2.use_lookup_table = False
-    ipw2.ipw.plane_orientation = 'x_axes'
-    ipw2.ipw.slice_index = 20
-    mlab.show()
     

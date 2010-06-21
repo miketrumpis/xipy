@@ -25,7 +25,7 @@ from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
 from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis.mayavi_widgets import VisualComponent
-from xipy.vis import rgba_blending
+from xipy.vis.rgba_blending import quick_convert_rgba_to_vtk
 import xipy.volume_utils as vu
 
 class OverlayBlendingComponent(VisualComponent):
@@ -34,6 +34,7 @@ class OverlayBlendingComponent(VisualComponent):
     """
     
     blender = DelegatesTo('display')
+    blended_src = DelegatesTo('display')    
     func_man = DelegatesTo('display')
 
     # ----- This will eventually become this VisualComponent's UI widget -----
@@ -76,3 +77,25 @@ class OverlayBlendingComponent(VisualComponent):
             )
             
         self.blender.over = self.func_man.overlay
+        idata = self.blended_src.image_data
+        vtk_colors = quick_convert_rgba_to_vtk(self.blender.over_rgba)
+        vtk_colors.shape = ( np.prod(vtk_colors.shape[:3]), 4 )
+        colors = idata.point_data.get_array('over_colors')
+        if colors:
+            colors.from_array(vtk_colors)
+        else:
+            n = idata.point_data.add_array(vtk_colors)
+            idata.point_data.get_array(n).name = 'over_colors'
+
+        vtk_colors = quick_convert_rgba_to_vtk(self.blender.blended_rgba)
+        vtk_colors.shape = ( np.prod(vtk_colors.shape[:3]), 4 )        
+        colors = idata.point_data.get_array('blended_colors')
+        if colors:
+           colors.from_array(vtk_colors)
+        else:
+            n = idata.point_data.add_array(vtk_colors)
+            idata.point_data.get_array(n).name = 'blended_colors'
+
+        self.blended_src.update_image_data = True
+##         self.display.ipw_src.update_pipeline()
+            

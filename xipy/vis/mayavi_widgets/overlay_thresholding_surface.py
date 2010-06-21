@@ -116,7 +116,9 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         # this will be a negative mask, so threshold everything > 0.5
 ##         t_arr = np.ma.getmask(overlay.image_arr)
         i_bad = cm.MixedAlphaColormap.i_bad
-        t_arr = np.where(s_arr==i_bad,1,0).astype(sctype).flatten()
+        t_arr = np.zeros_like(s_arr)
+        np.putmask(t_arr, s_arr==i_bad, 1)
+        t_arr = np.ravel(t_arr)
         
 ##         if t_arr is np.ma.nomask:
 ##             t_arr = np.zeros(overlay.image_arr.shape, sctype).transpose().flatten()
@@ -124,13 +126,12 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
 ##             t_arr = t_arr.astype(sctype).transpose().flatten()
         
 
-        scalars.scalar_data = s_arr.copy()
+        scalars.scalar_data = s_arr
         scalars.scalar_name = 'overlay'
         scalars.origin = np.array(overlay.bbox)[:,0]
         scalars.spacing = overlay.grid_spacing
 ##         scalars.origin = overlay.coordmap.affine[:3,-1]
 ##         scalars.spacing = vu.voxel_size(overlay.coordmap.affine)
-        self.display._stop_scene()
         scalars.update_image_data = True
         thresh_pts = scalars.image_data.point_data.get_array('threshold')
         if thresh_pts:
@@ -140,11 +141,7 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
             scalars.image_data.point_data.get_array(n).name = 'threshold'
             ts = mlab.pipeline.set_active_attribute(scalars,
                                                     point_scalars='threshold')
-            self.thresh = mlab.pipeline.threshold(
-                ts #, low=0.0, up=0.5
-                )
-##             self.thresh.auto_reset_lower = False
-##             self.thresh.auto_reset_upper = False
+            self.thresh = mlab.pipeline.threshold(ts)
             self.thresh.filter_type = 'cells'
             self.surf_scalars = mlab.pipeline.set_active_attribute(
                 self.thresh, point_scalars='overlay'
@@ -160,7 +157,6 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
             self.thresh.lower_threshold = 0.0
         except:
             pass
-        self.display._start_scene()
 
 
 ##     def _get_notch_mode(self):

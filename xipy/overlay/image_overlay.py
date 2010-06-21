@@ -366,7 +366,7 @@ class ImageOverlayManager( OverlayInterface ):
 
     @cached_property
     def _get_description(self):
-        um_pts = self.overlay.size
+        um_pts = self.work_arr.size
         if self.mask is not np.ma.nomask:
             um_pts -= self.mask.sum()
         d_range = (np.ma.min(self.work_arr), np.ma.max(self.work_arr))

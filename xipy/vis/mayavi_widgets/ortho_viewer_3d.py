@@ -88,7 +88,6 @@ class OrthoViewer3D(HasTraits):
         HasTraits.__init__(self, **traits)
         self.blender
         self.func_man
-        self.__blocking_draw = False
         # First, add self to the VisualComponent base class
         try:
             VisualComponent.add_class_trait('display', self)
@@ -124,12 +123,16 @@ class OrthoViewer3D(HasTraits):
         s = ArraySource(transpose_input_array=False)
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _func_scalars_default(self):
-        s = ArraySource(transpose_input_array=True)
+        s = ArraySource(transpose_input_array=False)
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _blended_src_default(self):
         s = ArraySourceRGBA(transpose_input_array=False)
-        s.scalar_name = 'image_colors'
-        return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
+        # by default this array has a 'main_colors' array..
+        # later, it may have 'over_colors' and 'blended_colors'
+        s.scalar_name = 'main_colors'
+        b_src = mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
+        return b_src
+        
     def _blob_surf_src_default(self):
         return mlab.pipeline.scalar_field(np.zeros((2,2,2)),
                                           figure=self.scene.mayavi_scene)
@@ -150,7 +153,8 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
         ipw = image_plane_widget_rgba(
-            self.blended_src,
+##             self.blended_src,
+            self.ipw_src,
             figure=self.scene.mayavi_scene,
             plane_orientation='%s_axes'%axis_name
             )
@@ -218,7 +222,7 @@ class OrthoViewer3D(HasTraits):
     def _handle_end_interaction(self, widget, event):
         if self.__reposition_planes_after_interaction:
             pos_ijk = widget.GetCurrentCursorPosition()
-            pos = self.blender.coordmap(pos_ijk)
+            pos = self.blender.coordmap(pos_ijk[::-1])
             self._snap_to_position(pos)
             self.__reposition_planes_after_interaction = False
         else:
@@ -278,38 +282,24 @@ class OrthoViewer3D(HasTraits):
 
         self._func_thresh = self.func_man.threshold
 
+    def _clobber_blended_src(self):
+        self.blended_src.remove()
+        self.blended_src = self._blended_src_default()
+        
     @on_trait_change('blender.main')
-    def _update_blended_source(self):
-        self.__blocking_draw = True
-        # hmmm there is a problem here when re-loading images..
-        # the appropriate rgba array may not be available or valid yet
+    def _update_main_source(self):
         if self.blender.main:
-            self.change_source_data(new_position=True)
-        self.__blocking_draw = False
-    
-##     @on_trait_change('anat_image')
-##     def _update_colors_from_anat_image(self):
-##         """ When a new image is loaded, update the anat color bytes
-##         """
-##         self.__blocking_draw = True
-##         self.blender.main = self.anat_image.raw_image
-##         # hmmm there is a problem here when re-loading images..
-##         # the appropriate rgba array may not be available or valid yet
-##         self.change_source_data(new_position=True)
-##         self.__blocking_draw = False
-
-##         # flush previous arrays
-##         n_arr = self.anat_scalars.image_data.point_data.number_of_arrays
-##         names = [self.anat_scalars.image_data.point_data.get_array(i).name
-##                  for i in xrange(n_arr)]
-##         for n in names:
-##             self.anat_scalars.image_data.point_data.remove_array(n)
-##         # add new array
-##         image_arr = self.anat_image.image_arr.transpose().copy()
-##         self.anat_scalars.scalar_data = image_arr
-##         self.anat_scalars.spacing = self.blender.img_spacing
-##         self.anat_scalars.origin = self.blender.img_origin
-    
+            self._clobber_blended_src()
+            img_data = self.blender.main_rgba
+            vtk_data = rgba_blending.quick_convert_rgba_to_vtk(img_data)
+            self.blended_src.scalar_data = vtk_data
+            self.blended_src.spacing = self.blender.img_spacing
+            self.blended_src.origin = self.blender.img_origin
+            self.blended_src.update_image_data = True #???
+            self.set(show_func=False, trait_change_notify=False)
+            self.ipw_src = mlab.pipeline.set_active_attribute(self.blended_src)
+            self.change_source_data()
+        
     #---------------------------------------------------------------------------
     # Scene update methods
     #---------------------------------------------------------------------------
@@ -323,75 +313,47 @@ class OrthoViewer3D(HasTraits):
         if not prev_mode:
             self.scene.render_window.render()
 
-    @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')
-    def _monitor_sources(self, obj, name, new):
-        if self.__blocking_draw:
-            return
-        print name, 'changed'
-        if name == 'main_rgba' and self.show_anat:
-            self.change_source_data()
-        elif name == 'over_rgba' and self.show_func:
-            self.change_source_data()
+##     @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')
+##     def _monitor_sources(self, obj, name, new):
+##         if self.__blocking_draw:
+##             return
+##         print name, 'changed'
+##         if name == 'main_rgba' and self.show_anat:
+##             self.change_source_data()
+##         elif name == 'over_rgba' and self.show_func:
+##             self.change_source_data()
     
-    def change_source_data(self, new_position=False):
+    def change_source_data(self):
         """ Create a pixel-blended array, whose contents depends on the
         current plotting conditions. Also check the status of the
         visibility of the plots.
-
         """
-        # XYZ: SAY FOR NOW THAT THE ANAT IMAGE MUST BE AVAILABLE BEFORE
-        # PLOTTING THE OVERLAY... THIS WILL SIDESTEP THE ISSUE OF UPDATING
-        # THE IMAGE DATA PROPERTIES, WHICH APPEARS TO CAUSE A HUGE DELAY
 
         if self.show_func and self.show_anat:
             print 'will plot blended'
-            img_data = self.blender.blended_rgba
+            pscalars = 'blended_colors'
         elif self.show_func:
             print 'will plot over plot'
-            img_data = self.blender.over_rgba
+            pscalars = 'over_colors'
         else:
             print 'will plot anatomical'
-            img_data = self.blender.main_rgba
+            pscalars = 'main_colors'
 
-        # if a new position, update (even if invisibly)
-        if new_position:
-            # this will kick off the scalar_data_changed stuff
-            self.blended_src.scalar_data = img_data.copy()
-            self.blended_src.spacing = self.blender.img_spacing
-            self.blended_src.origin = self.blender.img_origin
-            self.blended_src.update_image_data = True #???
+        self.ipw_src.point_scalars_name = pscalars
+##         pdata = self.blended_src.image_data.point_data
+##         pdata.set_active_attribute(pscalars, 0)
         
         if not self.show_func and not self.show_anat:
             self.toggle_planes_visible(False)
             return
 
-##         self._stop_scene()
-
-        if not new_position:
-            print 'changing data in-place'
-            self.blended_src.scalar_data[:] = img_data
-
-        #self.blended_src.update_image_data = True
-        self.blended_src.update()
+        self.blended_src.update_image_data = True
+##         self.blended_src.update()
 
         if not hasattr(self, 'ipw_x'):
-            t0 = time.time()
-            print 'also adding plots to scene ',
             self.add_plots_to_scene()
-            t = time.time()
-            print 'done, %1.3f sec'%(t-t0)
-        else:
-            t0 = time.time()
-            print 'also turning on plots ',
+        else:            
             self.toggle_planes_visible(True)
-            t = time.time()
-            print 'done, %1.3f sec'%(t-t0)
-
-##         t0 = time.time()
-##         print 'also starting scene ',
-##         self._start_scene()
-##         t = time.time()
-##         print 'done, %1.3f sec'%(t-t0)
 
     def toggle_planes_visible(self, value):
         self._toggle_poly_extractor_mode(cut_mode=value)
@@ -434,7 +396,6 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     @on_trait_change('scene.activated')
     def display_scene3d(self):
-        print 'making 3d scene'
         self.scene.mlab.view(100, 100)
         self.scene.scene.background = (0, 0, 0)
         # set up the poly extractor filter with an all-inclusive
