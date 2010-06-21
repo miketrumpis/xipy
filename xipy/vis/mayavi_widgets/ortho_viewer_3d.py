@@ -11,7 +11,7 @@ from nipy.core import api as ni_api
 from enthought.traits.api import HasTraits, Instance, on_trait_change, Array, \
      Bool, Range, Enum, Property, List, Tuple, DelegatesTo, TraitError
 from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
-     RangeEditor
+     RangeEditor, ListEditor
 from enthought.tvtk.api import tvtk
 from enthought.mayavi.core.api import Source
 from enthought.mayavi.sources.array_source import ArraySource
@@ -26,13 +26,14 @@ from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
 from xipy.overlay import OverlayInterface, ThresholdMap
 from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.vis.mayavi_tools import time_wrap as tw
-from xipy.vis import rgba_blending
+from xipy.vis.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
-from xipy.vis.mayavi_widgets import VisualComponent
-from xipy.vis.mayavi_widgets.overlay_blending import OverlayBlendingComponent
-from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
-from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
+from xipy.vis.mayavi_widgets import VisualComponent, MasterSource
+
+## from xipy.vis.mayavi_widgets.overlay_blending import ImageBlendingComponent
+## from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
+## from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
 
 
 def three_plane_pt(n1, n2, n3, x1, x2, x3):
@@ -51,14 +52,10 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     scene = Instance(MlabSceneModel, ())
 
-    anat_scalars = Instance(Source)
-    func_scalars = Instance(Source)
+    blender = Instance(BlendedImages)
 
-    blender = Instance(rgba_blending.BlendedImages, (),
-                       main_spline_order=0, over_spline_order=1,
-                       vtk_order=True)
     blended_src = Instance(Source)
-    blob_surf_src = Instance(Source)
+    master_src = Instance(Source)
 
     anat_image = Instance(VolumeSlicerInterface)
 
@@ -66,15 +63,11 @@ class OrthoViewer3D(HasTraits):
     # Functional Overlay Manager
     #---------------------------------------------------------------------------
     func_man = Instance(OverlayInterface, ())
-    _func_thresh = Instance(ThresholdMap)
 
     #---------------------------------------------------------------------------
-    # Scene Control Traits
+    # VisualComponents List
     #---------------------------------------------------------------------------
-    show_tsurfs = Bool(False)
-    show_anat = Bool(False)
-    show_func = Bool(False)
-    show_cortex = Bool(False)
+    vis_helpers = List(VisualComponent)
 
     #---------------------------------------------------------------------------
     # Other Traits
@@ -86,56 +79,47 @@ class OrthoViewer3D(HasTraits):
 
     def __init__(self, parent=None, **traits):
         HasTraits.__init__(self, **traits)
-        self.blender
+        self.master_src # instantiates default master_src and blender
         self.func_man
-        # First, add self to the VisualComponent base class
-        try:
-            VisualComponent.add_class_trait('display', self)
-        except TraitError:
-            VisualComponent.display = self
-        # -- In the future, I want to actually have the VisualComponent
-        # classes "own" the traits, and have this class have a bunch
-        # of DelegatesTo references to a list of them
-        # .. can have each VisualComponent have an "exported_traits" list
+        from xipy.vis.mayavi_widgets.overlay_blending import ImageBlendingComponent
+        from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
+        from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
 
-        # -- In the future, each VisualComponent will have its own
-        # GUI panel, which will be viewed in this window
-        
         # set up components
-        self.add_trait('overlay_image_helper',
-                       OverlayBlendingComponent(display=self))
-        self.add_trait('overlay_thresh_helper',
-                       OverlayThresholdingSurfaceComponent(display=self))
-        self.add_trait('cortical_surf_helper',
-                       CorticalSurfaceComponent(display=self))
+        self.vis_helpers.append(
+            ImageBlendingComponent(display=self)
+            )
+        self.vis_helpers.append(
+            OverlayThresholdingSurfaceComponent(display=self)
+            )
+
+        self.vis_helpers.append(
+            CorticalSurfaceComponent(display=self)
+            )
                         
         
         anat_alpha = np.ones(256)
         anat_alpha[:5] = 0
         self.blender.set(main_alpha=anat_alpha, trait_notify_change=False)
         self.__reposition_planes_after_interaction = False
-        self.show_anat = True
 
     #---------------------------------------------------------------------------
     # Default values
     #---------------------------------------------------------------------------
-    def _anat_scalars_default(self):
-        s = ArraySource(transpose_input_array=False)
-        return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
-    def _func_scalars_default(self):
-        s = ArraySource(transpose_input_array=False)
-        return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
+    def _blender_default(self):
+        return BlendedImages(vtk_order=True)
     def _blended_src_default(self):
         s = ArraySourceRGBA(transpose_input_array=False)
         # by default this array has a 'main_colors' array..
         # later, it may have 'over_colors' and 'blended_colors'
-        s.scalar_name = 'main_colors'
+        s.scalar_name = 'ipw_colors'
         b_src = mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
         return b_src
-        
-    def _blob_surf_src_default(self):
-        return mlab.pipeline.scalar_field(np.zeros((2,2,2)),
-                                          figure=self.scene.mayavi_scene)
+    def _master_src_default(self):
+        s = MasterSource(blender = self.blender)
+        # make sure that the image blender is sync'd up
+        self.sync_trait('blender', s, mutual=False)
+        return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _func_man_default(self):
         return OverlayInterface()
     def _info_default(self):
@@ -145,16 +129,11 @@ class OrthoViewer3D(HasTraits):
         return info
 
     #---------------------------------------------------------------------------
-    # Property Getters
-    #---------------------------------------------------------------------------
-    
-    #---------------------------------------------------------------------------
     # Construct ImplicitPlaneWidget plots
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
         ipw = image_plane_widget_rgba(
-##             self.blended_src,
-            self.ipw_src,
+            self.blended_src,
             figure=self.scene.mayavi_scene,
             plane_orientation='%s_axes'%axis_name
             )
@@ -251,24 +230,13 @@ class OrthoViewer3D(HasTraits):
     def _register_position(self, pos):
         if self.func_man:
             self.func_man.world_position = pos
-        if self.show_cortex:
-            self.blended_src.update()        
+        self.master_src.update()        
     #---------------------------------------------------------------------------
     # Traits callbacks
     #---------------------------------------------------------------------------
 
-    @on_trait_change('show_anat')
-    def _show_anat(self):
-        if not len(self.blender.main_rgba):
-            print 'no anat array loaded yet'
-            self.set(show_anat=False, trait_change_notify=False)
-            return
-        # this will assess the status of the image source and plotting
-        self.change_source_data()
-
     @on_trait_change('func_man.world_position_updated')
     def _follow_functional_position(self):
-        print 'heard that position updated'
         self._snap_to_position(self.func_man.world_position)
     
     @on_trait_change('func_man,func_man.overlay_updated')
@@ -280,26 +248,6 @@ class OrthoViewer3D(HasTraits):
         if self.func_man.description:
             self.info.text = self.func_man.description
 
-        self._func_thresh = self.func_man.threshold
-
-    def _clobber_blended_src(self):
-        self.blended_src.remove()
-        self.blended_src = self._blended_src_default()
-        
-    @on_trait_change('blender.main')
-    def _update_main_source(self):
-        if self.blender.main:
-            self._clobber_blended_src()
-            img_data = self.blender.main_rgba
-            vtk_data = rgba_blending.quick_convert_rgba_to_vtk(img_data)
-            self.blended_src.scalar_data = vtk_data
-            self.blended_src.spacing = self.blender.img_spacing
-            self.blended_src.origin = self.blender.img_origin
-            self.blended_src.update_image_data = True #???
-            self.set(show_func=False, trait_change_notify=False)
-            self.ipw_src = mlab.pipeline.set_active_attribute(self.blended_src)
-            self.change_source_data()
-        
     #---------------------------------------------------------------------------
     # Scene update methods
     #---------------------------------------------------------------------------
@@ -312,48 +260,6 @@ class OrthoViewer3D(HasTraits):
         self.scene.disable_render = prev_mode
         if not prev_mode:
             self.scene.render_window.render()
-
-##     @on_trait_change('blender.main_rgba,blender.over_rgba,blender.blended_rgba')
-##     def _monitor_sources(self, obj, name, new):
-##         if self.__blocking_draw:
-##             return
-##         print name, 'changed'
-##         if name == 'main_rgba' and self.show_anat:
-##             self.change_source_data()
-##         elif name == 'over_rgba' and self.show_func:
-##             self.change_source_data()
-    
-    def change_source_data(self):
-        """ Create a pixel-blended array, whose contents depends on the
-        current plotting conditions. Also check the status of the
-        visibility of the plots.
-        """
-
-        if self.show_func and self.show_anat:
-            print 'will plot blended'
-            pscalars = 'blended_colors'
-        elif self.show_func:
-            print 'will plot over plot'
-            pscalars = 'over_colors'
-        else:
-            print 'will plot anatomical'
-            pscalars = 'main_colors'
-
-        self.ipw_src.point_scalars_name = pscalars
-##         pdata = self.blended_src.image_data.point_data
-##         pdata.set_active_attribute(pscalars, 0)
-        
-        if not self.show_func and not self.show_anat:
-            self.toggle_planes_visible(False)
-            return
-
-        self.blended_src.update_image_data = True
-##         self.blended_src.update()
-
-        if not hasattr(self, 'ipw_x'):
-            self.add_plots_to_scene()
-        else:            
-            self.toggle_planes_visible(True)
 
     def toggle_planes_visible(self, value):
         self._toggle_poly_extractor_mode(cut_mode=value)
@@ -406,7 +312,7 @@ class OrthoViewer3D(HasTraits):
                                  tvtk.InteractorStyleTerrain()
         self.scene.picker.pointpicker.add_observer('EndPickEvent',
                                                    self.pick_callback)
-##         self.scene.picker.show_gui = False
+        self.scene.picker.show_gui = False
 
 
     def pick_callback(self, picker_obj, evt):
@@ -428,18 +334,12 @@ class OrthoViewer3D(HasTraits):
                 dock='vertical'
                 ),
             HGroup(
-                Item('show_anat', label='Show anatomical'),
-                Item('show_func', label='Show functional'),
-                Item('show_tsurfs', label='Show unmasked surfaces'),
-                Item('show_cortex', label='Show cortex'),
+                Item('vis_helpers', style='custom',
+                     editor=ListEditor(use_notebook=True,
+                                       deletable=False,
+                                       page_name='.name')
+                     )
                 ),
-##             HGroup(
-##                 Item('pscore_map', label='P Score Map'),
-##                 Item('show_psurfs', label='Show Significance Blobs'),
-##                 Item('cluster_threshold', label='Min Cluster Size'),
-##                 Item('sig_threshold', label='Significance Level',
-##                      style='custom')
-##                 )
             ),
         resizable=True,
         title='XIPY 3D Viewer Controls',

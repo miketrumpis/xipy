@@ -11,10 +11,10 @@ import enthought.traits.api as t
 from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
 
 class VisualComponent(t.HasTraits):
-    # NOTE! IT IS VERY IMPORTANT TO SET THIS UP AS A CONCRETE
-    # INSTANCE BEFORE CREATING ANY SUBCLASSES
-##     display = Instance('xipy.vis.mayavi_widgets.OrthoView3D')
-    pass
+    name = t.String
+    display = t.Instance(
+        'xipy.vis.mayavi_widgets.ortho_viewer_3d.OrthoViewer3D'
+        )
 
 class MayaviWidget(TopLevelAuxiliaryWindow):
 
@@ -66,6 +66,9 @@ class MasterSource(ArraySourceRGBA):
     main_channel = 'main_colors'
     blended_channel = 'blended_colors'
 
+    rgba_channels = t.Property
+    all_channels = t.Property
+
     transpose_input_array = False
 
     @t.on_trait_change('transpose_input_array')
@@ -76,6 +79,19 @@ class MasterSource(ArraySourceRGBA):
     def _check_vtk_order(self):
         if not self.blender.vtk_order:
             raise ValueError('BlendedImages instance must be in VTK order')
+
+    def _get_all_channels(self):
+        pdata = self.image_data.point_data
+        names = [pdata.get_array_name(n)
+                 for n in xrange(pdata.number_of_arrays)]
+        return names
+
+    def _get_rgba_channels(self):
+        primary_channels = (self.over_channel,
+                            self.main_channel,
+                            self.blended_channel)
+        names = self.all_channels
+        return [n for n in names if n in primary_channels]
 
     ## The convention will be to have main_rgba be the primary array
     ## in scalar_data. If main_rgba isn't present, then set it to
@@ -88,6 +104,9 @@ class MasterSource(ArraySourceRGBA):
         rgba = quick_convert_rgba_to_vtk(arr)
         self.scalar_data = rgba
         self.scalar_name = name
+        self.origin = self.blender.img_origin
+        self.spacing = self.blender.img_spacing
+        self.update()
 
     @t.on_trait_change('blender.main_rgba')
     def _set_main_array(self):
@@ -134,7 +153,8 @@ class MasterSource(ArraySourceRGBA):
             )        
         # this obviously also changes the blended array
         self.set_new_array(
-            self.blender.blended_rgba, self.blended_channel, update=True)
+            self.blender.blended_rgba, self.blended_channel, update=True
+            )
 
     def flush_arrays(self, names=[], update=True):
         pdata = self.image_data.point_data
@@ -147,6 +167,7 @@ class MasterSource(ArraySourceRGBA):
             self.image_data.update()
             self.image_data.update_traits()
             self.data_changed = True
+            self.update()
 
     def set_new_array(self, arr, name, update=True):
         """
