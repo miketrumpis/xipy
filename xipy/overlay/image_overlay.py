@@ -51,13 +51,14 @@ class ImageOverlayWindow( OverlayWindowInterface ):
                                         bbox, # <-- TRY TO DECOUPLE THIS
                                         external_loc=external_loc,
                                         parent=parent,
-                                        main_ref=main_ref)
+                                        main_ref=main_ref,
+                                        functional_manager=functional_manager)
         vbox = QtGui.QVBoxLayout(self)
         self.cbar = ColorbarPanel(parent=self, figsize=(6,2))
 
         vbox.addWidget(self.cbar)
         if functional_manager is None or \
-               type(functional_manager) is not ImageOverlayManager:
+               not isinstance(functional_manager, ImageOverlayManager):
             self.func_man = ImageOverlayManager(
                 bbox, colorbar=self.cbar,
                 loc_signal=self.loc_changed,

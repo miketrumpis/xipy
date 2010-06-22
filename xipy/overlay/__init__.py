@@ -66,9 +66,9 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
         TopLevelAuxiliaryWindow.__init__(self, window_name=self.tool_name,
                                          parent=parent, main_ref=main_ref)
         if functional_manager is not None:
-            func_man.loc_signal=self.loc_changed
-            func_man.image_signal=self.image_changed
-            func_man.props_signal=self.image_props_changed
+            functional_manager.loc_signal=self.loc_changed
+            functional_manager.image_signal=self.image_changed
+            functional_manager.props_signal=self.image_props_changed
             self.func_man = functional_manager
             
     def _make_connections(self):
