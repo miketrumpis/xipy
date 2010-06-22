@@ -50,7 +50,8 @@ class OrthoViewer(XIPYWindowApp):
         self._image_loaded = False
         self._overlay_active = False
 
-        self.blender = BlendedImages(transpose_inputs=True)
+        # only enforce vtk_order if necessary for Mayavi
+        self.blender = BlendedImages(vtk_order=mayavi_viewer)
 
         if mayavi_viewer:
             # Creates Mayavi 3D view
@@ -105,7 +106,9 @@ class OrthoViewer(XIPYWindowApp):
         
 
     def create_mayavi_window(self):
-        mayavi_widget = mayavi_widgets.MayaviWidget(main_ref=self)
+        mayavi_widget = mayavi_widgets.MayaviWidget(
+            main_ref=self, manage_overlay=False
+            )
         mayavi_widget.show()
         mayavi_widget.activateWindow()
         self.mwidget_toggle = mayavi_widget.toggle_view_action()

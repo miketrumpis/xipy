@@ -56,7 +56,7 @@ class ImageBlendingComponent(VisualComponent):
             )
         )
 
-    def __init__(self, display, **traits):
+    def __init__(self, display, watch_overlay=True, **traits):
         if 'name' not in traits:
             traits['name'] = 'Image Planes'
 ##         traits['display'] = display
@@ -66,18 +66,22 @@ class ImageBlendingComponent(VisualComponent):
             self.add_trait(trait, DelegatesTo('display'))
 
         # -- GUI event, dispatch on new thread
-        self.on_trait_change(self._alpha_scale, 'func_man.alpha_scale',
-                             dispatch='new')
-        self.on_trait_change(self._set_over_cmap, 'func_man.cmap_option',
-                             dispatch='new')
-        self.on_trait_change(self._set_over_norm, 'func_man.norm',
-                             dispatch='new')
+        if watch_overlay:
+            # only attach these listeners if the BlendedImages object
+            # is not being controlled elsewhere
+            self.on_trait_change(self._alpha_scale, 'func_man.alpha_scale',
+                                 dispatch='new')
+            self.on_trait_change(self._set_over_cmap, 'func_man.cmap_option',
+                                 dispatch='new')
+            self.on_trait_change(self._set_over_norm, 'func_man.norm',
+                                 dispatch='new')
 
         # -- Data updates
+            self.on_trait_change(self._update_colors_from_func_man,
+                                 'func_man.overlay_updated')
+        # do these in any case
         self.on_trait_change(self._update_colors_from_anatomical,
                              'display.blender.main')
-        self.on_trait_change(self._update_colors_from_func_man,
-                             'func_man.overlay_updated')
         self.on_trait_change(self._monitor_sources,
                              'blender.main_rgba, blender.over_rgba')
 

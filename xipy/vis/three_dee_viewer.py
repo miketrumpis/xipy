@@ -17,7 +17,7 @@ class MayaviViewer(XIPYWindowApp):
     def __init__(self, parent=None, image=None):
         super(MayaviViewer, self).__init__(parent=parent,
                                            designer_layout=ui_layout_class())
-
+        # mayavi_widget coming from layout 
         self.viewer = self.mayavi_widget.mr_vis
         self.plugin_launched.connect(self._add_panel)
         self.actionLoad_MR_File.triggered.connect(self.on_load_mr)

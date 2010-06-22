@@ -18,7 +18,8 @@ class VisualComponent(t.HasTraits):
 
 class MayaviWidget(TopLevelAuxiliaryWindow):
 
-    def __init__(self, parent=None, main_ref=None, functional_manager=None,
+    def __init__(self, parent=None, main_ref=None,
+                 functional_manager=None, manage_overlay=True,
                  **traits):
         TopLevelAuxiliaryWindow.__init__(self,
                                          parent=parent,
@@ -29,7 +30,7 @@ class MayaviWidget(TopLevelAuxiliaryWindow):
         if functional_manager:
             traits['func_man'] = functional_manager
         from xipy.vis.mayavi_widgets.ortho_viewer_3d import OrthoViewer3D
-        self.mr_vis = OrthoViewer3D(**traits)
+        self.mr_vis = OrthoViewer3D(manage_overlay=manage_overlay, **traits)
         layout.addWidget(self.mr_vis.edit_traits(parent=self,
                                                  kind='subpanel').control)
         self.func_widget = None

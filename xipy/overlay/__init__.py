@@ -54,7 +54,8 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
     
     def __init__(self, loc_connections, image_connections,
                  props_connections, bbox,
-                 external_loc=None, parent=None, main_ref=None):
+                 external_loc=None, parent=None, main_ref=None,
+                 functional_manager=None):
         """
         Creates a new OverlayWindow type
         """
@@ -64,7 +65,12 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
         self.external_loc = external_loc
         TopLevelAuxiliaryWindow.__init__(self, window_name=self.tool_name,
                                          parent=parent, main_ref=main_ref)
-
+        if functional_manager is not None:
+            func_man.loc_signal=self.loc_changed
+            func_man.image_signal=self.image_changed
+            func_man.props_signal=self.image_props_changed
+            self.func_man = functional_manager
+            
     def _make_connections(self):
         for f in self.loc_connections:
             self.loc_changed.connect(f)
@@ -209,8 +215,14 @@ class OverlayInterface(t_api.HasTraits):
     colormap = t_api.Property(depends_on='cmap_option')
 
     # 2a) a(x) function for scalar-to-alpha mapping
-    def alpha(self, threshold=True):
-        raise NotImplementedError
+    alpha_scale = t_api.Range(low=0.0, high=4.0, value=1.0)    
+    _base_alpha = np.ones(256)
+    def alpha(self, scale=None):
+        if scale is None:
+            scale = self.alpha_scale
+        # scale may go between 0 and 4.. just map this from (0,1)
+        a = (scale/4.0)*self._base_alpha
+        return a
 
     # 3) interpolation
     interpolation = t_api.Enum(['nearest', 'bilinear', 'sinc'])
@@ -231,16 +243,25 @@ class OverlayInterface(t_api.HasTraits):
     # a simple UI group for the image property elements, may be used
     # or over-ridden in subclasses
     image_props_group = ui_api.Group(
-        ui_api.Item('cmap_option', label='Colormaps'),
-        ui_api.Item('interpolation', label='Interpolation Modes')
+        ui_api.Item('alpha_scale', label='Alpha Scale'),
+        ui_api.Item('cmap_option', label='Colormaps')
+##         ui_api.Item('interpolation', label='Interpolation Modes')
         )
-    
+
+        
     def _cmap_option_default(self):
         return 'jet'
     
     @t_api.cached_property
     def _get_colormap(self):
         return cm.cmap_d[self.cmap_option]
+
+    @t_api.on_trait_change('norm, cmap_option, interpolation, alpha_scale')
+    def signal_image_props(self):
+        print 'signalling new im props'
+        self.image_props_updated = True
+        if self.props_signal:
+            self.props_signal.emit(self)
 
     def __init__(self, loc_signal=None, props_signal=None,
                  image_signal=None, **traits):

@@ -65,16 +65,11 @@ class ImageOverlayWindow( OverlayWindowInterface ):
                 props_signal=self.image_props_changed,
                 overlay=overlay
                 )
-        else:
-            self.func_man = functional_manager
-            self.func_man.loc_signal=self.loc_changed
-            self.func_man.image_signal=self.image_changed
-            self.func_man.props_signal=self.image_props_changed
-            self.func_man.connect_colorbar(self.cbar)
-            # breaking independence
-            if self.func_man.overlay is not None:
-                print 'requesting new image signal'
-                self.func_man.send_image_signal()
+        self.func_man.connect_colorbar(self.cbar)
+        # breaking independence
+        if self.func_man.overlay is not None:
+            print 'requesting new image signal'
+            self.func_man.send_image_signal()
         
         vbox.addWidget(self.func_man.make_panel(parent=self))
         QtGui.QWidget.setSizePolicy(self,
@@ -138,8 +133,6 @@ class ImageOverlayManager( OverlayInterface ):
     #---------------------------------------------------------------------------
     time_idx = Range(low='_zero', high='_len_tdim')
 
-    alpha_scale = Range(low=0.0, high=4.0, value=1.0)
-
     # Peak finding transforms
     ana_xform = Enum(['max', 'min', 'absmax'])
     order = Range('_one', '_numfeatures')
@@ -161,22 +154,22 @@ class ImageOverlayManager( OverlayInterface ):
     fill_value = np.nan
     # In the future, this can be a function that changes with the data
     # interpretation
-    _base_alpha = np.ones((256,), dtype='B')
+##     _base_alpha = np.ones(256)
 
-    def alpha(self, scale=None, threshold=True):
-        if scale is None:
-            scale = self.alpha_scale
-        # scale may go between 0 and 4.. just map this from (0,1)
-        a = (scale/4.0)*self._base_alpha
-##         if threshold and self.threshold[1] != 'inactive':
-##             tval, comp = self.threshold
-##             mn, mx = self.norm
-##             lut_map = int(255 * (tval - mn)/(mx-mn))
-##             if comp == 'greater than':
-##                 a[:lut_map] = 0
-##             else:
-##                 a[lut_map+1:] = 0
-        return a
+##     def alpha(self, scale=None, threshold=True):
+##         if scale is None:
+##             scale = self.alpha_scale
+##         # scale may go between 0 and 4.. just map this from (0,1)
+##         a = (scale/4.0)*self._base_alpha
+## ##         if threshold and self.threshold[1] != 'inactive':
+## ##             tval, comp = self.threshold
+## ##             mn, mx = self.norm
+## ##             lut_map = int(255 * (tval - mn)/(mx-mn))
+## ##             if comp == 'greater than':
+## ##                 a[:lut_map] = 0
+## ##             else:
+## ##                 a[lut_map+1:] = 0
+##         return a
 
     def __init__(self, bbox, colorbar=None,
                  loc_signal=None, image_signal=None, props_signal=None,

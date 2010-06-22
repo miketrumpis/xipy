@@ -77,7 +77,7 @@ class OrthoViewer3D(HasTraits):
     
     _axis_index = dict(x=0, y=1, z=2)
 
-    def __init__(self, parent=None, **traits):
+    def __init__(self, parent=None, manage_overlay=True, **traits):
         HasTraits.__init__(self, **traits)
         self.master_src # instantiates default master_src and blender
         self.func_man
@@ -87,14 +87,14 @@ class OrthoViewer3D(HasTraits):
 
         # set up components
         self.vis_helpers.append(
-            ImageBlendingComponent(display=self)
+            ImageBlendingComponent(self, manage_overlay)
             )
         self.vis_helpers.append(
-            OverlayThresholdingSurfaceComponent(display=self)
+            OverlayThresholdingSurfaceComponent(self)
             )
 
         self.vis_helpers.append(
-            CorticalSurfaceComponent(display=self)
+            CorticalSurfaceComponent(self)
             )
                         
         
