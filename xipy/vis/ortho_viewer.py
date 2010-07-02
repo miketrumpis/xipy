@@ -178,6 +178,7 @@ class OrthoViewer(XIPYWindowApp):
 
     def change_overlay_props(self, func_man):
         pdict = make_mpl_image_properties(func_man)
+        print 'heard props change'
         if 'norm' in pdict:
             n = pdict['norm']
             pdict['norm'] = (n.vmin, n.vmax)

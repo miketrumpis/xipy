@@ -9,7 +9,8 @@ from matplotlib import colors
 from nipy.core import api as ni_api
 
 # XIPY
-from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup, enumerated_axes
+from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup, \
+     enumerated_axes, xipy_ras
 from xipy.external.interpolation import ImageInterpolator
 import xipy.volume_utils as vu
 import xipy.vis.color_mapping as cm
@@ -128,7 +129,7 @@ class VolumeSlicerInterface(object):
         len(axes) planes
         """
         enum_axes = enumerated_axes(axes)
-        axes = [ni_api.ras_output_coordnames[ax] for ax in enum_axes]
+        axes = [xipy_ras[ax] for ax in enum_axes]
         indices = self.coordmap.inverse()(loc)
         planes = [self._cut_plane(ax, indices, oriented=oriented, **interp_kw)
                   for ax in axes]
@@ -190,7 +191,7 @@ class SampledVolumeSlicer(VolumeSlicerInterface):
         
         xyz_image = ni_api.Image(
             np.asarray(image),
-            image.coordmap.reordered_range(ni_api.ras_output_coordnames)
+            image.coordmap.reordered_range(xipy_ras)
             )
 ##                                  reorder_output(image.coordmap, 'xyz'))
         self.coordmap = xyz_image.coordmap
@@ -381,7 +382,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         # XYZ: NEED TO BREAK API HERE FOR MASKED ARRAY
         xyz_image = ni_api.Image(
             image._data,
-            image.coordmap.reordered_range(ni_api.ras_output_coordnames)
+            image.coordmap.reordered_range(xipy_ras)
             )
 
 
@@ -393,15 +394,16 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         # don't bother with rotations
         aligned = vu.is_spatially_aligned(image.coordmap) and not zoom_grid
         if aligned:
-            if not spatial_axes:
-                world_image = xyz_image
+            # if aligned, double check that it is also aligned with
+            # spatial_axes (if present)
+            axes = vu.find_spatial_correspondence(image.coordmap)
+            if spatial_axes and axes != spatial_axes:
+                # XYZ: IF ARRAY IS ALIGNED IN SOME ORIENTATION, COULD
+                # RE-ALIGN WITH "spatial_axes" WITH A SIMPLE TRANSFORM
+                aligned = False
+                interp_kws['order'] = 0
             else:
-                axes = vu.find_spatial_correspondence(image.coordmap)
-                if axes != spatial_axes:
-                    # XYZ: MIGHT THINK ABOUT MAKING SIMPLER TRANSFORM
-                    # HERE--POSSIBLY WITH CYTHON CODE
-                    aligned = False
-                    interp_kws['order'] = 0
+                world_image = xyz_image
         if not aligned:
             print 'resampling entire Image volume'
             world_image = vu.resample_to_world_grid(
@@ -486,7 +488,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
             pln = self.image_arr[tuple(slicer)]
 
         if oriented:
-            ras = list(ni_api.ras_output_coordnames)
+            ras = list(xipy_ras)
             output_order = {
                 ras[0] : (ras[2], ras[1]),
                 ras[1] : (ras[2], ras[0]),

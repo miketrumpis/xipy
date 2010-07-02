@@ -142,14 +142,23 @@ class ThresholdMap(t_api.HasTraits):
     map_changed = t_api.Event
 
     binary_mask = t_api.Property(depends_on='map_changed')
+    unmasked_points = t_api.Property(depends_on='map_changed')
 
     @t_api.on_trait_change('map_scalars, thresh_limits, thresh_mode')
     def _dirty_mask(self):
         self.map_changed = True
 
+    @t_api.cached_property
     def _get_binary_mask(self):
         return self.create_binary_mask()
 
+    @t_api.cached_property
+    def _get_unmasked_points(self):
+        mask = self.binary_mask
+        if mask is not None:
+            return mask.size - mask.sum()
+        return -1
+        
     def create_binary_mask(self, type='negative'):
         """Create a binary mask in the shape of map_scalars for the
         current threshold conditions.

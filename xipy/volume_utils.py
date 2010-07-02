@@ -4,7 +4,7 @@ from nipy.core import api as ni_api
 from xipy.external import resample
 from nipy.core.reference.coordinate_map import drop_io_dim
 from scipy import ndimage
-from xipy.slicing import SAG, COR, AXI
+from xipy.slicing import SAG, COR, AXI, xipy_ras
 
 def fix_analyze_image(img, fliplr=False):
     cmap = img.coordmap
@@ -34,7 +34,7 @@ def voxel_size(T):
       is (x,y,z)
     """
     if type(T) is not np.ndarray:
-        T = T.reordered_range(ni_api.ras_output_coordnames).affine
+        T = T.reordered_range(xipy_ras).affine
     m, n = T.shape
     T = T[:min(m,3),:min(n,3)]
     return (T**2).sum(axis=1)**.5
@@ -164,7 +164,7 @@ def world_limits(*args):
     else:
         coordmap, shape = args
 ##     T = reorder_output(coordmap, 'xyz').affine
-    T = coordmap.reordered_range(ni_api.ras_output_coordnames).affine
+    T = coordmap.reordered_range(xipy_ras).affine
     adim, bdim, cdim = shape
     box = np.zeros((8,3), 'd')
     # form a collection of vectors for each 8 corners of the box
@@ -223,7 +223,7 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
                            axis_permutation=None,
                            **interp_kws):
     cmap_ijk_xyz = img.coordmap.reordered_range(
-        ni_api.ras_output_coordnames
+        xipy_ras
         ).reordered_domain('ijk')
     T = cmap_ijk_xyz.affine
     if grid_spacing is None:
@@ -243,7 +243,7 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
         target_domain = [ 'ijk'[ax] for ax in axis_permutation ]
     resamp_affine = ni_api.AffineTransform.from_params(
         target_domain,
-        ni_api.ras_output_coordnames,
+        xipy_ras,
         diag_affine
         )
     resamp_affine = resamp_affine.reordered_domain(
@@ -251,7 +251,7 @@ def resample_to_world_grid(img, bbox=None, grid_spacing=None, order=3,
         )
     # Doing the mapping this way, we don't have to assume what
     # the input space of the Image is like
-    cmap_xyz = img.coordmap.reordered_range(ni_api.ras_output_coordnames)
+    cmap_xyz = img.coordmap.reordered_range(xipy_ras)
     mapping = ni_api.compose(cmap_xyz, img.coordmap.inverse())
 
     # this is the ijk dim ordering.. how do we permute it to match
@@ -333,6 +333,15 @@ def auto_brain_mask(image_arr, negative=False):
     cc_mask = (labels==max_label)
     return np.logical_not(cc_mask) if negative else cc_mask
 
+def calc_grid_and_map(vox_indices, grid=[]):
+    if not grid:
+        ni, nj, nk = vox_indices.max(axis=0) + 1
+    else:
+        ni, nj, nk = grid
+    strides = np.array([nj*nk, nk, 1])
+    flat_map = (vox_indices*strides).sum(axis=1)
+    return (ni, nj, nk), flat_map
+
 def signal_array_to_masked_vol(sig, vox_indices,
                                grid_shape=[],
                                prior_mask=None,
@@ -359,15 +368,13 @@ def signal_array_to_masked_vol(sig, vox_indices,
     -------
     s_masked : a numpy MaskedArray, with non-map voxels masked out
     """
-    if not grid_shape:
-        if not len(sig):
-            return np.ma.masked_array(np.empty((1,1,1)),
-                                      mask=np.ones((1,1,1), dtype=np.bool),
-                                      **ma_kw)
-        ix, jx, kx = map(lambda x: x+1, vox_indices.max(axis=0))
-    else:
-        ix, jx, kx = grid_shape
-
+    if not len(sig):
+        return np.ma.masked_array(np.empty((1,1,1)),
+                                  mask=np.ones((1,1,1), dtype=np.bool),
+                                  **ma_kw)
+    grid, flat_idx = calc_grid_and_map(vox_indices, grid=grid_shape)
+    ix, jx, kx = grid
+    
     vmask = np.ones((ix,jx,kx) + sig.shape[1:], np.bool)
     s = np.zeros((ix,jx,kx) + sig.shape[1:], sig.dtype)
 
@@ -377,8 +384,6 @@ def signal_array_to_masked_vol(sig, vox_indices,
     else:
         i, j, k = vox_indices.T
 
-    flat_idx = i*(jx*kx) + j*kx + k
-
     if sig.shape[1:]:
         # then we need to add more indices
         vx = np.product(sig.shape[1:])
@@ -386,8 +391,10 @@ def signal_array_to_masked_vol(sig, vox_indices,
         flat_idx *= vx
         flat_idx = (flat_idx[:,None] + v).reshape(-1)
 
-    s.flat[flat_idx] = sig
-    vmask.flat[flat_idx] = False
+##     s.flat[flat_idx] = sig
+    np.put(s, flat_idx, sig)
+##     vmask.flat[flat_idx] = False
+    np.put(vmask, flat_idx, False)
     return np.ma.masked_array(s, mask=vmask, **ma_kw)
 
 

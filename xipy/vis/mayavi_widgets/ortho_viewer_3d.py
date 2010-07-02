@@ -239,7 +239,7 @@ class OrthoViewer3D(HasTraits):
     def _follow_functional_position(self):
         self._snap_to_position(self.func_man.world_position)
     
-    @on_trait_change('func_man,func_man.overlay_updated')
+    @on_trait_change('func_man, func_man.overlay_updated')
     def _update_functional_info(self):
         """ Update misc. aspect of the display when a new overlay crops up
         """

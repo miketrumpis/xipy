@@ -67,7 +67,8 @@ def main():
          all_registered_plugins
     register_overlay_plugin(SimpleWindow)
     from xipy.vis.three_dee_viewer import MayaviViewer
-    win = MayaviViewer()
+    from xipy import TEMPLATE_MRI_PATH
+    win = MayaviViewer(image=TEMPLATE_MRI_PATH)
     win.show()
     return win, app
     

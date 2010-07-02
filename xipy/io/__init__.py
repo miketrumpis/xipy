@@ -1,8 +1,9 @@
 from nipy.io.api import load_image as ni_load_image
 import nipy.core.api as ni_api
 import numpy as np
-
 from copy import copy
+
+from xipy.slicing import xipy_ras
 
 def load_image(filename):
     img = ni_load_image(filename)
@@ -10,8 +11,8 @@ def load_image(filename):
     if np.asarray(img).dtype.char == 'h':
         img = ni_api.Image(np.asarray(img).astype('h'), img.coordmap)
     input_coords = dict( zip(range(3), 'ijk') )
-    output_coords = dict( zip(ni_api.lps_output_coordnames,
-                              ni_api.ras_output_coordnames) )
+    output_coords = dict( zip(img.coordmap.function_range.coord_names,
+                              xipy_ras) )
     cm = img.coordmap.renamed_domain(input_coords)
     cm = cm.renamed_range(output_coords)
     

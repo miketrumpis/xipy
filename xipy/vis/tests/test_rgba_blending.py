@@ -74,7 +74,7 @@ def are_blended_voxels_aligned(blended, main_dr, main_r0,
                                                       main_r0, main_dr)
     over_map = ni_api.AffineTransform.from_start_step('ijk', 'xyz',
                                                       over_r0, over_dr)
-    over_vox_from_main_vox = ni_api.compose(over_map.inverse, main_map)
+    over_vox_from_main_vox = ni_api.compose(over_map.inverse(), main_map)
     #checking the red component
     main_nz_vox = np.array( blended[...,0].nonzero() ).T
     over_nz_vox = over_vox_from_main_vox(main_nz_vox)

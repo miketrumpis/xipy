@@ -360,15 +360,16 @@ class ImageOverlayManager( OverlayInterface ):
 
     @cached_property
     def _get_description(self):
-        um_pts = self.work_arr.size
-        if self.mask is not np.ma.nomask:
-            um_pts -= self.mask.sum()
+        if self.threshold.thresh_map_name:
+            um_pts = str(self.threshold.unmasked_points)
+        else:
+            um_pts = 'no mask'
         d_range = (np.ma.min(self.work_arr), np.ma.max(self.work_arr))
         dstr = \
 """
 Overlay image
 data range: (%1.3f, %1.3f)
-unmasked points: %d
+unmasked points: %s
 """%(d_range[0], d_range[1], um_pts)
         return dstr
 

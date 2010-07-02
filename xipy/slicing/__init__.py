@@ -1,6 +1,5 @@
 import nipy.core.api as ni_api
-
-from xipy.io import load_spatial_image
+xipy_ras = ni_api.lps_output_coordnames
 
 SAG, COR, AXI = 0, 1, 2
 canonical_axes = dict( zip( ('SAG', 'COR', 'AXI'), (SAG, COR, AXI) ) )
@@ -21,7 +20,7 @@ def enumerated_axes(axes):
     if type(axes) not in (tuple, list):
         raise ValueError('Could not parse axes argument')
     enumerated = []
-    ras = ni_api.ras_output_coordnames
+    ras = xipy_ras
     for ax in axes:
         if type(ax)==str:
             if ax in (ras[0], 'x', 'SAG'):
@@ -37,6 +36,7 @@ def enumerated_axes(axes):
     
 def load_resampled_slicer(image, bbox=None, fliplr=False, mask=False):
     from xipy.slicing.image_slicers import ResampledVolumeSlicer
+    from xipy.io import load_spatial_image
     if type(image) in (str, unicode):
         return ResampledVolumeSlicer(load_spatial_image(image),
                                      bbox=bbox,
@@ -55,6 +55,7 @@ def load_resampled_slicer(image, bbox=None, fliplr=False, mask=False):
 def load_sampled_slicer(overlay, bbox=None, grid_spacing=None,
                         mask=False, fliplr=False):
     from xipy.slicing.image_slicers import SampledVolumeSlicer
+    from xipy.io import load_spatial_image
     if type(overlay) in (str, unicode):
         return SampledVolumeSlicer(load_spatial_image(overlay), bbox=bbox,
                                    mask=mask,
