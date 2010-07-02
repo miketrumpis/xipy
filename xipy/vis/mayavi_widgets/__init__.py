@@ -186,14 +186,17 @@ class MasterSource(ArraySourceRGBA):
         """
         pdata = self.image_data.point_data
         if len(arr.shape) > 2:
-            rgba = arr.reshape(np.prod(arr.shape[:3]), 4)
+            if len(arr.shape) > 3:
+                flat_arr = arr.reshape(np.prod(arr.shape[:3]), 4)
+            else:
+                flat_arr = arr.ravel()
         else:
-            rgba = arr
-        colors = pdata.get_array(name)
-        if colors:
-            colors.from_array(rgba)
+            flat_arr = arr
+        chan = pdata.get_array(name)
+        if chan:
+            chan.from_array(flat_arr)
         else:
-            n = pdata.add_array(rgba)
+            n = pdata.add_array(flat_arr)
             pdata.get_array(n).name = name
         if update:
             self.image_data.update()
