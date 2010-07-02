@@ -11,45 +11,22 @@ import enthought.traits.ui.api as tui
 from enthought.mayavi import mlab
 from enthought.tvtk.api import tvtk
 
-over_img = xio.load_spatial_image('tfbeam_img.nii')
-over_img._data = np.ma.masked_where(over_img._data > 1e10, over_img._data)
-
-over_img2 = xio.load_spatial_image('map_img.nii')
-
-main_img = xio.load_spatial_image(xipy.TEMPLATE_MRI_PATH)
-
-bi = rb.BlendedImages(vtk_order = True, over_alpha = .5)
-m_src = mw.MasterSource(blender=bi)
-bi.main = main_img
-bi.over = over_img
-
-## m_src = mlab.pipeline.add_dataset(m_src)
-
-## aa1 = mlab.pipeline.set_active_attribute(
-##     m_src, point_scalars=m_src.main_channel
-##     )
-
-## ipw1 = mt.image_plane_widget_rgba(aa1)
-## ipw1.ipw.plane_orientation = 'x_axes'
-
-## aa2 = mlab.pipeline.set_active_attribute(
-##     m_src, point_scalars=m_src.over_channel
-##     )
-
 class SimpleSwitching(traits.HasTraits):
 
-    source = traits.Instance(mw.MasterSource)
+    source = traits.Instance(mw.MasterSource, ())
 
     add_new_channel = traits.Button('add chan')
 
-    new_overlay = traits.Button('new overlay')
+    new_overlay = traits.Button('switch overlay')
 
+    aa = traits.Instance('enthought.mayavi.filters.filter_base.Filter')
 
     def __init__(self, **t):
         traits.HasTraits.__init__(self, **t)
         self.n_added = 0
         self._current_img = over_img
-        self.source.blender.over = self._current_img
+        self.aa = mlab.pipeline.set_active_attribute(self.source)
+##         self.source.blender.over = self._current_img
 
     @traits.on_trait_change('add_new_channel')
     def add_chan(self):
@@ -86,22 +63,38 @@ class SimpleSwitching(traits.HasTraits):
                 tui.Item('object.source.all_channels',
                          label='Source Channels',
                          style='readonly')
+                ),
+            tui.Group(
+                tui.Item('object.aa', style='custom')
                 )
             ),
         resizable=True
         )
 
 if __name__=='__main__':
+    over_img = xio.load_spatial_image('tfbeam_img.nii')
+    over_img._data = np.ma.masked_where(over_img._data > 1e10, over_img._data)
+
+    over_img2 = xio.load_spatial_image('map_img.nii')
+
+    main_img = xio.load_spatial_image(xipy.TEMPLATE_MRI_PATH)
+
+    bi = rb.BlendedImages(vtk_order = True, over_alpha = .5)
+    m_src = mw.MasterSource(blender=bi)
+    bi.main = main_img
+##     bi.over = over_img
     m_src = mlab.pipeline.add_dataset(m_src)
     switcher = SimpleSwitching(source=m_src)
     switcher.edit_traits()
     aa1 = mlab.pipeline.set_active_attribute(
         m_src, point_scalars=m_src.main_channel
         )
-    aa2 = mlab.pipeline.set_active_attribute(
-        m_src, point_scalars=m_src.over_channel
-    )
     ipw1 = mt.image_plane_widget_rgba(aa1)
     ipw1.ipw.plane_orientation = 'x_axes'
-    ipw2 = mt.image_plane_widget_rgba(aa2)
+
+##     aa2 = mlab.pipeline.set_active_attribute(
+##         m_src, point_scalars=m_src.over_channel
+##     )
+
+##     ipw2 = mt.image_plane_widget_rgba(aa2)
     
