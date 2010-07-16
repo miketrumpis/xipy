@@ -28,7 +28,7 @@ ipw1 = mt.image_plane_widget_rgba(aa1)
 ipw1.ipw.plane_orientation = 'x_axes'
 
 aa2 = mlab.pipeline.set_active_attribute(
-    m_src, point_scalars=m_src.over_channel
+    m_src, point_scalars=m_src.main_channel
     )
 
 bbox = bi.bbox
@@ -37,24 +37,26 @@ x_extent = bbox[0][1] - bbox[0][0]
 
 reslice = tvtk.ImageReslice()
 resliced_img = mlab.pipeline.user_defined(aa2, filter=reslice)
-
+x0 = 30
+reslice.reslice_axes_origin = x0, 0, 0
 ipw2 = mt.image_plane_widget_rgba(resliced_img)
-x0 = bbox[0][0] - 10
-p2_pos = x0
+ipw2.ipw.restrict_plane_to_volume = False
+p2_pos = bbox[0][0] - x0
 ## ipw2.ipw.origin = p2_pos
-ipw2.ipw.slice_position = p2_pos
 ipw2.ipw.interaction = 0
-
+ipw2.ipw.slice_position = p2_pos
+print ipw2.ipw.slice_position
 #ipw2.ipw.origin = p2_pos
 
 def update_offset(widget, event):
     ipw = tvtk.to_tvtk(widget)
     translate = reslice.reslice_axes_origin
-    translate[0] = ipw.slice_position - x0
+    ipw.update_traits()
+    translate[0] = ipw.slice_position - p2_pos
     print 'translation:', translate
-    reslice.reslice_axes_origin = ipw.slice_position-x0-10, 0, 0
+    reslice.reslice_axes_origin = (ipw.slice_position-p2_pos), 0, 0
 
-## ipw1.ipw.add_observer('InteractionEvent', update_offset)
+ipw1.ipw.add_observer('InteractionEvent', update_offset)
 ipw1.ipw.add_observer('EndInteractionEvent', update_offset)
 
 

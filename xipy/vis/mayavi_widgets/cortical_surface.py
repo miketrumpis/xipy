@@ -85,6 +85,9 @@ class CorticalSurfaceComponent(VisualComponent):
 
         # this is fairly brittle-- don't know what will result if
         # the brain is not skull-stripped
+
+        # brain_image is (currently) a copy of the integer indices
+        # (not the "real valued" scalars)
         brain_image = self.master_src.blender.main.image_arr.copy()
         np.putmask(brain_image, brain_image>255, 0)
         
@@ -92,7 +95,8 @@ class CorticalSurfaceComponent(VisualComponent):
             (brain_image > 0).astype('d'), 6
             )
         mask = ndimage.binary_fill_holes(arr > .5)
-        mask = ndimage.binary_erosion(mask, iterations=10)
+        # iterations x voxel size ~= erosion depth??
+        mask = ndimage.binary_erosion(mask, iterations=5)
         
         arr_blurred = ndimage.gaussian_filter(
             mask.astype('d'), 2

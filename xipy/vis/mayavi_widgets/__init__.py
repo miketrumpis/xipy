@@ -62,6 +62,10 @@ class MasterSource(ArraySourceRGBA):
     It may have additional channels
     """
 
+    # XXX: This source should have a signal saying when a channel may
+    # disappear!!! EG, if blender.over gets set to None, and some module
+    # is visualizing "over_colors", then there will be a big fat crash!!
+    
     blender = t.Instance(BlendedImages)
     over_channel = 'over_colors'
     main_channel = 'main_colors'
@@ -201,6 +205,7 @@ class MasterSource(ArraySourceRGBA):
         if update:
             self.image_data.update()
             # this one definitely needed
+            self.pipeline_changed = True
             self.pipeline_changed = True
 
     

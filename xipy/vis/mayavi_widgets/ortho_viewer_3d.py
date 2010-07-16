@@ -84,10 +84,14 @@ class OrthoViewer3D(HasTraits):
         from xipy.vis.mayavi_widgets.overlay_blending import ImageBlendingComponent
         from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
         from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
+        from xipy.vis.mayavi_widgets.translated_planes import TranslatedPlanes
 
         # set up components
         self.vis_helpers.append(
             ImageBlendingComponent(self, manage_overlay)
+            )
+        self.vis_helpers.append(
+            TranslatedPlanes(self)
             )
         self.vis_helpers.append(
             OverlayThresholdingSurfaceComponent(self)
@@ -230,7 +234,7 @@ class OrthoViewer3D(HasTraits):
     def _register_position(self, pos):
         if self.func_man:
             self.func_man.world_position = pos
-        self.master_src.update()        
+##         self.master_src.update()        
     #---------------------------------------------------------------------------
     # Traits callbacks
     #---------------------------------------------------------------------------

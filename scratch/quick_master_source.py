@@ -19,6 +19,8 @@ class SimpleSwitching(traits.HasTraits):
 
     new_overlay = traits.Button('switch overlay')
 
+    plot = traits.Button('Plot on AA')
+
     aa = traits.Instance('enthought.mayavi.filters.filter_base.Filter')
 
     def __init__(self, **t):
@@ -26,7 +28,11 @@ class SimpleSwitching(traits.HasTraits):
         self.n_added = 0
         self._current_img = over_img
         self.aa = mlab.pipeline.set_active_attribute(self.source)
+        self.on_trait_change(self.flush_aa, 'source.pipeline_changed')
 ##         self.source.blender.over = self._current_img
+
+    def flush_aa(self):
+        self.aa.update_pipeline()
 
     @traits.on_trait_change('add_new_channel')
     def add_chan(self):
@@ -49,20 +55,24 @@ class SimpleSwitching(traits.HasTraits):
             self._current_img = over_img2
         blender.over = self._current_img
 
+    def _plot_fired(self):
+        if not self.aa.point_scalars_name:
+            print 'no point scalars to plot'
+            return
+        mt.image_plane_widget_rgba(self.aa)
     
     view = tui.View(
         tui.VGroup(
             tui.Group(
                 tui.Item('add_new_channel', show_label=False),
-                tui.Item('new_overlay', show_label=False)
+                tui.Item('new_overlay', show_label=False),
+                tui.Item('plot', show_label=False)
                 ),
             tui.Group(
                 tui.Item('object.source.rgba_channels',
-                         label='Source RGBA Channels',
-                         style='readonly'),
+                         label='Source RGBA Channels'), #style='readonly'),
                 tui.Item('object.source.all_channels',
-                         label='Source Channels',
-                         style='readonly')
+                         label='Source Channels') #, style='readonly')
                 ),
             tui.Group(
                 tui.Item('object.aa', style='custom')
