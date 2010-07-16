@@ -112,10 +112,12 @@ class OverlayWindowInterface(TopLevelAuxiliaryWindow):
 
 
 class ThresholdMap(t_api.HasTraits):
-    map_voxels = t_api.Array
-    map_scalars = t_api.Array
-
-    # thresh limits are a pair of numbers that indicate the "good range"
+    # A ThresholdMap operates with three components:
+    # * A "map" of scalars
+    # * A pair (low, high) of threshold levels
+    # * A threshold "mode" in {'lower', 'higher', 'between', 'outside'}
+    #
+    # Thresh limits are a pair of numbers that indicate the "good range"
     # of values in the scalar map. Depending on the mode, the mask will
     # work as follows:
 
@@ -132,6 +134,10 @@ class ThresholdMap(t_api.HasTraits):
     # * mask outside:
     #   Values less than thresh_limits[0] union values greater than
     #   thesh_limits[1] will be masked out
+
+    map_voxels = t_api.Array
+    map_scalars = t_api.Array
+
     thresh_limits = t_api.Tuple((0.0, 0.0))
     thresh_mode = t_api.Enum('mask lower', 'mask higher',
                              'mask between', 'mask outside')
@@ -141,11 +147,14 @@ class ThresholdMap(t_api.HasTraits):
     # subclasses must fire this event whenever the mask must be recaculated
     map_changed = t_api.Event
 
-    binary_mask = t_api.Property(depends_on='map_changed')
-    unmasked_points = t_api.Property(depends_on='map_changed')
+    binary_mask = t_api.Property(
+        depends_on='map_changed, thresh_limits, thresh_mode'
+        )
+    unmasked_points = t_api.Property(depends_on='binary_mask')
 
     @t_api.on_trait_change('map_scalars, thresh_limits, thresh_mode')
     def _dirty_mask(self):
+        print 'mask dirty'
         self.map_changed = True
 
     @t_api.cached_property

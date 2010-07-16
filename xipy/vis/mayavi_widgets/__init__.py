@@ -200,8 +200,8 @@ class MasterSource(ArraySourceRGBA):
             pdata.get_array(n).name = name
         if update:
             self.image_data.update()
-            self.image_data.update_traits()
-            self.data_changed = True
+            # this one definitely needed
+            self.pipeline_changed = True
 
     
         

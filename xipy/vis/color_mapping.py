@@ -57,7 +57,7 @@ class MixedAlphaColormap(LinearSegmentedColormap):
                 xa = np.clip(xa * MixedAlphaColormap.N,
                              -1, MixedAlphaColormap.N)
                 
-            xa = xa.astype(int)
+            xa = xa.astype(np.int32)
         # Set the over-range indices before the under-range;
         # otherwise the under-range values get converted to over-range.
         np.putmask(xa, xa>MixedAlphaColormap.N-1, MixedAlphaColormap.i_over)

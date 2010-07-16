@@ -385,7 +385,6 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
             image.coordmap.reordered_range(xipy_ras)
             )
 
-
         native_spacing = vu.voxel_size(xyz_image.affine)
         zoom_grid = grid_spacing is not None and \
                     (np.array(grid_spacing) != native_spacing).any()
@@ -393,6 +392,7 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         # if no special instructions and image is somewhat aligned,
         # don't bother with rotations
         aligned = vu.is_spatially_aligned(image.coordmap) and not zoom_grid
+        self.__resamp_kws = dict()
         if aligned:
             # if aligned, double check that it is also aligned with
             # spatial_axes (if present)
@@ -406,14 +406,18 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
                 world_image = xyz_image
         if not aligned:
             print 'resampling entire Image volume'
+            self.__resamp_kws.update(interp_kws)
+            self.__resamp_kws.update(
+                dict(grid_spacing=grid_spacing, axis_permutation=spatial_axes)
+                )
             world_image = vu.resample_to_world_grid(
-                image, grid_spacing=grid_spacing,
-                axis_permutation=spatial_axes,
-                **interp_kws
+                image, **self.__resamp_kws
                 )
 
+        
+
         self.coordmap = world_image.coordmap
-        self.image_arr = np.asarray(world_image)
+        self.image_arr = np.asanyarray(world_image)
         self.grid_spacing = vu.voxel_size(world_image.affine)
 
         # take down the final bounding box; this will define the
@@ -430,32 +434,48 @@ class ResampledVolumeSlicer(VolumeSlicerInterface):
         self.null_planes = [np.ma.masked_all((w_shape[0], w_shape[1]),'B'),
                             np.ma.masked_all((w_shape[0], w_shape[2]),'B'),
                             np.ma.masked_all((w_shape[1], w_shape[2]),'B')]
+
+        # finally, update mask if necessary
+        mask = np.ma.getmask(image._data)
+        if mask is not np.ma.nomask:
+            mask = ni_api.Image(mask, image.coordmap)
+            self.update_mask(mask, positive_mask=False)
     
     def update_mask(self, mask, positive_mask=True):
-        # XYZ: CURRENTLY OBLITERATES OLD MASK! IS THIS DESIRABLE?
-        assert mask.shape == self.raw_image.shape, \
-                          'mask shape does not match image shape'
-        self._masking = True
-        if positive_mask:
-            self.raw_mask = mask.astype(np.bool)
-        else:
-            self.raw_mask = np.logical_not(mask.astype(np.bool))
-        aff = self.coordmap.affine
-        if not np.allclose(aff.diagonal()[:3], self.grid_spacing):
-            m_image = ni_api.Image(self.raw_mask.astype('d'), self.coordmap)
-            resamp_mask = vu.resample_to_world_grid(
-                m_image, bbox=self.bbox, grid_spacing=self.grid_spacing
-                )
-            # now world_mask is a negative mask
-            self._mask = np.asarray(resamp_mask) < 0.5
-        else:
-            self._mask = np.logical_not(self.raw_mask)
+        """
 
-        print 'new unmasked pts:', np.logical_not(self._mask).sum()
-        # XYZ: IF THE DATA COMES INTO THIS CLASS AS A MASKED ARRAY,
-        # THE ORIGINAL FILL VALUE GETS LOST HERE
+        Parameters
+        ----------
+
+        mask: NIPY Image
+           A masking function which may be encoded as masked:=1 or
+           masked:=0. The coordinate mapping must be identical to the
+           original input Image (IE, the support of this function must
+           be the support of the original Image).
+        positive_mask: {True,False}
+           by default, the masking function will be taken as masked:=0
+        """
+        # XYZ: CURRENTLY OBLITERATES OLD MASK! IS THIS DESIRABLE?
+        mdata = np.asarray(mask)
+        # convert mdata to boolean type negative-mask
+        if positive_mask:
+            if mdata.dtype.char is not 'B':
+                mdata = mdata.astype('B')
+            mdata = np.logical_not(mdata)
+
+        # now, if necessary resample the mask ...
+        if len(self.__resamp_kws):
+            m_resamp = ni_api.Image(mdata.astype('d'), mask.coordmap)
+            m_resamp = vu.resample_to_world_grid(
+                m_resamp, cval=1, **self.__resamp_kws
+                )
+            # ... and set mdata to wherever the mask goes towards 1
+            mdata = (np.asarray(m_resamp) > 0.5)
+
+
+        print 'new unmasked pts:', mdata.size - mdata.sum()
         self.image_arr = np.ma.masked_array(np.ma.getdata(self.image_arr),
-                                            mask=self._mask)
+                                            mask=mdata)
         
         
     def _cut_plane(self, ax, indices, oriented=True):

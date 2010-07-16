@@ -37,7 +37,7 @@ class SimpleSwitching(traits.HasTraits):
         sz = np.random.randint(4, high=15)**2
         good_vx = np.where( (vx**2).sum(axis=1) < sz )[0]
         np.put(img, good_vx, 1)
-        self.source.set_new_array(img, 'new_img_%d'%self.n_added)
+        self.source.set_new_array(img, 'new_img_%d'%self.n_added, update=True)
         self.n_added += 1
 
     @traits.on_trait_change('new_overlay')
@@ -85,7 +85,7 @@ if __name__=='__main__':
 ##     bi.over = over_img
     m_src = mlab.pipeline.add_dataset(m_src)
     switcher = SimpleSwitching(source=m_src)
-    switcher.edit_traits()
+    ui = switcher.edit_traits()
     aa1 = mlab.pipeline.set_active_attribute(
         m_src, point_scalars=m_src.main_channel
         )
@@ -98,3 +98,4 @@ if __name__=='__main__':
 
 ##     ipw2 = mt.image_plane_widget_rgba(aa2)
     
+    mlab.show()

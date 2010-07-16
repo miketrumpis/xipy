@@ -334,6 +334,37 @@ def auto_brain_mask(image_arr, negative=False):
     return np.logical_not(cc_mask) if negative else cc_mask
 
 def calc_grid_and_map(vox_indices, grid=[]):
+    """
+    Given a table of volume array indices, calculate the 3D grid size
+    that these indices look up, and the map of indices into the flattened
+    grid. If the grid size is provided, then the map of indices will
+    be with respect to that flattened grid
+
+    Parameters
+    ----------
+
+    vox_indices : Nx3 array of indices s.t. 0 <= i < len(dim_i)
+    grid : sequence (optional) of the dim lengths
+
+    Returns
+    -------
+    grid_shape, map
+
+    Examples
+    --------
+    >>> idx
+    array([[10,  2,  2],
+           [ 8,  5, 13]])
+    >>> g, m = calc_grid_and_map(idx)
+    >>> g
+    (11, 6, 14)
+    >>> m
+    array([870, 755])
+    >>> img = np.zeros(g)
+    >>> np.put(img, m, 1)
+    >>> img[10,2,2], img[8,5,13]
+    (1.0, 1.0)
+    """
     if not grid:
         ni, nj, nk = vox_indices.max(axis=0) + 1
     else:
@@ -360,7 +391,7 @@ def signal_array_to_masked_vol(sig, vox_indices,
         an list of dimension extents, eg [imax, jmax, kmax]
     prior_mask : array-like (optional)
         an nvox length array indicating points to mask in the final volume
-        (True = unmasked, opposite of MaskedArray convention)
+        (True = masked, same as MaskedArray convention)
     ma_kw : dict
         Keyword arguments for np.ma.masked_array
 
@@ -379,8 +410,10 @@ def signal_array_to_masked_vol(sig, vox_indices,
     s = np.zeros((ix,jx,kx) + sig.shape[1:], sig.dtype)
 
     if prior_mask is not None:
-        i, j, k = vox_indices[prior_mask].T
-        sig = sig[prior_mask]
+        umsk_idx = ~prior_mask
+        i, j, k = vox_indices[umsk_idx].T
+        sig = sig[umsk_idx]
+        flat_idx = flat_idx[umsk_idx]
     else:
         i, j, k = vox_indices.T
 
@@ -391,9 +424,7 @@ def signal_array_to_masked_vol(sig, vox_indices,
         flat_idx *= vx
         flat_idx = (flat_idx[:,None] + v).reshape(-1)
 
-##     s.flat[flat_idx] = sig
     np.put(s, flat_idx, sig)
-##     vmask.flat[flat_idx] = False
     np.put(vmask, flat_idx, False)
     return np.ma.masked_array(s, mask=vmask, **ma_kw)
 
