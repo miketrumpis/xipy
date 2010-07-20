@@ -80,6 +80,10 @@ class TranslatedPlanes(VisualComponent):
     def _get_bbox(self):
         return self.master_src.blender.bbox
 
+    def __all_set(self, state, quiet=True):
+        self.set(trait_change_notify=not quiet,
+                 mx=state, my=state, mz=state, ma=state)
+
     @t.on_trait_change('mx, my, mz, ma')
     def toggle_planes(self, obj, name, value):
         # hacky
@@ -87,7 +91,8 @@ class TranslatedPlanes(VisualComponent):
             axes = 'xyz'
             state = getattr(self, name)
             print 'setting all states to', state
-            self.trait_setq(mx=state, my=state, mz=state)
+            self.__all_set(state)
+##             self.trait_setq(mx=state, my=state, mz=state)
             bools = (self.mx, self.my, self.mz)
         else:
             axes = name[1]
@@ -95,7 +100,11 @@ class TranslatedPlanes(VisualComponent):
         for ax, state in zip(axes, bools):
             if state:
                 print 'adding plane to pipeline'
-                self.add_fixed_plane(ax)
+                try:
+                    self.add_fixed_plane(ax)
+                except RuntimeError:
+                    self.__all_set(False)
+                    return
             else:
                 print 'removing resliced image from pipeline'
                 r_img = getattr(self, 'resliced_img_%s'%ax)
@@ -140,6 +149,7 @@ class TranslatedPlanes(VisualComponent):
     def set_translation(self, filter, axis):
         main_ipw = self.display._ipw_x(axis)
         axis_idx = axis_to_index[axis]
+        main_ipw.ipw.update_traits()
         pos = main_ipw.ipw.slice_position
         new_pos = [0] * 3
         new_pos[axis_idx] = pos-(self.bbox[axis_idx][0] - self.offset)
@@ -148,11 +158,9 @@ class TranslatedPlanes(VisualComponent):
     def add_fixed_plane(self, axis):
         "Add an offset plane for current channel on `axis` in {'x', 'y', 'z'}"
         if self.display._ipw_x(axis) is None:
-            print 'No Axis to mirror!'
-            return
+            raise RuntimeError('No Axis to mirror!')
         if not self.aa.point_scalars_name:
-            print 'No Colors to plot!'
-            return
+            raise RuntimeError('No Colors to plot!')
         axis_idx = axis_to_index[axis]
         # set up the new fixed image plane widget at position w0
         w0 = self.bbox[axis_idx][0] - self.offset

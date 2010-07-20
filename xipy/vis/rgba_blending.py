@@ -180,6 +180,7 @@ class BlendedArrays(t_ui.HasTraits):
         print 'update to blended image triggered'
         has_over = len(self.over_rgba)
         has_main = len(self.main_rgba)
+        # XXX: MAYBE SHOULD FILL ALPHA CHANNEL WITH 255 WHEN NOT BLENDING
         if not has_over:
             # even return this if main_rgba is empty
             return self.main_rgba

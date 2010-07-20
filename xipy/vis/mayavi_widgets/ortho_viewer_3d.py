@@ -73,6 +73,12 @@ class OrthoViewer3D(HasTraits):
     # Other Traits
     #---------------------------------------------------------------------------
     poly_extractor = Instance(tvtk.ExtractPolyDataGeometry, ())
+    _planes_function = Instance(
+        tvtk.Planes, args=(),
+        kw=dict(points=[ (0,0,0), (0,0,0), (0,0,0) ],
+                normals=[ (1,0,0), (0,1,0), (0,0,1) ])
+        )
+    _volume_function = Instance(tvtk.ImplicitVolume, ())
     info = Instance(Text)
     
     _axis_index = dict(x=0, y=1, z=2)
@@ -198,9 +204,9 @@ class OrthoViewer3D(HasTraits):
     def _link_plane_points(self, ax, widget):
         ax_idx = self._axis_index[ax]
         ipw = self._ipw_x(ax).ipw #getattr(self, 'ipw_%s'%ax).ipw
-        planes_function = self.poly_extractor.implicit_function
-        planes_function.points[ax_idx] = ipw.center
-        planes_function.normals[ax_idx] = map(lambda x: -x, ipw.normal)
+        planes = self._planes_function
+        planes.points[ax_idx] = ipw.center
+        planes.normals[ax_idx] = map(lambda x: -x, ipw.normal)
 
     def _handle_end_interaction(self, widget, event):
         if self.__reposition_planes_after_interaction:
@@ -266,40 +272,11 @@ class OrthoViewer3D(HasTraits):
             self.scene.render_window.render()
 
     def toggle_planes_visible(self, value):
-        self._toggle_poly_extractor_mode(cut_mode=value)
+##         self._toggle_poly_extractor_mode(cut_mode=value)
         for ax in ('x', 'y', 'z'):
             ipw = self._ipw_x(ax) #getattr(self, 'ipw_%s'%ax, False)
             if ipw:
-                ipw.visible = value
-
-    def _toggle_poly_extractor_mode(self, cut_mode=True):
-        if not self.poly_extractor.implicit_function:
-            self.poly_extractor.implicit_function = tvtk.Planes()
-        pfunc = self.poly_extractor.implicit_function
-        if not hasattr(self, 'ipw_x'):
-            cut_mode = False
-        if cut_mode:
-            pts = [ [] ] * 3
-            normals = [ [] ] * 3
-            for ax, index in self._axis_index.iteritems():
-                ipw = self._ipw_x(ax).ipw #getattr(self, 'ipw_%s'%ax).ipw
-                pts[index] = ipw.center
-                normals[index] = map(lambda x: -x, ipw.normal)
-            pfunc.points = pts
-            pfunc.normals = normals
-        else:
-            # set up the poly extractor filter with an all-inclusive
-            # Implicit Function
-            scene_points = [0]*24
-            try:
-                self.scene.camera.get_frustum_planes(1, scene_points)
-                pfunc.set_frustum_planes(scene_points)
-            except:
-                # guess scene isn't set up yet
-                pass
-        
-        self.poly_extractor.extract_inside = not cut_mode
-            
+                ipw.visible = value            
             
     #---------------------------------------------------------------------------
     # Scene activation callbacks 
@@ -308,9 +285,9 @@ class OrthoViewer3D(HasTraits):
     def display_scene3d(self):
         self.scene.mlab.view(100, 100)
         self.scene.scene.background = (0, 0, 0)
-        # set up the poly extractor filter with an all-inclusive
-        # Implicit Function
-        self._toggle_poly_extractor_mode(cut_mode=False)
+##         # set up the poly extractor filter with an all-inclusive
+##         # Implicit Function
+##         self._toggle_poly_extractor_mode(cut_mode=False)
         # Keep the view always pointing up
         self.scene.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleTerrain()

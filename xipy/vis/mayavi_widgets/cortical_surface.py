@@ -42,13 +42,15 @@ component_to_surf = dict( ( (v,u) for u,v in surf_to_component.iteritems() ) )
 class CorticalSurfaceComponent(VisualComponent):
 
     _available_surfaces = Property(depends_on='display.blender.over')
-    # ----- This will eventually become this VisualComponent's UI widget -----
     show_cortex = Bool(False)
     surface_component = Enum(values='_available_surfaces')
+    cutout = Bool(False)
     view = View(
         Group(
             Item('show_cortex', label='Show Cortical Surface'),
-            Item('surface_component', label='Surface Colors')
+            Item('surface_component', label='Surface Colors'),
+            Item('cutout', label='Cut-out Mode',
+                 enabled_when='object.show_cortex')
             )
         )
     # ------------------------------------------------------------------------
@@ -57,8 +59,12 @@ class CorticalSurfaceComponent(VisualComponent):
             traits['name'] = 'Cortical Surface'
         traits['display'] = display
         VisualComponent.__init__(self, **traits)
-        for trait in ('poly_extractor', 'master_src'):
+        for trait in ('poly_extractor', 'master_src',
+                      '_planes_function', '_volume_function'):
             self.add_trait(trait, DelegatesTo('display'))
+        if not self._volume_function.volume:
+            self._volume_function.volume = self.master_src.image_data
+        self.poly_extractor.implicit_function = self._volume_function
 
     @cached_property
     def _get__available_surfaces(self):
@@ -119,13 +125,14 @@ class CorticalSurfaceComponent(VisualComponent):
         
 ##         anat_blurred.update_pipeline()
         contour = mlab.pipeline.contour(anat_blurred)
-        decimate = mlab.pipeline.decimate_pro(contour)
+        decimated = mlab.pipeline.decimate_pro(contour)
         extracted = mlab.pipeline.user_defined(
-            decimate, filter=self.poly_extractor
+            decimated, filter=self.poly_extractor
             )
         point_scalars = surf_to_component[self.surface_component]
         self.surf_colors = mlab.pipeline.set_active_attribute(
             extracted,
+##             decimated,
             point_scalars=point_scalars
             )
 ##         pnorm = mlab.pipeline.poly_data_normals(self.surf_colors)
@@ -149,3 +156,13 @@ class CorticalSurfaceComponent(VisualComponent):
 ##         cmap[:128, -1] = 0.9*255
 ##         self.cortical_surf.module_manager.scalar_lut_manager.lut.table = cmap
 
+    @on_trait_change('cutout')
+    def _toggle_poly_extractor_mode(self, obj, name, cut_mode):
+        if cut_mode:
+            self.poly_extractor.implicit_function = self._planes_function
+        else:
+            if not self._volume_function.volume:
+                self._volume_function.volume = self.master_src.image_data
+            self.poly_extractor.implicit_function = self._volume_function
+        
+        self.poly_extractor.extract_inside = not cut_mode

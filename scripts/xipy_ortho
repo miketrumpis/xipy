@@ -36,7 +36,7 @@ def main():
         from xipy.overlay.image_overlay import ImageOverlayManager, \
              ImageOverlayWindow
         
-        oman = ImageOverlayManager(vu.world_limits(win.image.raw_image),
+        oman = ImageOverlayManager(win.blender.bbox,
                                    overlay=opts.overlay)
         win.make_tool_from_functional_manager(ImageOverlayWindow, oman)
 
