@@ -11,9 +11,9 @@ from enthought.mayavi.core.api import Source
 from enthought.mayavi import mlab
 
 # XIPY imports
-from xipy.vis.mayavi_tools import ArraySourceRGBA
+from xipy.colors.mayavi_tools import ArraySourceRGBA
+from xipy.colors.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
 from xipy.vis.mayavi_widgets import VisualComponent
-from xipy.vis.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
 
 class OverlayThresholdingSurfaceComponent(VisualComponent):
     """A class to take control of thresholding the overlay, and creating

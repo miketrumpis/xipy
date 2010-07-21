@@ -2,8 +2,8 @@
 from PyQt4 import QtGui, QtCore
 
 from xipy.vis.qt4_widgets.ortho_slices import MplQT4OrthoSlicesWidget
-from xipy.vis.rgba_blending import BlendedImages
-import xipy.vis.color_mapping as cm
+from xipy.colors.rgba_blending import BlendedImages
+import xipy.colors.color_mapping as cm
 from xipy.slicing import SAG, COR, AXI
 
 

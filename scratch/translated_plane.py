@@ -1,8 +1,8 @@
 import numpy as np
-import xipy.vis.rgba_blending as rb
+import xipy.colors.rgba_blending as rb
 import xipy
 import xipy.io as xio
-import xipy.vis.mayavi_tools as mt
+import xipy.colors.mayavi_tools as mt
 import xipy.vis.mayavi_widgets as mw
 
 from enthought.mayavi import mlab

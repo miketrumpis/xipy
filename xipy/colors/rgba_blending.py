@@ -16,7 +16,7 @@ import nipy.core.api as ni_api
 # XIPY
 from _blend_pix import resample_and_blend, resize_lookup_array
 from _blend_pix import *
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 import xipy.volume_utils as vu
 from xipy.slicing.image_slicers import ResampledIndexVolumeSlicer, SAG, COR, AXI
 
@@ -69,7 +69,7 @@ def normalize_and_map(arr, cmap, alpha=1, norm_min=None, norm_max=None):
     ----------
     arr : ndarray
         array to map
-    cmap : xipy.vis.color_mapping.MixedAlphaColormap
+    cmap : xipy.colors.color_mapping.MixedAlphaColormap
         the mapping function
     alpha : scalar or len-256 iterable (optional)
         the strength of this map when alpha blending;

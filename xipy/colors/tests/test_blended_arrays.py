@@ -3,10 +3,10 @@ import numpy.testing as npt
 from nose.tools import assert_true, assert_equal, assert_false
 
 from xipy.external import decotest
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 
 # the code to test
-from xipy.vis.rgba_blending import *
+from xipy.colors.rgba_blending import *
 
 def test_blended_arrays_init():
     ba = BlendedArrays()

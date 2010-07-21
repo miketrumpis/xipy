@@ -5,7 +5,7 @@ import matplotlib as mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
 from matplotlib.figure import Figure
 ## import matplotlib.cm as cm
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 
 # XYZ: SUCKY CLASS NEEDS SERIOUS WORK
 

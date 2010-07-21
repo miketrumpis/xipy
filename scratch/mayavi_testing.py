@@ -1,5 +1,5 @@
 from xipy.vis import mayavi_widgets
-from xipy.vis import mayavi_tools
+from xipy.colors import mayavi_tools
 from xipy.overlay.image_overlay import ImageOverlayManager
 from xipy.slicing import load_resampled_slicer
 from xipy import TEMPLATE_MRI_PATH

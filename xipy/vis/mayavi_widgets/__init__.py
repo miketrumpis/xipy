@@ -52,8 +52,8 @@ class MayaviWidget(TopLevelAuxiliaryWindow):
 ##         self.update()
 
 
-from xipy.vis.mayavi_tools import ArraySourceRGBA
-from xipy.vis.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
+from xipy.colors.mayavi_tools import ArraySourceRGBA
+from xipy.colors.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
 class MasterSource(ArraySourceRGBA):
     """
     This class monitors a BlendedImages object and sets up image

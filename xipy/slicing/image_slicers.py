@@ -13,7 +13,7 @@ from xipy.slicing import SAG, COR, AXI, transverse_plane_lookup, \
      enumerated_axes, xipy_ras
 from xipy.external.interpolation import ImageInterpolator
 import xipy.volume_utils as vu
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 
 
 def timedim(img):

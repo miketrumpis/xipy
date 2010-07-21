@@ -14,7 +14,7 @@ from enthought.mayavi import mlab
 from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
 
 # XIPY imports
-from xipy.vis.mayavi_tools import image_plane_widget_rgba
+from xipy.colors.mayavi_tools import image_plane_widget_rgba
 from xipy.vis.mayavi_widgets import VisualComponent
 
 axis_to_index = dict( zip('xyz', [0,1,2]) )

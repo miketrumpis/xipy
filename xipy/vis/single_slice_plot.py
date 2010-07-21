@@ -3,7 +3,7 @@ from matplotlib.lines import Line2D
 from matplotlib.image import AxesImage
 import numpy as np
 
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 
 now = True
 

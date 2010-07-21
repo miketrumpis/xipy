@@ -19,8 +19,8 @@ from enthought.mayavi import mlab
 # XIPY imports
 from xipy.slicing.image_slicers import VolumeSlicerInterface
 from xipy.overlay.interface import OverlayInterface
-from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
-from xipy.vis.rgba_blending import BlendedImages
+from xipy.colors.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
+from xipy.colors.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
 from xipy.vis.mayavi_widgets import VisualComponent, MasterSource

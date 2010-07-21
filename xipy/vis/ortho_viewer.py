@@ -8,7 +8,6 @@ from PyQt4 import QtCore, QtGui
 
 # Matplotlib
 import matplotlib as mpl
-import xipy.vis.color_mapping as cm
 
 # NumPy
 import numpy as np
@@ -22,7 +21,8 @@ from xipy.utils import with_attribute
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
 from xipy.vis import mayavi_widgets
-from xipy.vis.rgba_blending import BlendedImages
+import xipy.colors.color_mapping as cm
+from xipy.colors.rgba_blending import BlendedImages
 from xipy.overlay.interface import overlay_thresholding_function, \
      make_mpl_image_properties
 from xipy.overlay.plugins import all_registered_plugins

@@ -4,7 +4,7 @@ from PyQt4 import QtGui, QtCore
 from matplotlib.colors import Normalize
 
 from xipy.vis.qt4_widgets.ortho_slices import MplQT4OrthoSlicesWidget
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 from xipy.slicing import SAG, COR, AXI
 from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
      ResampledIndexVolumeSlicer

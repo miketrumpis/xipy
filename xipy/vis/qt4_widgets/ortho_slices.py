@@ -11,8 +11,7 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as Canvas
 from matplotlib.figure import Figure
-## import matplotlib.cm as cm
-import xipy.vis.color_mapping as cm
+import xipy.colors.color_mapping as cm
 
 class FakeMPLEvent(object):
     def __init__(self, c, a, x, y):

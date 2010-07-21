@@ -10,7 +10,7 @@ from enthought.traits.ui.api import View, Item, Group
 
 # XIPY imports
 from xipy.vis.mayavi_widgets import VisualComponent
-from xipy.vis.rgba_blending import quick_convert_rgba_to_vtk
+from xipy.colors.rgba_blending import quick_convert_rgba_to_vtk
 
 class ImageBlendingComponent(VisualComponent):
     """

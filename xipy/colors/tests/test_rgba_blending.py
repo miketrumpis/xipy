@@ -4,7 +4,7 @@ from nose.tools import assert_true, assert_equal, assert_false
 import nipy.core.api as ni_api
 
 # the code to test
-from xipy.vis.rgba_blending import *
+from xipy.colors.rgba_blending import *
 
 def simple_test():
     arr1 = np.random.randint(0,high=255, size=(10,10,10,4)).astype('B')
