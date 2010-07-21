@@ -24,9 +24,9 @@ ext: _blend_pix.so
 test:   ext
 	nosetests .
 
-html:  ${PKGDIR}/vis/_blend_pix.html
+html:  ${PKGDIR}/colors/_blend_pix.html
 
-_blend_pix.so: ${PKGDIR}/vis/_blend_pix.c
+_blend_pix.so: ${PKGDIR}/colors/_blend_pix.c
 	python setup.py build_ext --inplace
 
 # Phony targets for cleanup and similar uses
