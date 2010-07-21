@@ -13,7 +13,8 @@ from enthought.traits.ui.api import View, Item, Group
 from enthought.mayavi import mlab
 
 # XIPY imports
-from xipy.vis.mayavi_widgets import VisualComponent, MasterSource
+from xipy.vis.mayavi_widgets import VisualComponent
+from xipy.colors.mayavi_tools import MasterSource
 
 surf_to_component = {
     'Anatomical' : MasterSource.main_channel,

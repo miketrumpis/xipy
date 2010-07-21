@@ -3,7 +3,6 @@ import xipy.colors.rgba_blending as rb
 import xipy
 import xipy.io as xio
 import xipy.colors.mayavi_tools as mt
-import xipy.vis.mayavi_widgets as mw
 
 from enthought.mayavi import mlab
 from enthought.tvtk.api import tvtk
@@ -14,7 +13,7 @@ over_img._data = np.ma.masked_where(over_img._data > 1e10, over_img._data)
 main_img = xio.load_spatial_image(xipy.TEMPLATE_MRI_PATH)
 
 bi = rb.BlendedImages(vtk_order = True)
-m_src = mw.MasterSource(blender=bi)
+m_src = mt.MasterSource(blender=bi)
 bi.main = main_img
 bi.over = over_img
 

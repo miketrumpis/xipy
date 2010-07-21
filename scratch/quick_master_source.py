@@ -4,7 +4,6 @@ import xipy
 import xipy.utils as utils
 import xipy.io as xio
 import xipy.colors.mayavi_tools as mt
-import xipy.vis.mayavi_widgets as mw
 
 import enthought.traits.api as traits
 import enthought.traits.ui.api as tui
@@ -13,7 +12,7 @@ from enthought.tvtk.api import tvtk
 
 class SimpleSwitching(traits.HasTraits):
 
-    source = traits.Instance(mw.MasterSource, ())
+    source = traits.Instance(mt.MasterSource, ())
 
     add_new_channel = traits.Button('add chan')
 
@@ -90,7 +89,7 @@ if __name__=='__main__':
     main_img = xio.load_spatial_image(xipy.TEMPLATE_MRI_PATH)
 
     bi = rb.BlendedImages(vtk_order = True, over_alpha = .5)
-    m_src = mw.MasterSource(blender=bi)
+    m_src = mt.MasterSource(blender=bi)
     bi.main = main_img
 ##     bi.over = over_img
     m_src = mlab.pipeline.add_dataset(m_src)

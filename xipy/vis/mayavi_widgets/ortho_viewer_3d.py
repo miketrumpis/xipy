@@ -23,7 +23,8 @@ from xipy.colors.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.colors.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
-from xipy.vis.mayavi_widgets import VisualComponent, MasterSource
+from xipy.vis.mayavi_widgets import VisualComponent
+from xipy.colors.mayavi_tools import MasterSource
 
 def three_plane_pt(n1, n2, n3, x1, x2, x3):
     nm = np.array((n1,n2,n3)).T
