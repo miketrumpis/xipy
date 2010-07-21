@@ -11,6 +11,8 @@ import enthought.traits.ui.api as tui
 from enthought.tvtk.api import tvtk
 from enthought.mayavi import mlab
 
+from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
+
 # XIPY imports
 from xipy.vis.mayavi_tools import image_plane_widget_rgba
 from xipy.vis.mayavi_widgets import VisualComponent
@@ -34,8 +36,8 @@ class TranslatedPlanes(VisualComponent):
 ##     surface_component = t.Enum(values='_available_surfaces')
 
     # active_attribute filter to sit on top of the master source
-    aa = t.Instance('enthought.mayavi.filters.filter_base.Filter')
-
+    aa = SetActiveAttribute()
+    color_chan = t.Str
     # Volume box
     bbox = t.Property
 
@@ -53,8 +55,11 @@ class TranslatedPlanes(VisualComponent):
                     )
                 ),
             tui.VGroup(
-                tui.Item('object.aa',
-                         style='custom',
+                tui.Item('color_chan',
+                         editor=tui.EnumEditor(
+                             name='object.aa._point_scalars_list'
+                             ),
+                         #style='custom',
                          label='Mirrored Channel'),
                 tui.Item('offset', label='Plane offsets')
                 )
@@ -71,6 +76,8 @@ class TranslatedPlanes(VisualComponent):
             self.add_trait(trait, t.DelegatesTo('display'))
         
         self.aa = mlab.pipeline.set_active_attribute(self.master_src)
+        self.sync_trait('color_chan', self.aa, alias='point_scalars_name')
+        #self._point_scalars_list = t.DelegatesTo('aa')
 
 ##     # XXX: commmon usage in cortical surface component
 ##     @t.cached_property

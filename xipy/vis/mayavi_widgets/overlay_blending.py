@@ -5,28 +5,12 @@ import numpy as np
 from nipy.core import api as ni_api
 
 # Enthought library
-from enthought.traits.api import HasTraits, Instance, on_trait_change, Array, \
-     Bool, Range, Enum, Property, List, Tuple, DelegatesTo, TraitError, String
-from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
-     RangeEditor
-from enthought.tvtk.api import tvtk
-from enthought.mayavi.core.api import Source
-from enthought.mayavi.sources.array_source import ArraySource
-from enthought.mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
-     SceneEditor
-from enthought.mayavi.modules.text import Text
-from enthought.mayavi import mlab
+from enthought.traits.api import Instance, on_trait_change, Bool, DelegatesTo
+from enthought.traits.ui.api import View, Item, Group
 
 # XIPY imports
-from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
-     VolumeSlicerInterface
-from xipy.overlay import OverlayInterface, ThresholdMap
-from xipy.vis.qt4_widgets.auxiliary_window import TopLevelAuxiliaryWindow
-from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
-from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis.mayavi_widgets import VisualComponent
 from xipy.vis.rgba_blending import quick_convert_rgba_to_vtk
-import xipy.volume_utils as vu
 
 class ImageBlendingComponent(VisualComponent):
     """
@@ -38,16 +22,9 @@ class ImageBlendingComponent(VisualComponent):
     in a BlendedImages object.
     """
 
-##     name = String('Image Planes')
-##     from xipy.vis.mayavi_widgets.ortho_viewer_3d import OrthoViewer3D
-##     display = Instance(OrthoViewer3D())
-##     blender = DelegatesTo('display')
-##     blended_src = DelegatesTo('display')    
-##     func_man = DelegatesTo('display')
-
     # ----- This will eventually become this VisualComponent's UI widget -----
-    show_func = Bool(False) #DelegatesTo('display')
-    show_anat = Bool(False) #DelegatesTo('display')
+    show_func = Bool(False)
+    show_anat = Bool(False)
 
     view = View(
         Group(

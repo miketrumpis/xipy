@@ -1,7 +1,7 @@
 from PyQt4 import QtGui
 import numpy as np
 
-from xipy.overlay import OverlayWindowInterface, OverlayInterface
+from xipy.overlay.interface import OverlayWindowInterface, OverlayInterface
 
 import nipy.core.api as ni_api
 

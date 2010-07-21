@@ -23,7 +23,7 @@ from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.xipy_window_app import XIPYWindowApp
 from xipy.vis import mayavi_widgets
 from xipy.vis.rgba_blending import BlendedImages
-from xipy.overlay import overlay_thresholding_function, \
+from xipy.overlay.interface import overlay_thresholding_function, \
      make_mpl_image_properties
 from xipy.overlay.plugins import all_registered_plugins
 from xipy.io import load_spatial_image

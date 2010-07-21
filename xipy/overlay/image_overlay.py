@@ -21,7 +21,8 @@ from xipy.slicing.image_slicers import SampledVolumeSlicer, \
      slice_timewise, timedim
 from xipy.vis.qt4_widgets import browse_files
 from xipy.vis.qt4_widgets.colorbar_panel import ColorbarPanel
-from xipy.overlay import OverlayInterface, OverlayWindowInterface, ThresholdMap
+from xipy.overlay.interface import OverlayInterface, OverlayWindowInterface, \
+     ThresholdMap
 from xipy.volume_utils import signal_array_to_masked_vol
 from xipy.io import load_image
 

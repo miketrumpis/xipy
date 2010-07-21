@@ -135,7 +135,10 @@ class MNI_to_Talairach_db(object):
         import xipy
         where = os.path.abspath(xipy.__file__)
         where = os.path.dirname(where)
-        db_file = os.path.join(where, 'resources/MNIicbm.mat')
+        if db=='icbm':
+            db_file = os.path.join(where, 'resources/MNIicbm.mat')
+        else:
+            db_file = os.path.join(where, 'resources/MNIbrett.mat')
         db_arr = sio.loadmat(db_file, struct_as_record=True)['MNIdm'][0,0]
         labels = db_arr['labels']
         self.locations = db_arr['coords'].astype('d')

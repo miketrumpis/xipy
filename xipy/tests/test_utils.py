@@ -80,11 +80,15 @@ def test_voxel_lookup_by_ref():
     yield nt.assert_true, abs(d2-d1) < 1e-10, 'closest voxel does not match reference'
 
 def test_mni_db():
-    db = MNI_to_Talairach_db()
+    for db_type in ('icbm', 'brett'):
+        db = MNI_to_Talairach_db(db=db_type)
 
-    loc = db.locations[0]
-    labels = [db.table[i][db.lut[0]] for i in xrange(len(db.table))]
+        loc = db.locations[0]
+        labels = [db.table[i][db.lut[0]] for i in xrange(len(db.table))]
 
-    retrieved_labels = db(loc)
+        retrieved_labels = db(loc)
 
-    yield nt.assert_true, all([x==y for x,y in zip(labels, retrieved_labels)])
+        yield (
+            nt.assert_true,
+            all([x==y for x,y in zip(labels, retrieved_labels)])
+            )

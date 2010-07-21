@@ -1,6 +1,3 @@
-# std lib
-import time
-
 # NumPy
 import numpy as np
 
@@ -8,33 +5,25 @@ import numpy as np
 from nipy.core import api as ni_api
 
 # Enthought library
-from enthought.traits.api import HasTraits, Instance, on_trait_change, Array, \
-     Bool, Range, Enum, Property, List, Tuple, DelegatesTo, TraitError
+from enthought.traits.api import HasTraits, Instance, on_trait_change, \
+     Bool, List
 from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
-     RangeEditor, ListEditor
+     ListEditor
 from enthought.tvtk.api import tvtk
 from enthought.mayavi.core.api import Source
-from enthought.mayavi.sources.array_source import ArraySource
 from enthought.mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
      SceneEditor
 from enthought.mayavi.modules.text import Text
 from enthought.mayavi import mlab
 
 # XIPY imports
-from xipy.slicing.image_slicers import ResampledVolumeSlicer, \
-     VolumeSlicerInterface
-from xipy.overlay import OverlayInterface, ThresholdMap
+from xipy.slicing.image_slicers import VolumeSlicerInterface
+from xipy.overlay.interface import OverlayInterface
 from xipy.vis.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
-from xipy.vis.mayavi_tools import time_wrap as tw
 from xipy.vis.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
 from xipy.vis.mayavi_widgets import VisualComponent, MasterSource
-
-## from xipy.vis.mayavi_widgets.overlay_blending import ImageBlendingComponent
-## from xipy.vis.mayavi_widgets.overlay_thresholding_surface import OverlayThresholdingSurfaceComponent
-## from xipy.vis.mayavi_widgets.cortical_surface import CorticalSurfaceComponent
-
 
 def three_plane_pt(n1, n2, n3, x1, x2, x3):
     nm = np.array((n1,n2,n3)).T
@@ -284,10 +273,9 @@ class OrthoViewer3D(HasTraits):
     @on_trait_change('scene.activated')
     def display_scene3d(self):
         self.scene.mlab.view(100, 100)
-        self.scene.scene.background = (0, 0, 0)
-##         # set up the poly extractor filter with an all-inclusive
-##         # Implicit Function
-##         self._toggle_poly_extractor_mode(cut_mode=False)
+        self.scene.renderer.use_depth_peeling = True
+##         self.scene.scene.background = (0, 0, 0)
+
         # Keep the view always pointing up
         self.scene.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleTerrain()
@@ -310,7 +298,7 @@ class OrthoViewer3D(HasTraits):
             HGroup(
                 Item('scene',
                      editor=SceneEditor(scene_class=MayaviScene),
-                     height=450, width=300),
+                     height=600, width=900),
                 show_labels=False,
                 dock='vertical'
                 ),
