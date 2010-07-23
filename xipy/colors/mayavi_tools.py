@@ -164,7 +164,8 @@ image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
 # -- An ArraySource with "channels" ------------------------------------------
 import enthought.traits.api as t
-from enthought.mayavi.sources.vtk_data_source import VTKDataSource
+from enthought.mayavi.sources.vtk_data_source import VTKDataSource, \
+     has_attributes, get_all_attributes
 from enthought.tvtk.api import tvtk
 
 from xipy.colors.mayavi_tools import ArraySourceRGBA
@@ -202,6 +203,9 @@ class MasterSource(VTKDataSource):
     channels for the main image, over image, and blended image.
 
     It may have additional channels
+
+    This class subclasses VTKDataSource as a handy base class for a
+    "has-a" tvtk dataset design--but there are some drawbacks as well.
     """
 
     data = t.Instance(tvtk.ImageData, args=(), allow_none=False)
@@ -226,6 +230,7 @@ class MasterSource(VTKDataSource):
 
     def __init__(self, *args, **kwargs):
         super(MasterSource, self).__init__(*args, **kwargs)
+        self.data = tvtk.ImageData()
 ##         if not self.data:
 ##             self.data = tvtk.ImageData()
 
@@ -297,18 +302,18 @@ class MasterSource(VTKDataSource):
         updating = True #self.over_channel not in self.all_channels
 
         self.set_new_array(
-            self.blender.over_rgba, self.over_channel, update=False
+            self.blender.over_rgba, self.over_channel
             )        
         # this obviously also changes the blended array
         self.set_new_array(
-            self.blender.blended_rgba, self.blended_channel, update=updating
+            self.blender.blended_rgba, self.blended_channel
             )
 
-    def _data_changed(self, old, new):
-        print 'data_changed triggered'
-        print 'should set aa.input to new:', type(new)
-        super(MasterSource, self)._data_changed(old, new)
-        print self._assign_attribute.input, self._assign_attribute.output
+##     def _data_changed(self, old, new):
+##         print 'data_changed triggered'
+##         print 'should set aa.input to new:', type(new)
+##         super(MasterSource, self)._data_changed(old, new)
+##         print type(self._assign_attribute.input), type(self._assign_attribute.output)
 
     def _push_changes(self):
         # this should be called when..
@@ -329,6 +334,17 @@ class MasterSource(VTKDataSource):
         self.pipeline_changed = True
 ##         self.pipeline_changed = True
         
+    def _check_aa(self):
+        aa = self._assign_attribute
+        if has_attributes(self.data) and not aa.input:
+            aa = self._assign_attribute
+            aa.input = self.data
+            self._update_data()
+            self.outputs = [aa.output]
+        else:
+            self.outputs = [self.data]
+
+##         self.data_changed = True
 
     ## The convention will be to have main_rgba be the primary array
     ## in scalar_data. If main_rgba isn't present, then set it to
@@ -376,7 +392,8 @@ class MasterSource(VTKDataSource):
 
         dataset.update()
         dataset.update_traits()
-        
+        self._check_aa()
+        self._update_data()
         self._push_changes()
         self.point_scalars_name = name
 
@@ -410,9 +427,11 @@ class MasterSource(VTKDataSource):
             # now remove the array safely
             self.data.point_data.remove_array(name)
 
-        self.data.modified()
-        self._update_data()
-        self.pipeline_changed = True
+        # XXX: is this right?
+        self._push_changes()
+##         self.data.modified()
+##         self._update_data()
+##         self.pipeline_changed = True
 
     @disable_render
     def set_new_array(self, arr, name, update=True):

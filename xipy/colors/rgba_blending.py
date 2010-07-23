@@ -425,6 +425,8 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
             self.over = over_img
         else:
             self._main_idx = self.main.image_arr
+            # remap the over image (??)
+            self.over = self.over
         self._adapt_to_slicer()
 
     @t_ui.on_trait_change('over')

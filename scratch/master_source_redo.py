@@ -93,7 +93,7 @@ src1.image_data.point_data.get_array(n).name = 'over_colors'
 ## src2 = mt.ArraySourceRGBA(transpose_input_array=False)
 
 sampler = tvtk.ProbeFilter()
-sampler.input = contour_pd
+## sampler.input = contour_pd
 
 sampler.source = src1.image_data
 
