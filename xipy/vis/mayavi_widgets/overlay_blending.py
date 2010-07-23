@@ -36,10 +36,10 @@ class ImageBlendingComponent(VisualComponent):
     def __init__(self, display, watch_overlay=True, **traits):
         if 'name' not in traits:
             traits['name'] = 'Image Planes'
-##         traits['display'] = display
         VisualComponent.__init__(self, **traits)
         self.trait_setq(display=display)
-        for trait in ('blender', 'blended_src', 'func_man'):
+        for trait in ('blender', 'func_man', 'master_src',
+                      'principle_plane_colors'):
             self.add_trait(trait, DelegatesTo('display'))
 
         # -- GUI event, dispatch on new thread
@@ -56,30 +56,9 @@ class ImageBlendingComponent(VisualComponent):
         # -- Data updates
             self.on_trait_change(self._update_colors_from_func_man,
                                  'func_man.overlay_updated')
-        # do these in any case
-        self.on_trait_change(self._update_colors_from_anatomical,
-                             'display.blender.main')
-        self.on_trait_change(self._monitor_sources,
-                             'blender.main_rgba, blender.over_rgba')
 
-    
-    # -- Plotting Toggles ----------------------------------------------------
-    @on_trait_change('show_anat')
-    def _show_anat(self):
-        if not len(self.blender.main_rgba):
-            print 'no anat array loaded yet'
-            self.set(show_anat=False, trait_change_notify=False)
-            return
-        # this will assess the status of the image source and plotting
-        self.change_blended_source_data()
-
-    @on_trait_change('show_func')
-    def _show_func(self):
-        if not len(self.blender.over_rgba):
-            print 'no overlay present'
-            self.set(show_func=False, trait_change_notify=False)
-            return
-        self.change_blended_source_data()
+        self.on_trait_change(self.change_colors,
+                             'master_src.colors_changed')
 
     # -- Color Mapping Callbacks ---------------------------------------------
     def _alpha_scale(self):
@@ -107,93 +86,59 @@ class ImageBlendingComponent(VisualComponent):
             over_alpha=self.func_man.alpha()
             )
             
-        self.blender.over = self.func_man.overlay
+        self.blender.over = self.func_man.overlay        
 
-    def _update_colors_from_anatomical(self):
-        if self.blender.main:
-            self.change_blended_source_data(new_grid=True)
-        else:
-            self.show_anat = False
-        
-
+    # -- Plotting Toggles ----------------------------------------------------
+    # And
     # -- Color Array Monitoring ----------------------------------------------
-    def _monitor_sources(self, obj, name, new):
-        print name, 'changed'
-        if name == 'main_rgba' and self.show_anat:
-            self.change_blended_source_data()
-        elif name == 'over_rgba' and self.show_func:
-            self.change_blended_source_data()
-    
-    def change_blended_source_data(self, new_grid=False):
-        """ Create a pixel-blended array, whose contents depends on the
-        current plotting conditions. Also check the status of the
-        visibility of the plots.
+    @on_trait_change('show_func, show_anat')
+    def change_colors(self):
         """
+        Change the active color channel on the principle_plane_colors (if
+        the channel is available)
+        """
+        main_chan = self.master_src.main_channel
+        over_chan = self.master_src.over_channel
+        blnd_chan = self.master_src.blended_channel
+        all_rgba = self.master_src.rgba_channels
         if self.show_func and self.show_anat:
+            if blnd_chan not in all_rgba:
+                if main_chan not in all_rgba:
+                    self.show_anat = False
+                    return
+                if over_chan not in all_rgba:
+                    self.show_func = False
+                    return
             print 'will plot blended'
-            img_data = quick_convert_rgba_to_vtk(
-                self.blender.blended_rgba
-                )
+            color = blnd_chan
         elif self.show_func:
+            if over_chan not in all_rgba:
+                self.show_func = False
+                return
             print 'will plot over plot'
-            img_data = quick_convert_rgba_to_vtk(
-                self.blender.over_rgba
-                )
-        else:
+            color = over_chan
+        elif self.show_anat:
+            if main_chan not in all_rgba:
+                self.show_anat = False
+                return
             print 'will plot anatomical'
-            img_data = quick_convert_rgba_to_vtk(
-                self.blender.main_rgba
-                )
+            color = main_chan
+        else:
+            print 'turning off plots'
+            color = ''
 
-        # if a new grid, update (even if invisibly)
-        new_grid = new_grid or self.blended_src.scalar_data is None \
-                   or self.blended_src.scalar_data.size != img_data.size
-        if new_grid:
-            print 'changing data not in-place'
-            # this will kick off the scalar_data_changed stuff
-            self.blended_src.scalar_data = img_data.copy()
-            self.blended_src.spacing = self.blender.img_spacing
-            self.blended_src.origin = self.blender.img_origin
-            self.blended_src.update_image_data = True #???
-        
-        if not self.show_func and not self.show_anat:
+        print 'changing'
+        self.principle_plane_colors.point_scalars_name = color
+        print 'done'
+
+        if not color:
             self.display.toggle_planes_visible(False)
             return
 
-        if not new_grid:
-            print 'changing data in-place'
-            self.blended_src.scalar_data[:] = img_data
-
-        #self.blended_src.update_image_data = True
-        self.blended_src.update()
-
-        if not hasattr(self.display, 'ipw_x'):
+        ipwx = self.display._ipw_x('x')
+        if not ipwx:
             self.display.add_plots_to_scene()
-        self.display.toggle_planes_visible(True)
-
-##         if self.show_func and self.show_anat:
-##             print 'will plot blended'
-##             pscalars = 'blended_colors'
-##         elif self.show_func:
-##             print 'will plot over plot'
-##             pscalars = 'over_colors'
-##         else:
-##             print 'will plot anatomical'
-##             pscalars = 'main_colors'
-
-##         self.ipw_src.point_scalars_name = pscalars
-## ##         pdata = self.blended_src.image_data.point_data
-## ##         pdata.set_active_attribute(pscalars, 0)
-        
-##         if not self.show_func and not self.show_anat:
-##             self.toggle_planes_visible(False)
-##             return
-
-##         self.blended_src.update_image_data = True
-## ##         self.blended_src.update()
-
-##         if not hasattr(self, 'ipw_x'):
-##             self.add_plots_to_scene()
-##         else:            
-##             self.toggle_planes_visible(True)
+        elif not ipwx.visible:
+            self.display.toggle_planes_visible(True)
+ 
             

@@ -11,6 +11,8 @@ from enthought.traits.api import on_trait_change, Bool, Enum, Property, \
      DelegatesTo, cached_property
 from enthought.traits.ui.api import View, Item, Group
 from enthought.mayavi import mlab
+from enthought.mayavi.sources.array_source import ArraySource
+from enthought.tvtk.api import tvtk
 
 # XIPY imports
 from xipy.vis.mayavi_widgets import VisualComponent
@@ -85,7 +87,9 @@ class CorticalSurfaceComponent(VisualComponent):
         # (not the "real valued" scalars)
         brain_image = self.master_src.blender.main.image_arr.copy()
         np.putmask(brain_image, brain_image>255, 0)
-        
+
+        # since this is skull stripped from BET, the boundary will be
+        # wherever the image drops off to 0
         arr = ndimage.gaussian_filter(
             (brain_image > 0).astype('d'), 6
             )
@@ -96,22 +100,24 @@ class CorticalSurfaceComponent(VisualComponent):
         arr_blurred = ndimage.gaussian_filter(
             mask.astype('d'), 2
             )
-        arr_blurred *= 255
-        np.clip(arr_blurred, 0, 255, out=arr_blurred)
-        arr_blurred = arr_blurred.astype(np.uint8)
-        
-        # the data from blender should be guaranteed to be in the correct
-        # order.....
-##         n = self.master_src.image_data.point_data.add_array(
-##             np.ravel(arr_blurred)
-##             )
-##         self.master_src.image_data.point_data.get_array(n).name = 'blurred'
 
-        self.master_src.set_new_array(np.ravel(arr_blurred), 'blurred')
-
-        anat_blurred = mlab.pipeline.set_active_attribute(
-            self.master_src, point_scalars='blurred'
+        # This AA filter will rather dangle off the pipeline..
+        # it will be the "source" of the ProbeFilter, but we want
+        # to keep it pipeline-enabled so that we can dynamically
+        # change colors
+        point_scalars = surf_to_component[self.surface_component]
+        surf_colors = mlab.pipeline.set_active_attribute(
+            self.master_src, point_scalars=point_scalars
             )
+
+        # Now, make a new ArraySource with the attributes copied
+        # from master_src
+        anat_blurred = ArraySource(transpose_input_array=False)
+        anat_blurred.scalar_data = arr_blurred
+        anat_blurred.scalar_name = 'blurred'
+        anat_blurred.origin = self.master_src.data.origin
+        anat_blurred.spacing = self.master_src.data.spacing
+        anat_blurred = mlab.pipeline.add_dataset(anat_blurred)
         
 ##         anat_blurred.update_pipeline()
         contour = mlab.pipeline.contour(anat_blurred)
@@ -119,20 +125,19 @@ class CorticalSurfaceComponent(VisualComponent):
         extracted = mlab.pipeline.user_defined(
             decimated, filter=self.poly_extractor
             )
-        point_scalars = surf_to_component[self.surface_component]
-        self.surf_colors = mlab.pipeline.set_active_attribute(
-            extracted,
-##             decimated,
-            point_scalars=point_scalars
-            )
-##         pnorm = mlab.pipeline.poly_data_normals(self.surf_colors)
+
+        sampler = tvtk.ProbeFilter()
+        sampler.source = surf_colors.outputs[0]
+
+        surf_points = mlab.pipeline.user_defined(extracted, filter=sampler)
+
         self.cortical_surf = mlab.pipeline.surface(
-            self.surf_colors,
-            opacity=.95,
-            figure=self.display.scene.mayavi_scene
+            surf_points,
+            opacity=.95
             )
         self.cortical_surf.actor.property.backface_culling = True
         self.bcontour = contour
+        self.surf_colors = surf_colors
 ##         self.cortical_surf.enable_contours = True
 ##         self.cortical_surf.contour.filled_contours = True
 ##         self.cortical_surf.contour.auto_contours = True
@@ -155,4 +160,6 @@ class CorticalSurfaceComponent(VisualComponent):
                 self._volume_function.volume = self.master_src.data
             self.poly_extractor.implicit_function = self._volume_function
         
-        self.poly_extractor.extract_inside = not cut_mode
+##         self.poly_extractor.extract_inside = not cut_mode
+        self.poly_extractor.extract_inside = False #???
+        self.poly_extractor.update()

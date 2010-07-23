@@ -9,6 +9,14 @@ from enthought.mayavi.modules.image_plane_widget import ImagePlaneWidget
 from enthought.mayavi.tools.modules import DataModuleFactory
 from enthought.mayavi.tools.pipe_base import make_function
 
+import enthought.traits.api as t
+from enthought.mayavi.sources.vtk_data_source import VTKDataSource, \
+     has_attributes, get_all_attributes
+from enthought.tvtk.api import tvtk
+
+# -- XIPY imports
+from xipy.colors.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
+
 import time
 def time_wrap(fcall, ldict, gdict=None):
     if gdict is None:
@@ -143,6 +151,18 @@ class ImagePlaneWidget_RGBA(ImagePlaneWidget):
         
         self.pipeline_changed = True
 
+    @t.on_trait_change('use_lookup_table')
+    def setup_lut(self): 
+        # Set the LUT for the IPW.
+        if self.use_lookup_table:
+            if self.module_manager is not None:
+                self.ipw.lookup_table = \
+                                self.module_manager.scalar_lut_manager.lut
+        else:
+            self.module_manager._teardown_event_handlers()
+            self.ipw.color_map.lookup_table = None
+        self.render()
+
 class ImagePlaneWidgetFactory_RGBA(DataModuleFactory):
     """ Applies the ImagePlaneWidget mayavi module to the given data
         source (Mayavi source, or VTK dataset). 
@@ -163,39 +183,24 @@ class ImagePlaneWidgetFactory_RGBA(DataModuleFactory):
 image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
 # -- An ArraySource with "channels" ------------------------------------------
-import enthought.traits.api as t
-from enthought.mayavi.sources.vtk_data_source import VTKDataSource, \
-     has_attributes, get_all_attributes
-from enthought.tvtk.api import tvtk
-
-from xipy.colors.mayavi_tools import ArraySourceRGBA
-from xipy.colors.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
 
 def disable_render(method):
     def wrapped_method(obj, *args, **kwargs):
-        render_state = 'foo'
         try:
             render_state = obj.scene.disable_render
-            print 'disabling rendering'
             obj.scene.disable_render = True
         except AttributeError:
             pass
         res = method(obj, *args, **kwargs)
         try:
-            if render_state:
-                print "WTF? Not restoring disable_render to False"
-            print 'reseting disable_render to', render_state
             obj.scene.disable_render = render_state
-        except AttributeError:
-            if render_state != 'foo':
-                print "WTFFFF"
+        except:
             pass
         return res
     for attr in ['func_doc', 'func_name']:
         setattr(wrapped_method, attr, getattr(method, attr))
     return wrapped_method
 
-## class MasterSource(ArraySourceRGBA):
 class MasterSource(VTKDataSource):
 
     """
@@ -219,20 +224,14 @@ class MasterSource(VTKDataSource):
     main_channel = 'main_colors'
     blended_channel = 'blended_colors'
 
+    colors_changed = t.Event
+    
     rgba_channels = t.Property
     all_channels = t.Property
-
-##     transpose_input_array = False
-
-##     @t.on_trait_change('transpose_input_array')
-##     def _ignore_transpose(self):
-##         self.trait_setq(transpose_input_array=False)
 
     def __init__(self, *args, **kwargs):
         super(MasterSource, self).__init__(*args, **kwargs)
         self.data = tvtk.ImageData()
-##         if not self.data:
-##             self.data = tvtk.ImageData()
 
     @t.on_trait_change('blender')
     def _check_vtk_order(self):
@@ -273,7 +272,6 @@ class MasterSource(VTKDataSource):
         elif not self.blender.over_rgba.size:
             #self.flush_arrays()
             self.safe_remove_arrays()
-
         # cases 3, 4 will be triggered if and when over_rgba changes
 
     @t.on_trait_change('blender.over_rgba')
@@ -302,36 +300,22 @@ class MasterSource(VTKDataSource):
         updating = True #self.over_channel not in self.all_channels
 
         self.set_new_array(
-            self.blender.over_rgba, self.over_channel
+            self.blender.over_rgba, self.over_channel, update=False
             )        
         # this obviously also changes the blended array
         self.set_new_array(
             self.blender.blended_rgba, self.blended_channel
             )
 
-##     def _data_changed(self, old, new):
-##         print 'data_changed triggered'
-##         print 'should set aa.input to new:', type(new)
-##         super(MasterSource, self)._data_changed(old, new)
-##         print type(self._assign_attribute.input), type(self._assign_attribute.output)
-
     def _push_changes(self):
         # this should be called when..
         # * arrays are added/removed
-        print 'pushing pipeline changes'
-        
-        # XXX: not sure how many of these are necessary!
-##         self.data.update()
-##         self.data.point_data.update_traits()
-##         self.data.modified()
-##         self._data_changed(self.data, self.data)
-        
-##         self.data_changed = True
-##         self.update()
-        # this one definitely needed --
-        # but WHY does it sometimes need to happen twice?
+        print 'foo1'
         self._update_data()
+        print 'foo2'
         self.pipeline_changed = True
+        print 'foo3'
+        self.colors_changed = True
 ##         self.pipeline_changed = True
         
     def _check_aa(self):
@@ -343,8 +327,6 @@ class MasterSource(VTKDataSource):
             self.outputs = [aa.output]
         else:
             self.outputs = [self.data]
-
-##         self.data_changed = True
 
     ## The convention will be to have main_rgba be the primary array
     ## in scalar_data. If main_rgba isn't present, then set it to
@@ -397,16 +379,6 @@ class MasterSource(VTKDataSource):
         self._push_changes()
         self.point_scalars_name = name
 
-##     def flush_arrays(self, names=[], update=True):
-##         pdata = self.data.point_data
-##         if not names:
-##             names = [pdata.get_array_name(n)
-##                      for n in xrange(pdata.number_of_arrays)]
-##         for n in names:
-##             pdata.remove_array(n)
-##         if update:
-##             self._push_changes()
-
     @disable_render
     def safe_remove_arrays(self, names=[]):
         if not names:
@@ -424,14 +396,12 @@ class MasterSource(VTKDataSource):
                 used_name = getattr(node, 'point_scalars_name', None)
                 if used_name == name:
                     node.point_scalars_name = ''
+##                     node.stop()
             # now remove the array safely
             self.data.point_data.remove_array(name)
 
         # XXX: is this right?
         self._push_changes()
-##         self.data.modified()
-##         self._update_data()
-##         self.pipeline_changed = True
 
     @disable_render
     def set_new_array(self, arr, name, update=True):

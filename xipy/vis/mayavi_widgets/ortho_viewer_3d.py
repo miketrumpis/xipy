@@ -10,7 +10,7 @@ from enthought.traits.api import HasTraits, Instance, on_trait_change, \
 from enthought.traits.ui.api import View, Item, HGroup, VGroup, Group, \
      ListEditor
 from enthought.tvtk.api import tvtk
-from enthought.mayavi.core.api import Source
+from enthought.mayavi.core.api import Source, Filter
 from enthought.mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
      SceneEditor
 from enthought.mayavi.modules.text import Text
@@ -44,7 +44,7 @@ class OrthoViewer3D(HasTraits):
 
     blender = Instance(BlendedImages)
 
-    blended_src = Instance(Source)
+##     blended_src = Instance(Source)
     master_src = Instance(Source)
 
     anat_image = Instance(VolumeSlicerInterface)
@@ -53,6 +53,11 @@ class OrthoViewer3D(HasTraits):
     # Functional Overlay Manager
     #---------------------------------------------------------------------------
     func_man = Instance(OverlayInterface, ())
+
+    #---------------------------------------------------------------------------
+    # Our ImagePlaneWidget color filter
+    #---------------------------------------------------------------------------
+    principle_plane_colors = Instance(Filter)
 
     #---------------------------------------------------------------------------
     # VisualComponents List
@@ -108,18 +113,20 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     def _blender_default(self):
         return BlendedImages(vtk_order=True)
-    def _blended_src_default(self):
-        s = ArraySourceRGBA(transpose_input_array=False)
-        # by default this array has a 'main_colors' array..
-        # later, it may have 'over_colors' and 'blended_colors'
-        s.scalar_name = 'ipw_colors'
-        b_src = mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
-        return b_src
+##     def _blended_src_default(self):
+##         s = ArraySourceRGBA(transpose_input_array=False)
+##         # by default this array has a 'main_colors' array..
+##         # later, it may have 'over_colors' and 'blended_colors'
+##         s.scalar_name = 'ipw_colors'
+##         b_src = mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
+##         return b_src
     def _master_src_default(self):
         s = MasterSource(blender = self.blender)
         # make sure that the image blender is sync'd up
         self.sync_trait('blender', s, mutual=False)
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
+    def _principle_plane_colors_default(self):
+        return mlab.pipeline.set_active_attribute(self.master_src)
     def _func_man_default(self):
         return OverlayInterface()
     def _info_default(self):
@@ -133,7 +140,7 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
         ipw = image_plane_widget_rgba(
-            self.blended_src,
+            self.principle_plane_colors,
             figure=self.scene.mayavi_scene,
             plane_orientation='%s_axes'%axis_name
             )
@@ -149,7 +156,7 @@ class OrthoViewer3D(HasTraits):
 
             # position the image plane widget at an unobtrusive cut
             dim = self._axis_index[ax]
-            data_shape = self.blended_src.image_data.extent[::2]
+            data_shape = self.master_src.data.extent[::2]
             ipw.ipw.slice_position = data_shape[dim]/4
             # switch actions here
             ipw.ipw.middle_button_action = 2
