@@ -20,36 +20,41 @@ def time_wrap(fcall, ldict, gdict=None):
 
 # -- A New RGBA-enabled ArraySource ------------------------------------------
 def _check_scalar_array(obj, name, value):
-    """Validates a possibly multi-component scalar array.
-    """
+    """Validates a scalar array passed to the object."""
     if value is None:
         return None
     arr = np.asarray(value)
-    assert arr.dtype.char == 'B', "Scalar array dtype must be unsigned 8bit int"
-    assert len(arr.shape) in [3,4], "Scalar array must be {3,4} dimensional"
-    assert arr.shape[-1] == 4, \
-               "Component dimension for scalar array must be length-4"
+    # make two branches,
+    #  * for vtkUnsignedChar (numpy's uint8, or 'B') -- this will
+    #    become a 4-component color mapped array
+    #  * for scalar valued 2- or 3-D arrays
+    if arr.dtype.char == 'B':
+        assert arr.ndim == 4, \
+               "Color mapped RGBA arrays must be 4-dimensional"
+        assert arr.shape[-1] == 4, \
+               "Color component dimension for scalar array must be length-4"
+        xyz_dims = arr.shape[:-1]
+    else:
+        assert arr.ndim in [2,3], "Scalar array must be 2 or 3 dimensional"
+        xyz_dims = arr.shape
     vd = obj.vector_data
     if vd is not None:
-        arr_dims = arr.shape[:min(arr.ndim, 3)]
-        assert vd.shape[:-1] == arr_dims, \
+        assert vd.shape[:-1] == xyz_dims, \
                "Scalar array must match already set vector data.\n"\
                "vector_data.shape = %s, given array shape = %s"%(vd.shape,
-                                                                 arr.shape)
+                                                                 xyz_dims)
     return arr
 
-_check_scalar_array.info = 'a 2-, 3-, or 4-D numpy array'
+_check_scalar_array.info = 'a 2-, 3-, or 4D numpy array'
 
 class ArraySourceRGBA(src_api.ArraySource):
     """This is a version of ArraySource that allows for assignment
     of RGBA component data -- IE,
-    data.shape must be (nx, ny, [nz], 4)
-    data.dtype must be np.uint8
+    data.shape must be (nx, ny, [nz, 4])
     """
     scalar_data = Trait(None, _check_scalar_array, rich_compare=True)
 
     def _scalar_data_changed(self, data):
-        import numpy
         img_data = self.image_data
         if data is None:
             img_data.point_data.scalars = None
@@ -61,11 +66,8 @@ class ArraySourceRGBA(src_api.ArraySource):
             dims.append(1)
       
         img_data.origin = tuple(self.origin)
-        img_data.dimensions = tuple(dims)
-        img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
-        img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
 
-        flat_shape = ( numpy.prod(dims), )
+        flat_shape = ( np.prod(dims), )
         if is_rgba_bytes:
             flat_shape += (4,)
         if self.transpose_input_array:
@@ -75,9 +77,15 @@ class ArraySourceRGBA(src_api.ArraySource):
                 d.shape = flat_shape
                 img_data.point_data.scalars = d
             else:
-                img_data.point_data.scalars = numpy.ravel(numpy.transpose(data))
+                img_data.point_data.scalars = np.ravel(np.transpose(data))
+            img_data.dimensions = tuple(dims)
+            img_data.extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
+            img_data.update_extent = 0, dims[0]-1, 0, dims[1]-1, 0, dims[2]-1
         else:
             img_data.point_data.scalars = data.reshape(flat_shape)
+            img_data.dimensions = tuple(dims[::-1])
+            img_data.extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
+            img_data.update_extent = 0, dims[2]-1, 0, dims[1]-1, 0, dims[0]-1
 
         img_data.number_of_scalar_components = 4 if is_rgba_bytes else 1
         img_data.point_data.scalars.name = self.scalar_name
@@ -90,7 +98,6 @@ class ArraySourceRGBA(src_api.ArraySource):
 
         # Now flush the mayavi pipeline.
         self.data_changed = True
-
 
     def update(self):
         """Call this function when you change the array data
@@ -156,15 +163,48 @@ class ImagePlaneWidgetFactory_RGBA(DataModuleFactory):
 image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
 # -- An ArraySource with "channels" ------------------------------------------
+import enthought.traits.api as t
+from enthought.mayavi.sources.vtk_data_source import VTKDataSource
+from enthought.tvtk.api import tvtk
+
 from xipy.colors.mayavi_tools import ArraySourceRGBA
 from xipy.colors.rgba_blending import BlendedImages, quick_convert_rgba_to_vtk
-class MasterSource(ArraySourceRGBA):
+
+def disable_render(method):
+    def wrapped_method(obj, *args, **kwargs):
+        render_state = 'foo'
+        try:
+            render_state = obj.scene.disable_render
+            print 'disabling rendering'
+            obj.scene.disable_render = True
+        except AttributeError:
+            pass
+        res = method(obj, *args, **kwargs)
+        try:
+            if render_state:
+                print "WTF? Not restoring disable_render to False"
+            print 'reseting disable_render to', render_state
+            obj.scene.disable_render = render_state
+        except AttributeError:
+            if render_state != 'foo':
+                print "WTFFFF"
+            pass
+        return res
+    for attr in ['func_doc', 'func_name']:
+        setattr(wrapped_method, attr, getattr(method, attr))
+    return wrapped_method
+
+## class MasterSource(ArraySourceRGBA):
+class MasterSource(VTKDataSource):
+
     """
     This class monitors a BlendedImages object and sets up image
     channels for the main image, over image, and blended image.
 
     It may have additional channels
     """
+
+    data = t.Instance(tvtk.ImageData, args=(), allow_none=False)
 
     # XXX: This source should have a signal saying when a channel may
     # disappear!!! EG, if blender.over gets set to None, and some module
@@ -178,11 +218,16 @@ class MasterSource(ArraySourceRGBA):
     rgba_channels = t.Property
     all_channels = t.Property
 
-    transpose_input_array = False
+##     transpose_input_array = False
 
-    @t.on_trait_change('transpose_input_array')
-    def _ignore_transpose(self):
-        self.trait_setq(transpose_input_array=False)
+##     @t.on_trait_change('transpose_input_array')
+##     def _ignore_transpose(self):
+##         self.trait_setq(transpose_input_array=False)
+
+    def __init__(self, *args, **kwargs):
+        super(MasterSource, self).__init__(*args, **kwargs)
+##         if not self.data:
+##             self.data = tvtk.ImageData()
 
     @t.on_trait_change('blender')
     def _check_vtk_order(self):
@@ -190,7 +235,7 @@ class MasterSource(ArraySourceRGBA):
             raise ValueError('BlendedImages instance must be in VTK order')
 
     def _get_all_channels(self):
-        pdata = self.image_data.point_data
+        pdata = self.data.point_data
         names = [pdata.get_array_name(n)
                  for n in xrange(pdata.number_of_arrays)]
         return names
@@ -201,21 +246,6 @@ class MasterSource(ArraySourceRGBA):
                             self.blended_channel)
         names = self.all_channels
         return [n for n in names if n in primary_channels]
-
-    ## The convention will be to have main_rgba be the primary array
-    ## in scalar_data. If main_rgba isn't present, then set it to
-    ## over_rgba (if present)
-
-    def _set_primary_scalars(self, arr, name):
-        if self.scalar_data is not None \
-               and self.scalar_data.size != arr.size:
-            self.flush_arrays()
-        rgba = quick_convert_rgba_to_vtk(arr)
-        self.scalar_data = rgba
-        self.scalar_name = name
-        self.origin = self.blender.img_origin
-        self.spacing = self.blender.img_spacing
-        self.update()
 
     @t.on_trait_change('blender.main_rgba')
     def _set_main_array(self):
@@ -232,7 +262,12 @@ class MasterSource(ArraySourceRGBA):
         print 'main rgba update', self.blender.main_rgba.size, self.blender.over_rgba.size
         # cases 1, 2, 5
         if self.blender.main_rgba.size:
-            self._set_primary_scalars(self.blender.main_rgba, self.main_channel)
+            self._change_primary_scalars(self.blender.main_rgba,
+                                         self.main_channel)
+
+        elif not self.blender.over_rgba.size:
+            #self.flush_arrays()
+            self.safe_remove_arrays()
 
         # cases 3, 4 will be triggered if and when over_rgba changes
 
@@ -245,41 +280,144 @@ class MasterSource(ArraySourceRGBA):
         # 2) main_rgba.size == 0
         print 'over rgba update', self.blender.over_rgba.size, self.blender.main_rgba.size
         if not self.blender.main_rgba.size and self.blender.over_rgba.size:
-            self._set_primary_scalars(
+            self._change_primary_scalars(
                 self.blender.over_rgba, self.over_channel
                 )
             return
         if not self.blender.over_rgba.size:
-            self.flush_arrays(names=[self.over_channel, self.blended_channel])
+            #self.flush_arrays(names=[self.over_channel, self.blended_channel])
+            self.safe_remove_arrays(names=[self.over_channel,
+                                           self.blended_channel])
             return
         elif self.blender.over_rgba.size != self.blender.main_rgba.size:
             # this should always be prevented in the BlendedImages class
             raise RuntimeError('Color channel sizes do not match')
 
         # otherwise, append/set a new array with over_channel tag
+        updating = True #self.over_channel not in self.all_channels
+
         self.set_new_array(
             self.blender.over_rgba, self.over_channel, update=False
             )        
         # this obviously also changes the blended array
         self.set_new_array(
-            self.blender.blended_rgba, self.blended_channel, update=True
+            self.blender.blended_rgba, self.blended_channel, update=updating
             )
 
-    def flush_arrays(self, names=[], update=True):
-        pdata = self.image_data.point_data
-        if not names:
-            names = [pdata.get_array_name(n)
-                     for n in xrange(pdata.number_of_arrays)]
-        for n in names:
-            pdata.remove_array(n)
-        if update:
-            self.image_data.update()
-            self.image_data.update_traits()
-            self.data_changed = True
-            self.update()
+    def _data_changed(self, old, new):
+        print 'data_changed triggered'
+        print 'should set aa.input to new:', type(new)
+        super(MasterSource, self)._data_changed(old, new)
+        print self._assign_attribute.input, self._assign_attribute.output
 
+    def _push_changes(self):
+        # this should be called when..
+        # * arrays are added/removed
+        print 'pushing pipeline changes'
+        
+        # XXX: not sure how many of these are necessary!
+##         self.data.update()
+##         self.data.point_data.update_traits()
+##         self.data.modified()
+##         self._data_changed(self.data, self.data)
+        
+##         self.data_changed = True
+##         self.update()
+        # this one definitely needed --
+        # but WHY does it sometimes need to happen twice?
+        self._update_data()
+        self.pipeline_changed = True
+##         self.pipeline_changed = True
+        
+
+    ## The convention will be to have main_rgba be the primary array
+    ## in scalar_data. If main_rgba isn't present, then set it to
+    ## over_rgba (if present)
+
+    def _change_primary_scalars(self, arr, name):
+        """
+
+        Parameters
+        ----------
+
+        arr: ndarray, shape (Nx, Ny, Nz, 4)
+           If this is going in as primary scalars, it is definitely an RGBA
+           vector array provided by a BlendedImages. Therefore is needs to
+           be reshaped to C-order (Nz, Ny, Nx, 4)
+
+        name: str
+           array label
+        """
+        pd = self.data.point_data
+        if pd.scalars is not None \
+               and pd.scalars.size != arr.size:
+            #self.flush_arrays(update=False)
+            self.safe_remove_arrays()
+        rgba = quick_convert_rgba_to_vtk(arr)
+        xyz_shape = rgba.shape[:3]
+        flat_shape = (np.prod(xyz_shape), 4)
+        dataset = self.data
+
+        # set the scalars and name
+        print 'setting up scalars with name', name
+        self.set_new_array(rgba, name, update=False)
+##         pd.scalars = rgba.reshape(flat_shape)
+##         pd.scalars.name = name
+
+        # set the ImageData metadata
+        dataset.origin = self.blender.img_origin
+        dataset.spacing = self.blender.img_spacing
+        dataset.dimensions = xyz_shape[::-1]
+        dataset.extent = 0, xyz_shape[2]-1, 0, xyz_shape[1]-1, 0, xyz_shape[0]-1
+        dataset.update_extent = dataset.extent
+
+        dataset.number_of_scalar_components = 4
+        dataset.scalar_type = array_handler.get_vtk_array_type(arr.dtype)
+
+        dataset.update()
+        dataset.update_traits()
+        
+        self._push_changes()
+        self.point_scalars_name = name
+
+##     def flush_arrays(self, names=[], update=True):
+##         pdata = self.data.point_data
+##         if not names:
+##             names = [pdata.get_array_name(n)
+##                      for n in xrange(pdata.number_of_arrays)]
+##         for n in names:
+##             pdata.remove_array(n)
+##         if update:
+##             self._push_changes()
+
+    @disable_render
+    def safe_remove_arrays(self, names=[]):
+        if not names:
+            names = self.all_channels
+        for name in names:
+            # 1st, determine if the name is being used by any child
+            l = [self]
+            while l:
+                # dequeue the 1st node
+                node = l.pop(0)
+                if hasattr(node, 'children') and node.children:
+                    # enqueue the children nodes
+                    l += node.children
+                # examine this node
+                used_name = getattr(node, 'point_scalars_name', None)
+                if used_name == name:
+                    node.point_scalars_name = ''
+            # now remove the array safely
+            self.data.point_data.remove_array(name)
+
+        self.data.modified()
+        self._update_data()
+        self.pipeline_changed = True
+
+    @disable_render
     def set_new_array(self, arr, name, update=True):
         """
+        Sets up a new point data channel in this object's ImageData
 
         Parameters
         ----------
@@ -292,7 +430,7 @@ class MasterSource(ArraySourceRGBA):
           name of the array
         
         """
-        pdata = self.image_data.point_data
+        pdata = self.data.point_data
         if len(arr.shape) > 2:
             if len(arr.shape) > 3:
                 flat_arr = arr.reshape(np.prod(arr.shape[:3]), 4)
@@ -307,10 +445,7 @@ class MasterSource(ArraySourceRGBA):
             n = pdata.add_array(flat_arr)
             pdata.get_array(n).name = name
         if update:
-            self.image_data.update()
-            # this one definitely needed
-            self.pipeline_changed = True
-            self.pipeline_changed = True
+            self._push_changes()
 
     
         

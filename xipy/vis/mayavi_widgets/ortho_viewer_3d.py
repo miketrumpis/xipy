@@ -24,7 +24,7 @@ from xipy.colors.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
 from xipy.vis.mayavi_widgets import VisualComponent
-from xipy.colors.mayavi_tools import MasterSource
+from xipy.colors.mayavi_tools import MasterSource, disable_render
 
 def three_plane_pt(n1, n2, n3, x1, x2, x3):
     nm = np.array((n1,n2,n3)).T
@@ -66,7 +66,7 @@ class OrthoViewer3D(HasTraits):
     _planes_function = Instance(
         tvtk.Planes, args=(),
         kw=dict(points=[ (0,0,0), (0,0,0), (0,0,0) ],
-                normals=[ (1,0,0), (0,1,0), (0,0,1) ])
+                normals=[ (-1,0,0), (0,-1,0), (0,0,-1) ])
         )
     _volume_function = Instance(tvtk.ImplicitVolume, ())
     info = Instance(Text)
@@ -140,9 +140,10 @@ class OrthoViewer3D(HasTraits):
         ipw.use_lookup_table = False
         ipw.ipw.reslice_interpolate = 0 # hmmm?
         return ipw
-    
+
+    @disable_render
     def add_plots_to_scene(self):
-        self._stop_scene()
+##         self._stop_scene()
         for ax in ('x', 'y', 'z'):
             ipw = self.make_ipw(ax)
 
@@ -168,7 +169,7 @@ class OrthoViewer3D(HasTraits):
                 self._handle_end_interaction
                 )
 
-        self._start_scene()
+##         self._start_scene()
 
     def _ipw_x(self, axname):
         return getattr(self, 'ipw_%s'%axname, None)
@@ -214,18 +215,19 @@ class OrthoViewer3D(HasTraits):
         nz = self.ipw_z.ipw.normal; cz = self.ipw_z.ipw.center
         return three_plane_pt(nx, ny, nz, cx, cy, cz)
 
+    @disable_render
     def _snap_to_position(self, pos):
         if self._ipw_x('x') is None:
             return
         print 'snapping to', pos
-        self._stop_scene()
+##         self._stop_scene()
         anames = ('x', 'y', 'z')
         pd = dict(zip( anames, pos ))
         for ax in anames:
             ipw = self._ipw_x(ax).ipw
             ipw.plane_orientation='%s_axes'%ax
             ipw.slice_position = pd[ax]
-        self._start_scene()
+##         self._start_scene()
 
     def _register_position(self, pos):
         if self.func_man:
@@ -251,15 +253,15 @@ class OrthoViewer3D(HasTraits):
     #---------------------------------------------------------------------------
     # Scene update methods
     #---------------------------------------------------------------------------
-    def _stop_scene(self):
-        self._restore_render_mode = self.scene.disable_render
-        self.scene.disable_render = True
-    def _start_scene(self):
-        # by default, restore disable_render mode to False
-        prev_mode = getattr(self, '_restore_render_mode', False)
-        self.scene.disable_render = prev_mode
-        if not prev_mode:
-            self.scene.render_window.render()
+##     def _stop_scene(self):
+##         self._restore_render_mode = self.scene.disable_render
+##         self.scene.disable_render = True
+##     def _start_scene(self):
+##         # by default, restore disable_render mode to False
+##         prev_mode = getattr(self, '_restore_render_mode', False)
+##         self.scene.disable_render = prev_mode
+##         if not prev_mode:
+##             self.scene.render_window.render()
 
     def toggle_planes_visible(self, value):
 ##         self._toggle_poly_extractor_mode(cut_mode=value)
@@ -283,6 +285,7 @@ class OrthoViewer3D(HasTraits):
         self.scene.picker.pointpicker.add_observer('EndPickEvent',
                                                    self.pick_callback)
         self.scene.picker.show_gui = False
+        self.scene.disable_render = False
 
 
     def pick_callback(self, picker_obj, evt):

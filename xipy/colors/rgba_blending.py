@@ -252,8 +252,14 @@ class BlendedArrays(t_ui.HasTraits):
 
 vtk_ax_order = [2,1,0]
 
+# XXX: change to quick_convert_rgba_to_vtk_order
 def quick_convert_rgba_to_vtk(arr):
     new_shape = arr.shape[:3][::-1] + (4,)
+    arr_t = np.ravel(arr.transpose(), order='F').reshape(new_shape)
+    return arr_t
+
+def quick_convert_rgba_to_vtk_array(arr):
+    new_shape = (np.prod(arr.shape[:3]), 4)
     arr_t = np.ravel(arr.transpose(), order='F').reshape(new_shape)
     return arr_t
 

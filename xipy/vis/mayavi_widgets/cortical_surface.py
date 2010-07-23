@@ -26,7 +26,8 @@ component_to_surf = dict( ( (v,u) for u,v in surf_to_component.iteritems() ) )
 
 class CorticalSurfaceComponent(VisualComponent):
 
-    _available_surfaces = Property(depends_on='display.blender.over')
+    _available_surfaces = Property(
+        depends_on='display.blender.over, display.blender.main')
     show_cortex = Bool(False)
     surface_component = Enum(values='_available_surfaces')
     cutout = Bool(False)
@@ -48,7 +49,7 @@ class CorticalSurfaceComponent(VisualComponent):
                       '_planes_function', '_volume_function'):
             self.add_trait(trait, DelegatesTo('display'))
         if not self._volume_function.volume:
-            self._volume_function.volume = self.master_src.image_data
+            self._volume_function.volume = self.master_src.data
         self.poly_extractor.implicit_function = self._volume_function
 
     @cached_property
@@ -62,8 +63,11 @@ class CorticalSurfaceComponent(VisualComponent):
             return
         elif not hasattr(self, 'cortical_surf') or not self.cortical_surf:
             self.add_cortical_surf()
-        self.cortical_surf.visible = self.show_cortex
-
+##         self.cortical_surf.visible = self.show_cortex
+        if not self.show_cortex:
+            self.bcontour.stop()
+        else:
+            self.bcontour.start()
     @on_trait_change('surface_component')
     def _change_surf_color(self):
         if not hasattr(self, 'surf_colors'):
@@ -98,11 +102,12 @@ class CorticalSurfaceComponent(VisualComponent):
         
         # the data from blender should be guaranteed to be in the correct
         # order.....
-        n = self.master_src.image_data.point_data.add_array(
-            np.ravel(arr_blurred)
-            )
-        self.master_src.image_data.point_data.get_array(n).name = 'blurred'
-        
+##         n = self.master_src.image_data.point_data.add_array(
+##             np.ravel(arr_blurred)
+##             )
+##         self.master_src.image_data.point_data.get_array(n).name = 'blurred'
+
+        self.master_src.set_new_array(np.ravel(arr_blurred), 'blurred')
 
         anat_blurred = mlab.pipeline.set_active_attribute(
             self.master_src, point_scalars='blurred'
@@ -127,7 +132,7 @@ class CorticalSurfaceComponent(VisualComponent):
             figure=self.display.scene.mayavi_scene
             )
         self.cortical_surf.actor.property.backface_culling = True
-
+        self.bcontour = contour
 ##         self.cortical_surf.enable_contours = True
 ##         self.cortical_surf.contour.filled_contours = True
 ##         self.cortical_surf.contour.auto_contours = True
@@ -147,7 +152,7 @@ class CorticalSurfaceComponent(VisualComponent):
             self.poly_extractor.implicit_function = self._planes_function
         else:
             if not self._volume_function.volume:
-                self._volume_function.volume = self.master_src.image_data
+                self._volume_function.volume = self.master_src.data
             self.poly_extractor.implicit_function = self._volume_function
         
         self.poly_extractor.extract_inside = not cut_mode
