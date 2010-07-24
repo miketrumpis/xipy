@@ -311,7 +311,8 @@ class OrthoViewer3D(HasTraits):
                      editor=SceneEditor(scene_class=MayaviScene),
                      height=600, width=900),
                 show_labels=False,
-                dock='vertical'
+                dock='vertical',
+                springy=True
                 ),
             HGroup(
                 Item('vis_helpers', style='custom',

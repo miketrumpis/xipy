@@ -31,12 +31,16 @@ class MayaviWidget(TopLevelAuxiliaryWindow):
             traits['func_man'] = functional_manager
         from xipy.vis.mayavi_widgets.ortho_viewer_3d import OrthoViewer3D
         self.mr_vis = OrthoViewer3D(manage_overlay=manage_overlay, **traits)
-        layout.addWidget(self.mr_vis.edit_traits(parent=self,
-                                                 kind='subpanel').control)
+        vis_panel = self.mr_vis.edit_traits(parent=self,
+                                            kind='subpanel').control
+        layout.addWidget(vis_panel)
         self.func_widget = None
         self.layout_box = layout
         if functional_manager is not None:
             self.add_toolbar(functional_manager)
+        QtGui.QWidget.setSizePolicy(vis_panel,
+                                    QtGui.QSizePolicy.Expanding,
+                                    QtGui.QSizePolicy.Expanding)
         self.setObjectName('3D Plot')
 
     def add_toolbar(self, functional_manager):

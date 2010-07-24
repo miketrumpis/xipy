@@ -9,7 +9,7 @@ from nipy.neurospin.utils.emp_null import ENN
 # Enthought library
 from enthought.traits.api import on_trait_change, Bool, Enum, Property, \
      DelegatesTo, cached_property
-from enthought.traits.ui.api import View, Item, Group
+from enthought.traits.ui.api import View, Item, HGroup, Group, Label
 from enthought.mayavi import mlab
 from enthought.mayavi.sources.array_source import ArraySource
 from enthought.tvtk.api import tvtk
@@ -34,11 +34,17 @@ class CorticalSurfaceComponent(VisualComponent):
     surface_component = Enum(values='_available_surfaces')
     cutout = Bool(False)
     view = View(
-        Group(
-            Item('show_cortex', label='Show Cortical Surface'),
-            Item('surface_component', label='Surface Colors'),
-            Item('cutout', label='Cut-out Mode',
-                 enabled_when='object.show_cortex')
+        HGroup(
+            Group(
+                Item('show_cortex', label='Show Cortical Surface'),
+                Item('surface_component', label='Surface Colors'),
+                Item('cutout', label='Cut-out Mode',
+                     enabled_when='object.show_cortex')
+                ),
+            Group(
+                Label('Caution! Are you sure that this image is skull '\
+                      'stripped using BET?')
+                )
             )
         )
     # ------------------------------------------------------------------------
