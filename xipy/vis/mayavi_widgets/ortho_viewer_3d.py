@@ -275,7 +275,7 @@ class OrthoViewer3D(HasTraits):
         for ax in ('x', 'y', 'z'):
             ipw = self._ipw_x(ax) #getattr(self, 'ipw_%s'%ax, False)
             if ipw:
-                ipw.visible = value            
+                ipw.visible = value
             
     #---------------------------------------------------------------------------
     # Scene activation callbacks 

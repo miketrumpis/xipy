@@ -2,6 +2,7 @@ from PyQt4 import QtGui
 import numpy as np
 
 from xipy.overlay.interface import OverlayWindowInterface, OverlayInterface
+from xipy.slicing import xipy_ras
 
 import nipy.core.api as ni_api
 
@@ -39,7 +40,7 @@ class SimpleManager(OverlayInterface):
         affine = np.diag([2,2,2,1])
         affine[:3,-1] = -30, -30, -30
         coordmap = ni_api.AffineTransform.from_params(
-            'ijk', ni_api.ras_output_coordnames, affine
+            'ijk', xipy_ras, affine
             )
         image = ni_api.Image(new_data, coordmap)
         self.notify_image_change(image)

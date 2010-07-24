@@ -60,7 +60,6 @@ class mini_track_feature(t_api.HasTraits):
             tracks = self.tracks
 ##             colors = np.hstack((self.colors, np.ones((len(self.colors), 1)) ))
             colors = self.colors
-        self.mayavi_win._stop_scene()
 
         if self.track_lines:
             self.track_lines.remove()
@@ -82,11 +81,9 @@ class mini_track_feature(t_api.HasTraits):
         self.lsurf.actor.property.line_width = 1
         self.lsurf.actor.property.opacity = .5
 ##         self.lsurf.render()
-        self.mayavi_win._start_scene()
 ##         if self.track_lines:
 ##             self.mayavi_win.scene.remove_actor(self.track_lines)
 ##         self.mayavi_win.scene.add_actor(track_lines)
-##         self.mayavi_win._start_scene()
         
 
     view = tui_api.View(
@@ -112,16 +109,6 @@ if __name__=='__main__':
             src.origin = [-50,-50,-50]
             src.spacing = [10,10,10]
             mlab.pipeline.image_plane_widget(src, figure=self.fig)
-
-        def _stop_scene(self):
-            self._render_mode = self.scene.disable_render
-            self.scene.disable_render = True
-        def _start_scene(self):
-            mode = getattr(self, '_render_mode', True)
-            self.scene.disable_render = mode
-            if not mode:
-                self.scene.render_window.render()
-
         
     class pick_handler(picker.PickHandler):
         def __init__(self, mayavi_window, track_plotter, **traits):
@@ -138,15 +125,12 @@ if __name__=='__main__':
                 self.highlight_track(data.cell_id)
 
         def restore_tracks(self):
-            self.mwin._stop_scene()
             while self.picked_lines:
                 line = self.picked_lines.pop()
                 line.remove()
             self.tman.lsurf.actor.property.opacity = .5
-            self.mwin._start_scene()
 
         def highlight_track(self, cell_id):
-            #self.mwin._stop_scene()
             p = self.mwin.scene.camera.position
             trk = self.tman.tracks[cell_id]
             rgb = self.tman.colors[cell_id]
@@ -161,7 +145,6 @@ if __name__=='__main__':
             lsurf.actor.property.opacity = 1
             self.tman.lsurf.actor.property.opacity = .01
             #self.mwin.scene.camera.position = p
-            #self.mwin._start_scene()
             lsurf.render()
             self.mwin.scene.render()
             

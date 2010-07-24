@@ -140,5 +140,7 @@ class ImageBlendingComponent(VisualComponent):
             self.display.add_plots_to_scene()
         elif not ipwx.visible:
             self.display.toggle_planes_visible(True)
+
+        self.display.scene.render()
  
             

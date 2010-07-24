@@ -263,7 +263,6 @@ class MasterSource(VTKDataSource):
         # 5) from 0 to size 1
 
 
-        print 'main rgba update', self.blender.main_rgba.size, self.blender.over_rgba.size
         # cases 1, 2, 5
         if self.blender.main_rgba.size:
             self._change_primary_scalars(self.blender.main_rgba,
@@ -281,7 +280,6 @@ class MasterSource(VTKDataSource):
         # cases
         # 1) main_rgba.size > 0
         # 2) main_rgba.size == 0
-        print 'over rgba update', self.blender.over_rgba.size, self.blender.main_rgba.size
         if not self.blender.main_rgba.size and self.blender.over_rgba.size:
             self._change_primary_scalars(
                 self.blender.over_rgba, self.over_channel
@@ -310,11 +308,8 @@ class MasterSource(VTKDataSource):
     def _push_changes(self):
         # this should be called when..
         # * arrays are added/removed
-        print 'foo1'
         self._update_data()
-        print 'foo2'
         self.pipeline_changed = True
-        print 'foo3'
         self.colors_changed = True
 ##         self.pipeline_changed = True
         
@@ -357,7 +352,6 @@ class MasterSource(VTKDataSource):
         dataset = self.data
 
         # set the scalars and name
-        print 'setting up scalars with name', name
         self.set_new_array(rgba, name, update=False)
 ##         pd.scalars = rgba.reshape(flat_shape)
 ##         pd.scalars.name = name
