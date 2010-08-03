@@ -16,6 +16,14 @@ def browse_multiple_files(parent, dialog='Select File(s)', wildcard=''):
                                                 )
     return [str(fn) for fn in fnames]
 
+def get_saveas_file(parent, dialog='Select File to Save', wildcard=''):
+    fname = QtGui.QFileDialog.getSaveFileName(parent,
+                                              dialog, 
+                                              QtCore.QDir.currentPath(),
+                                              wildcard
+                                              )
+    return str(fname)
+
 class FakeMPLEvent(object):
     def __init__(self, c, a, x, y):
         self.canvas = c
