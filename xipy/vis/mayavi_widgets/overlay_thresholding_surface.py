@@ -108,7 +108,9 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         bi.trait_setq(**mappings)
         
         bi.over = self.display.blender.over
-        vtk_arr = quick_convert_rgba_to_vtk(bi.over_rgba)
+        # these don't need to be re-strided? I'm confused
+##         vtk_arr = quick_convert_rgba_to_vtk(bi.over_rgba)
+        vtk_arr = bi.over_rgba
         self.func_src.spacing = bi.img_spacing
         self.func_src.origin = bi.img_origin
         self.func_src.scalar_data = vtk_arr
@@ -119,10 +121,12 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
         # alpha is 0, the overlay is invisible in all visualizations
         over_mask = np.clip(bi.over_rgba[...,3], 0, 1)
         mask = pdata.get_array('over_mask')
+##         over_mask_vtk = np.ravel(np.transpose(over_mask), order='F')
+        over_mask_vtk = np.ravel(over_mask)
         if mask:
-            mask.from_array(np.ravel(over_mask))
+            mask.from_array(over_mask_vtk)
         else:
-            n = pdata.add_array(np.ravel(over_mask))
+            n = pdata.add_array(over_mask_vtk)
             pdata.get_array(n).name = 'over_mask'
             self.mask_channel = mlab.pipeline.set_active_attribute(
                 self.func_src, point_scalars='over_mask'

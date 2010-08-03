@@ -151,9 +151,10 @@ class OrthoViewer3D(HasTraits):
 
     @disable_render
     def add_plots_to_scene(self):
-        data_shape = self.master_src.data.extent[::2]
-        p_idx = [data_shape[d]/4 for d in [0,1,2]]
+        data_shape = self.master_src.data.dimensions
+        p_idx = [data_shape[d]/4. for d in [0,1,2]]
         p_vox = self.blender.coordmap(p_idx)
+        print 'initial vox position:', p_vox
         for ax in ('x', 'y', 'z'):
             print self.principle_plane_colors.outputs[0].origin
             ipw = self.make_ipw(ax)
@@ -296,6 +297,7 @@ class OrthoViewer3D(HasTraits):
                                                    self.pick_callback)
         self.scene.picker.show_gui = False
         self.scene.disable_render = False
+        self.scene.camera.position = 500, 300, 300
 
 
     def pick_callback(self, picker_obj, evt):
