@@ -139,6 +139,7 @@ class OrthoViewer3D(HasTraits):
     # Construct ImplicitPlaneWidget plots
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
+        self.master_src.pipeline_changed = True
         ipw = image_plane_widget_rgba(
             self.principle_plane_colors,
             figure=self.scene.mayavi_scene,
@@ -150,14 +151,16 @@ class OrthoViewer3D(HasTraits):
 
     @disable_render
     def add_plots_to_scene(self):
-##         self._stop_scene()
+        data_shape = self.master_src.data.extent[::2]
+        p_idx = [data_shape[d]/4 for d in [0,1,2]]
+        p_vox = self.blender.coordmap(p_idx)
         for ax in ('x', 'y', 'z'):
+            print self.principle_plane_colors.outputs[0].origin
             ipw = self.make_ipw(ax)
-
+            print self.principle_plane_colors.outputs[0].origin
             # position the image plane widget at an unobtrusive cut
             dim = self._axis_index[ax]
-            data_shape = self.master_src.data.extent[::2]
-            ipw.ipw.slice_position = data_shape[dim]/4
+            ipw.ipw.slice_position = p_vox[dim]
             # switch actions here
             ipw.ipw.middle_button_action = 2
             ipw.ipw.right_button_action = 0
@@ -176,7 +179,6 @@ class OrthoViewer3D(HasTraits):
                 self._handle_end_interaction
                 )
 
-##         self._start_scene()
 
     def _ipw_x(self, axname):
         return getattr(self, 'ipw_%s'%axname, None)
@@ -237,6 +239,7 @@ class OrthoViewer3D(HasTraits):
 ##         self._start_scene()
 
     def _register_position(self, pos):
+        print 'registering pos', pos
         if self.func_man:
             self.func_man.world_position = pos
 ##         self.master_src.update()        
