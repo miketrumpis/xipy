@@ -2,11 +2,13 @@
 import numpy as np
 
 from enthought.tvtk.api import tvtk
-from enthought.tvtk import array_handler
+from enthought.tvtk.array_handler import get_vtk_array_type
 import enthought.mayavi.sources.api as src_api
 from enthought.traits.api import Trait, Instance, CInt, Range, Enum
 from enthought.mayavi.modules.image_plane_widget import ImagePlaneWidget
-from enthought.mayavi.tools.modules import DataModuleFactory
+from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
+from enthought.mayavi.tools.modules import ImagePlaneWidgetFactory
+from enthought.mayavi.tools.filters import SetActiveAttributeFactory
 from enthought.mayavi.tools.pipe_base import make_function
 
 import enthought.traits.api as t
@@ -99,7 +101,7 @@ class ArraySourceRGBA(src_api.ArraySource):
         img_data.point_data.scalars.name = self.scalar_name
         # This is very important and if not done can lead to a segfault!
         typecode = data.dtype
-        img_data.scalar_type = array_handler.get_vtk_array_type(typecode)
+        img_data.scalar_type = get_vtk_array_type(typecode)
         img_data.update() # This sets up the extents correctly.
         img_data.update_traits()
         self.change_information_filter.update()
@@ -163,22 +165,11 @@ class ImagePlaneWidget_RGBA(ImagePlaneWidget):
             self.ipw.color_map.lookup_table = None
         self.render()
 
-class ImagePlaneWidgetFactory_RGBA(DataModuleFactory):
+class ImagePlaneWidgetFactory_RGBA(ImagePlaneWidgetFactory):
     """ Applies the ImagePlaneWidget mayavi module to the given data
         source (Mayavi source, or VTK dataset). 
     """
     _target = Instance(ImagePlaneWidget_RGBA, ())
-
-    slice_index = CInt(0, adapts='ipw.slice_index',
-                        help="""The index along wich the
-                                            image is sliced.""")
-
-    plane_opacity = Range(0.0, 1.0, 1.0, adapts='ipw.plane_property.opacity',
-                    desc="""the opacity of the plane actor.""")
-
-    plane_orientation = Enum('x_axes', 'y_axes', 'z_axes',
-                        adapts='ipw.plane_orientation',
-                        desc="""the orientation of the plane""")
 
 image_plane_widget_rgba = make_function(ImagePlaneWidgetFactory_RGBA)
 
@@ -297,6 +288,7 @@ class MasterSource(VTKDataSource):
         # otherwise, append/set a new array with over_channel tag
         updating = True #self.over_channel not in self.all_channels
 
+        print 'should update over rgba, blended rgba'
         self.set_new_array(
             self.blender.over_rgba, self.over_channel, update=False
             )        
@@ -351,10 +343,6 @@ class MasterSource(VTKDataSource):
         flat_shape = (np.prod(xyz_shape), 4)
         dataset = self.data
 
-        # set the scalars and name
-        self.set_new_array(rgba, name, update=False)
-##         pd.scalars = rgba.reshape(flat_shape)
-##         pd.scalars.name = name
 
         # set the ImageData metadata
         dataset.origin = self.blender.img_origin
@@ -364,7 +352,12 @@ class MasterSource(VTKDataSource):
         dataset.update_extent = dataset.extent
 
         dataset.number_of_scalar_components = 4
-        dataset.scalar_type = array_handler.get_vtk_array_type(arr.dtype)
+        dataset.scalar_type = get_vtk_array_type(arr.dtype)
+
+        # set the scalars and name
+        self.set_new_array(rgba, name, update=False)
+##         pd.scalars = rgba.reshape(flat_shape)
+##         pd.scalars.name = name
 
         dataset.update()
         dataset.update_traits()
@@ -431,7 +424,90 @@ class MasterSource(VTKDataSource):
             self._push_changes()
 
     
+    # -------- BUG FIX??
+    def _update_data(self):
+        if self.data is None:
+            return
+        pnt_attr, cell_attr = get_all_attributes(self.data)
         
+        def _setup_data_traits(obj, attributes, d_type):
+            """Given the object, the dict of the attributes from the
+            `get_all_attributes` function and the data type
+            (point/cell) data this will setup the object and the data.
+            """
+            attrs = ['scalars', 'vectors', 'tensors']
+            aa = obj._assign_attribute
+            data = getattr(obj.data, '%s_data'%d_type)
+            for attr in attrs:
+                values = attributes[attr]
+                values.append('')
+                setattr(obj, '_%s_%s_list'%(d_type, attr), values)
+                if len(values) > 1:
+                    default = getattr(obj, '%s_%s_name'%(d_type, attr))
+                    if obj._first and len(default) == 0:
+                        default = values[0]
+                    getattr(data, 'set_active_%s'%attr)(default)
+                    aa.assign(default, attr.upper(),
+                              d_type.upper() +'_DATA')
+                    aa.update()
+                    kw = {'%s_%s_name'%(d_type, attr): default,
+                          'trait_change_notify': False}
+                    obj.set(**kw)
+
+        _setup_data_traits(self, pnt_attr, 'point')
+        _setup_data_traits(self, cell_attr, 'cell')
+
+
+        pd = self.data.point_data
+        scalars = pd.scalars
+        if self.data.is_a('vtkImageData') and scalars is not None:
+            # For some reason getting the range of the scalars flushes
+            # the data through to prevent some really strange errors
+            # when using an ImagePlaneWidget.
+            r = scalars.range
+            self._assign_attribute.output.scalar_type = scalars.data_type
+            self.data.scalar_type = scalars.data_type
+            self._assign_attribute.output.update_traits()
+##             self.data.update_traits()
+
+        if self._first:
+            self._first = False
+        # Propagate the data changed event.
+        self.data_changed = True    
+
+# -------- FIX TO SET_ACTIVE_ATTRIBUTE??
+
+class SetImageActiveAttribute(SetActiveAttribute):
+
+    def _setup_output(self):
+        idata = self.inputs[0].outputs[0]
+        odata = self.outputs[0]
+        if idata.is_a('vtkImageData') and odata.is_a('vtkImageData'):
+            for dt in ('point', 'cell'):
+                scalars_name = getattr(self, dt+'_scalars_name')
+                input_data = getattr(idata, dt+'_data', None)
+                if input_data is not None:
+                    input_scalars = input_data.scalars
+                    if input_scalars and input_scalars.name == scalars_name:
+                        print 'setting dtype'
+                        odata.scalar_type = input_scalars.data_type
+
+    def update_data(self):
+        print 'setting up output from update_data'
+        self._setup_output()
+        SetActiveAttribute.update_data(self)
+    
+    def update_pipeline(self):
+##         super(SetImageActiveAttribute, self).update_pipeline()
+        SetActiveAttribute.update_pipeline(self)
+        print 'setting up output from update_pipeline'
+        self._setup_output()
         
-        
-        
+class SetImageActiveAttributeFactory(SetActiveAttributeFactory):
+    """ Applies the SetActiveAttribute Filter mayavi filter to the given 
+    VTK object.
+    """
+    _target = Instance(SetImageActiveAttribute, ())
+
+
+set_image_active_attribute = make_function(SetImageActiveAttributeFactory)

@@ -33,7 +33,8 @@ class MayaviViewer(XIPYWindowApp):
         self.mayavi_widget.add_toolbar(plugin_tool.func_man)
 
     def _update_plugin_args(self):
-        # this is it so far!
+        # Don't connect any Qt level signal/slots -- this widget is
+        # all hooked up with Traits notification
         self._plugin_args = ( (), (), (), self.image.bbox )
         self._plugin_kwargs['main_ref'] = self
 
