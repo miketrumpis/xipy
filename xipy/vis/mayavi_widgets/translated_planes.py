@@ -10,11 +10,12 @@ import enthought.traits.ui.api as tui
 
 from enthought.tvtk.api import tvtk
 from enthought.mayavi import mlab
-
-from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
+## from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
 
 # XIPY imports
 from xipy.colors.mayavi_tools import image_plane_widget_rgba
+from xipy.colors.mayavi_tools import SetImageActiveAttribute, \
+     set_image_active_attribute
 from xipy.vis.mayavi_widgets import VisualComponent
 
 axis_to_index = dict( zip('xyz', [0,1,2]) )
@@ -36,7 +37,7 @@ class TranslatedPlanes(VisualComponent):
 ##     surface_component = t.Enum(values='_available_surfaces')
 
     # active_attribute filter to sit on top of the master source
-    aa = SetActiveAttribute()
+    aa = SetImageActiveAttribute()
     color_chan = t.Str
     # Volume box
     bbox = t.Property
@@ -75,7 +76,7 @@ class TranslatedPlanes(VisualComponent):
         for trait in ('master_src',):
             self.add_trait(trait, t.DelegatesTo('display'))
         
-        self.aa = mlab.pipeline.set_active_attribute(self.master_src)
+        self.aa = set_image_active_attribute(self.master_src)
         self.sync_trait('color_chan', self.aa, alias='point_scalars_name')
         #self._point_scalars_list = t.DelegatesTo('aa')
 
@@ -91,6 +92,9 @@ class TranslatedPlanes(VisualComponent):
         self.set(trait_change_notify=not quiet,
                  mx=state, my=state, mz=state, ma=state)
 
+    def has_plane(self, axis):
+        return hasattr(self, 'm_ipw_%s'%axis)
+
     @t.on_trait_change('mx, my, mz, ma')
     def toggle_planes(self, obj, name, value):
         # hacky
@@ -99,23 +103,30 @@ class TranslatedPlanes(VisualComponent):
             state = getattr(self, name)
             print 'setting all states to', state
             self.__all_set(state)
-##             self.trait_setq(mx=state, my=state, mz=state)
             bools = (self.mx, self.my, self.mz)
         else:
             axes = name[1]
             bools = ( getattr(self, name), )
         for ax, state in zip(axes, bools):
             if state:
+                if self.has_plane(ax):
+                    print 'already has plane for', ax
+                    continue
                 print 'adding plane to pipeline'
                 try:
                     self.add_fixed_plane(ax)
                 except RuntimeError:
-                    self.__all_set(False)
-                    return
+                    print 'Error setting up plane', ax
+                    tname = 'm'+ax
+                    self.set(trait_change_notify=False,
+                             **dict(( (tname, False), )))
+                    continue
             else:
+                if not self.has_plane(ax):
+                    print ax, 'plane already gone'
+                    continue
                 print 'removing resliced image from pipeline'
-                r_img = getattr(self, 'resliced_img_%s'%ax)
-                r_img.remove()
+                self.remove_fixed_plane(ax)
             self.setup_listener(ax, state)
 
     @t.on_trait_change('offset')
@@ -181,3 +192,11 @@ class TranslatedPlanes(VisualComponent):
         m_ipw.ipw.slice_position = w0
         setattr(self, 'm_ipw_%s'%axis, m_ipw)
         setattr(self, 'resliced_img_%s'%axis, resliced_img)
+
+    def remove_fixed_plane(self, axis):
+        r_image = getattr(self, 'resliced_img_%s'%axis, None)
+        if not r_image:
+            return
+        r_image.remove()
+        delattr(self, 'resliced_img_%s'%axis)
+        delattr(self, 'm_ipw_%s'%axis)
