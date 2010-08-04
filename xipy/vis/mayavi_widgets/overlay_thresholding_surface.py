@@ -112,7 +112,8 @@ class OverlayThresholdingSurfaceComponent(VisualComponent):
 ##         vtk_arr = quick_convert_rgba_to_vtk(bi.over_rgba)
         vtk_arr = bi.over_rgba
         self.func_src.spacing = bi.img_spacing
-        self.func_src.origin = bi.img_origin
+        # XXX!!! TRANSLATING HACK
+##         self.func_src.origin = bi.img_origin
         self.func_src.scalar_data = vtk_arr
 
         pdata = self.func_src.image_data.point_data

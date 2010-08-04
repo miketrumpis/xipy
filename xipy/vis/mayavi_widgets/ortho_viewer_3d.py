@@ -153,7 +153,8 @@ class OrthoViewer3D(HasTraits):
     def add_plots_to_scene(self):
         data_shape = self.master_src.data.dimensions
         p_idx = [data_shape[d]/4. for d in [0,1,2]]
-        p_vox = self.blender.coordmap(p_idx)
+        # TRANSLATING IN
+        p_vox = self.blender.coordmap(p_idx) - self.blender.img_origin
         print 'initial vox position:', p_vox
         for ax in ('x', 'y', 'z'):
             print self.principle_plane_colors.outputs[0].origin
@@ -212,7 +213,13 @@ class OrthoViewer3D(HasTraits):
     def _handle_end_interaction(self, widget, event):
         if self.__reposition_planes_after_interaction:
             pos_ijk = widget.GetCurrentCursorPosition()
+            print 'cursor pos:', pos_ijk
+            # index ijk backwards since the blender coordmap
+            # is forced to link xyz <--> kji
             pos = self.blender.coordmap(pos_ijk[::-1])
+            # will this work to fix vtk 5.4.2 bug??
+            # TRANSLATING IN
+            pos -= self.blender.img_origin
             self._snap_to_position(pos)
             self.__reposition_planes_after_interaction = False
         else:
@@ -240,6 +247,8 @@ class OrthoViewer3D(HasTraits):
 ##         self._start_scene()
 
     def _register_position(self, pos):
+        # TRANSLATING OUT
+        pos += self.blender.img_origin
         print 'registering pos', pos
         if self.func_man:
             self.func_man.world_position = pos
@@ -250,7 +259,9 @@ class OrthoViewer3D(HasTraits):
 
     @on_trait_change('func_man.world_position_updated')
     def _follow_functional_position(self):
-        self._snap_to_position(self.func_man.world_position)
+        # TRANSLATING IN
+        pos = self.func_man.world_position - self.blender.img_origin
+        self._snap_to_position(pos)
     
     @on_trait_change('func_man, func_man.overlay_updated')
     def _update_functional_info(self):

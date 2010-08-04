@@ -121,7 +121,8 @@ class CorticalSurfaceComponent(VisualComponent):
         anat_blurred = ArraySource(transpose_input_array=False)
         anat_blurred.scalar_data = arr_blurred
         anat_blurred.scalar_name = 'blurred'
-        anat_blurred.origin = self.master_src.data.origin
+        # XXX: TRANSLATING HACK!!!!
+##         anat_blurred.origin = self.master_src.data.origin
         anat_blurred.spacing = self.master_src.data.spacing
         anat_blurred = mlab.pipeline.add_dataset(anat_blurred)
         
