@@ -85,7 +85,11 @@ class TranslatedPlanes(VisualComponent):
 ##         return [component_to_surf[ch] for ch in self.master_src.rgba_channels]
 
     def _get_bbox(self):
-        return self.master_src.blender.bbox
+        # XXX: TRANSLATING HACK!
+        box_ext = np.array(self.master_src.blender.image_arr.shape[:3])
+        box_ext *= np.abs(self.master_src.blender.coordmap.affine.diagonal()[:3])
+        return zip( (0, 0, 0), box_ext )
+##         return self.master_src.blender.bbox
 
     def __all_set(self, state, quiet=True):
         self.set(trait_change_notify=not quiet,
