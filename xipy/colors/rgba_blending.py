@@ -18,7 +18,8 @@ from _blend_pix import resample_and_blend, resize_lookup_array
 from _blend_pix import *
 import xipy.colors.color_mapping as cm
 import xipy.volume_utils as vu
-from xipy.slicing.image_slicers import ResampledIndexVolumeSlicer, SAG, COR, AXI
+from xipy.slicing.image_slicers import ResampledIndexVolumeSlicer, \
+     SAG, COR, AXI, xipy_ras
 
 def blend_two_images(base_img, base_cmap, base_alpha,
                      over_img, over_cmap, over_alpha):
@@ -331,7 +332,7 @@ class BlendedImages(BlendedArrays, ResampledIndexVolumeSlicer):
         self.bbox = [ (-10.,10.) ] * 3
         self.grid_spacing = np.array([1.]*3)
         self.coordmap = ni_api.AffineTransform.from_start_step(
-            'ijk', 'xyz', np.array([-10]*3), np.ones(3)
+            'ijk', xipy_ras, np.array([-10]*3), np.ones(3)
             )
         # THIS IS TRULY AWFUL!
         self._ax_lookup = dict( zip(range(3), range(3)) )
