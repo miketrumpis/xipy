@@ -10,12 +10,10 @@ import enthought.traits.ui.api as tui
 
 from enthought.tvtk.api import tvtk
 from enthought.mayavi import mlab
-## from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
+from enthought.mayavi.filters.set_active_attribute import SetActiveAttribute
 
 # XIPY imports
 from xipy.colors.mayavi_tools import image_plane_widget_rgba
-from xipy.colors.mayavi_tools import SetImageActiveAttribute, \
-     set_image_active_attribute
 from xipy.vis.mayavi_widgets import VisualComponent
 
 axis_to_index = dict( zip('xyz', [0,1,2]) )
@@ -37,7 +35,7 @@ class TranslatedPlanes(VisualComponent):
 ##     surface_component = t.Enum(values='_available_surfaces')
 
     # active_attribute filter to sit on top of the master source
-    aa = SetImageActiveAttribute()
+    aa = SetActiveAttribute()
     color_chan = t.Str
     # Volume box
     bbox = t.Property
@@ -76,14 +74,10 @@ class TranslatedPlanes(VisualComponent):
         for trait in ('master_src',):
             self.add_trait(trait, t.DelegatesTo('display'))
         
-        self.aa = set_image_active_attribute(self.master_src)
+        # XXX: appears broken
+##         self.aa = set_image_active_attribute(self.master_src)
+        self.aa = mlab.pipeline.set_active_attribute(self.master_src)
         self.sync_trait('color_chan', self.aa, alias='point_scalars_name')
-        #self._point_scalars_list = t.DelegatesTo('aa')
-
-##     # XXX: commmon usage in cortical surface component
-##     @t.cached_property
-##     def _get__available_surfaces(self):
-##         return [component_to_surf[ch] for ch in self.master_src.rgba_channels]
 
     def _get_bbox(self):
         return self.master_src.blender.bbox
