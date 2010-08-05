@@ -19,8 +19,7 @@ from enthought.mayavi import mlab
 # XIPY imports
 from xipy.slicing.image_slicers import VolumeSlicerInterface
 from xipy.overlay.interface import OverlayInterface
-from xipy.colors.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba, \
-     set_image_active_attribute
+from xipy.colors.mayavi_tools import ArraySourceRGBA, image_plane_widget_rgba
 from xipy.colors.rgba_blending import BlendedImages
 import xipy.volume_utils as vu
 
@@ -127,8 +126,8 @@ class OrthoViewer3D(HasTraits):
         self.sync_trait('blender', s, mutual=False)
         return mlab.pipeline.add_dataset(s, figure=self.scene.mayavi_scene)
     def _principle_plane_colors_default(self):
-        return set_image_active_attribute(self.master_src)
-##         return mlab.pipeline.set_active_attribute(self.master_src)
+##         return set_image_active_attribute(self.master_src)
+        return mlab.pipeline.set_active_attribute(self.master_src)
     def _func_man_default(self):
         return OverlayInterface()
     def _info_default(self):
@@ -141,7 +140,7 @@ class OrthoViewer3D(HasTraits):
     # Construct ImplicitPlaneWidget plots
     #---------------------------------------------------------------------------
     def make_ipw(self, axis_name):
-        self.master_src.pipeline_changed = True
+##         self.master_src.pipeline_changed = True
         ipw = image_plane_widget_rgba(
             self.principle_plane_colors,
             figure=self.scene.mayavi_scene,
